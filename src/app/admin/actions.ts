@@ -181,13 +181,25 @@ export async function salvarCargo(formData: FormData): Promise<void> {
   const id = idNum(formData.get("id"));
   const nome = String(formData.get("nome") ?? "").trim();
   if (!nome) throw new Error("Dê um nome ao cargo");
-  const setorId = idNum(formData.get("setor_id"));
+  const setorIdForm = idNum(formData.get("setor_id"));
+  const setorNovo = limpo(formData.get("setor_novo"));
   const descricao = limpo(formData.get("descricao"));
   // Cargo só concede (view/edit); 'none' = não faz parte do cargo.
   const secoes = lerSecoes(formData).filter((s) => s.nivel !== "none");
   const grupos = formData.getAll("grupos").map((g) => Number(g)).filter(Number.isInteger);
 
   await comTransacao(async (q) => {
+    // Setor digitado que não existe: cria na hora (upsert por nome).
+    let setorId = setorIdForm;
+    if (setorId == null && setorNovo) {
+      const { rows } = await q(
+        `insert into setor (nome) values ($1)
+         on conflict (nome) do update set nome = excluded.nome returning id`,
+        [setorNovo]
+      );
+      setorId = rows[0].id as number;
+    }
+
     let cargoId = id;
     if (id != null) {
       await q(`update cargo set nome = $2, setor_id = $3, descricao = $4 where id = $1`, [

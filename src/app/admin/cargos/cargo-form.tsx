@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { PermissaoMatriz, type NivelForm } from "@/components/admin/permissao-matriz";
+import { ComboCriavel } from "@/components/admin/combo-criavel";
 import { salvarCargo, excluirCargo } from "../actions";
 import type { CargoDetalhe, SetorOpcao, GrupoResumo } from "../dados";
 
@@ -33,17 +34,15 @@ export function CargoForm({
           <span className="text-xs font-medium text-ink-2">Nome do cargo</span>
           <input name="nome" required defaultValue={cargo?.nome ?? ""} className={input} placeholder="Ex.: Analista Contábil" />
         </label>
-        <label className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-ink-2">Setor</span>
-          <select name="setor_id" defaultValue={cargo?.setor_id ?? ""} className={input}>
-            <option value="">Sem setor</option>
-            {setores.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.nome}
-              </option>
-            ))}
-          </select>
-        </label>
+          <ComboCriavel
+            name="setor"
+            opcoes={setores}
+            inicial={setores.find((s) => s.id === cargo?.setor_id) ?? null}
+            placeholder="Buscar ou criar setor…"
+          />
+        </div>
         <label className="flex flex-col gap-1.5 sm:col-span-2">
           <span className="text-xs font-medium text-ink-2">Descrição (opcional)</span>
           <input name="descricao" defaultValue={cargo?.descricao ?? ""} className={input} placeholder="Para que serve este cargo" />
