@@ -21,11 +21,17 @@ export function ComboCriavel({
   opcoes,
   inicial,
   placeholder = "Buscar ou criar…",
+  criavel = true,
+  onChange,
 }: {
   name: string;
   opcoes: Opcao[];
   inicial?: Opcao | null;
   placeholder?: string;
+  /** Quando false, vira só busca (não oferece "Criar"). */
+  criavel?: boolean;
+  /** Avisa o pai da escolha (opção existente, ou novo nome, ou nada). */
+  onChange?: (opcao: Opcao | null, novo: string | null) => void;
 }) {
   const [texto, setTexto] = useState(inicial?.nome ?? "");
   const [selId, setSelId] = useState<number | null>(inicial?.id ?? null);
@@ -45,16 +51,19 @@ export function ComboCriavel({
     setNovo(null);
     setTexto(o.nome);
     setAberto(false);
+    onChange?.(o, null);
   };
   const criar = () => {
     setNovo(texto.trim());
     setSelId(null);
     setAberto(false);
+    onChange?.(null, texto.trim());
   };
   const limparTudo = () => {
     setTexto("");
     setSelId(null);
     setNovo(null);
+    onChange?.(null, null);
   };
   const aoDigitar = (v: string) => {
     setTexto(v);
@@ -107,7 +116,7 @@ export function ComboCriavel({
               <span className="flex-1 truncate">{o.nome}</span>
             </button>
           ))}
-          {q && !casaExato && (
+          {criavel && q && !casaExato && (
             <button
               type="button"
               onMouseDown={(e) => e.preventDefault()}
@@ -119,7 +128,12 @@ export function ComboCriavel({
             </button>
           )}
           {filtradas.length === 0 && !q && (
-            <p className="px-3 py-2 text-sm text-muted">Digite para buscar ou criar</p>
+            <p className="px-3 py-2 text-sm text-muted">
+              {criavel ? "Digite para buscar ou criar" : "Digite para buscar"}
+            </p>
+          )}
+          {filtradas.length === 0 && q && !criavel && (
+            <p className="px-3 py-2 text-sm text-muted">Nenhum encontrado</p>
           )}
         </div>
       )}

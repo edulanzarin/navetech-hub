@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { MODULOS, secoesDoModulo } from "@/lib/modulos";
 import { PermissaoMatriz, type NivelForm } from "@/components/admin/permissao-matriz";
 import { EmpresaPicker } from "@/components/admin/empresa-picker";
+import { ComboCriavel } from "@/components/admin/combo-criavel";
 import { salvarUsuario, excluirUsuario } from "../actions";
 import type { UsuarioDetalhe, CargoOpcao, GrupoResumo, EmpresaOpcao } from "../dados";
 import { AvatarCampo } from "./avatar-campo";
@@ -89,18 +90,27 @@ export function UsuarioForm({
           <span className="text-xs font-medium text-ink-2">Email</span>
           <input name="email" type="email" required defaultValue={usuario?.email ?? ""} className={input} />
         </label>
-        <label className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-ink-2">Cargo</span>
-          <select name="cargo_id" value={cargoId} onChange={(e) => trocarCargo(e.target.value)} className={input}>
-            <option value="">Sem cargo</option>
-            {cargos.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nome}
-                {c.setorNome ? ` · ${c.setorNome}` : ""}
-              </option>
-            ))}
-          </select>
-        </label>
+          <ComboCriavel
+            name="cargo"
+            criavel={false}
+            opcoes={cargos.map((c) => ({
+              id: c.id,
+              nome: c.setorNome ? `${c.nome} · ${c.setorNome}` : c.nome,
+            }))}
+            inicial={
+              usuario?.cargo_id != null
+                ? {
+                    id: usuario.cargo_id,
+                    nome: usuario.setorNome ? `${usuario.cargoNome} · ${usuario.setorNome}` : usuario.cargoNome ?? "",
+                  }
+                : null
+            }
+            placeholder="Buscar cargo…"
+            onChange={(sel) => trocarCargo(sel ? String(sel.id) : "")}
+          />
+        </div>
         <label className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-ink-2">Telefone</span>
           <input name="telefone" defaultValue={usuario?.telefone ?? ""} className={input} placeholder="(00) 00000-0000" />
