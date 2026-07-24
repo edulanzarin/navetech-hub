@@ -5,6 +5,7 @@ import { AlertTriangle, Copy, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import clsx from "clsx";
 import { ListaModal } from "@/components/lista-modal";
+import { ComboCriavel } from "@/components/ui/combo-criavel";
 import { useEmpresas, useReplicarPreview } from "@/hooks/use-api";
 import { num } from "@/lib/format";
 import type { ReplicarItem, ReplicarResp } from "@/lib/types";
@@ -114,24 +115,20 @@ export function ReplicarModal({
         <label className="text-xs text-muted" htmlFor="replicar-destino">
           Destino
         </label>
-        <select
-          id="replicar-destino"
-          value={destino ?? ""}
-          onChange={(e) => {
-            setDestino(e.target.value ? Number(e.target.value) : null);
-            setDesmarcados(new Set());
-          }}
-          className="max-w-xs rounded-lg border border-hairline bg-surface-2 px-2.5 py-1.5 text-xs text-ink outline-none"
-        >
-          <option value="">Escolher empresa…</option>
-          {(empresas ?? [])
-            .filter((e) => e.codigo !== origem)
-            .map((e) => (
-              <option key={e.codigo} value={e.codigo}>
-                {e.codigo} · {e.nome}
-              </option>
-            ))}
-        </select>
+        <div className="w-72">
+          <ComboCriavel
+            name="replicar-destino"
+            criavel={false}
+            opcoes={(empresas ?? [])
+              .filter((e) => e.codigo !== origem)
+              .map((e) => ({ id: e.codigo, nome: `${e.codigo} · ${e.nome}` }))}
+            placeholder="Escolher empresa…"
+            onChange={(sel) => {
+              setDestino(sel ? sel.id : null);
+              setDesmarcados(new Set());
+            }}
+          />
+        </div>
         {destino != null && replicaveis.length > 0 && (
           <button
             onClick={() =>

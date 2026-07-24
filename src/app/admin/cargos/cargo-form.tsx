@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { PermissaoMatriz, type NivelForm } from "@/components/admin/permissao-matriz";
-import { ComboCriavel } from "@/components/admin/combo-criavel";
+import { ComboCriavel } from "@/components/ui/combo-criavel";
 import { salvarCargo, excluirCargo } from "../actions";
 import type { CargoDetalhe, SetorOpcao, GrupoResumo } from "../dados";
 

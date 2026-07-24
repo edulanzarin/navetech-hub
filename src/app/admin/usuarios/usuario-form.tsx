@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { MODULOS, secoesDoModulo } from "@/lib/modulos";
 import { PermissaoMatriz, type NivelForm } from "@/components/admin/permissao-matriz";
 import { EmpresaPicker } from "@/components/admin/empresa-picker";
-import { ComboCriavel } from "@/components/admin/combo-criavel";
+import { ComboCriavel } from "@/components/ui/combo-criavel";
 import { salvarUsuario, excluirUsuario } from "../actions";
 import type { UsuarioDetalhe, CargoOpcao, GrupoResumo, EmpresaOpcao } from "../dados";
 import { AvatarCampo } from "./avatar-campo";
