@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronLeft, LogOut, ShieldCheck, Users } from "lucide-react";
+import { Briefcase, Building2, ChevronLeft, Layers, LogOut, Users } from "lucide-react";
 import { assertAdmin } from "@/lib/sessao";
 import { sair } from "@/app/login/actions";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -36,8 +36,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <Users className="size-4 shrink-0" />
             Usuários
           </Link>
+          <Link href="/admin/cargos" className={link}>
+            <Briefcase className="size-4 shrink-0" />
+            Cargos
+          </Link>
+          <Link href="/admin/setores" className={link}>
+            <Building2 className="size-4 shrink-0" />
+            Setores
+          </Link>
           <Link href="/admin/grupos" className={link}>
-            <ShieldCheck className="size-4 shrink-0" />
+            <Layers className="size-4 shrink-0" />
             Grupos de empresa
           </Link>
         </nav>
