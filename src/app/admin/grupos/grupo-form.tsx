@@ -1,10 +1,11 @@
+import { EmpresaPicker } from "@/components/admin/empresa-picker";
 import { salvarGrupo, excluirGrupo } from "../actions";
 import type { GrupoDetalhe, EmpresaOpcao } from "../dados";
 
 const input =
   "h-10 rounded-lg border border-hairline bg-surface px-3 text-sm text-ink outline-none placeholder:text-muted focus:border-ent/50";
 
-/** Cria ou edita um grupo de empresas (nome + seleção). Form sobre Server Action. */
+/** Cria ou edita um grupo de empresas (nome + seleção pesquisável). Server Action. */
 export function GrupoForm({
   grupo,
   empresas,
@@ -21,21 +22,12 @@ export function GrupoForm({
         <input name="nome" required defaultValue={grupo?.nome ?? ""} className={input} placeholder="Ex.: Carteira Sul" />
       </label>
 
-      <div>
+      <div className="max-w-2xl">
         <h2 className="text-sm font-semibold">Empresas do grupo</h2>
-        <p className="mt-0.5 text-xs text-muted">Ctrl/Shift para selecionar várias.</p>
-        <select
-          name="empresas"
-          multiple
-          defaultValue={(grupo?.empresas ?? []).map(String)}
-          className="mt-3 h-80 w-full max-w-2xl rounded-lg border border-hairline bg-surface p-2 text-sm text-ink outline-none focus:border-ent/50"
-        >
-          {empresas.map((e) => (
-            <option key={e.codigo} value={e.codigo}>
-              {e.codigo} · {e.nome}
-            </option>
-          ))}
-        </select>
+        <p className="mt-0.5 text-xs text-muted">Busque e marque as empresas desta carteira.</p>
+        <div className="mt-3">
+          <EmpresaPicker name="empresas" empresas={empresas} inicial={grupo?.empresas ?? []} />
+        </div>
       </div>
 
       <div className="flex items-center justify-between border-t border-hairline pt-4">

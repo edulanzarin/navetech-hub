@@ -49,9 +49,10 @@ export const getSessaoOpcional = cache(async (): Promise<Sessao | null> => {
     email: string;
     admin: boolean;
     todas_empresas: boolean;
+    cargo_id: number | null;
     tem_avatar: boolean;
   }>(
-    `select u.id, u.nome, u.email, u.admin, u.todas_empresas,
+    `select u.id, u.nome, u.email, u.admin, u.todas_empresas, u.cargo_id,
             exists (select 1 from usuario_avatar a where a.usuario_id = u.id) as tem_avatar
        from sessao s
        join usuario u on u.id = s.usuario_id
@@ -60,13 +61,27 @@ export const getSessaoOpcional = cache(async (): Promise<Sessao | null> => {
   );
   if (!u) return null;
 
-  const secoesRows = await appQuery<{ modulo: string; secao: string; nivel: Nivel }>(
+  // Seções: base herdada do cargo, com o override individual por cima —
+  // 'none' NEGA uma seção que o cargo concede; view/edit adiciona ou eleva.
+  const secoes: Record<string, Nivel> = {};
+  if (u.cargo_id != null) {
+    const base = await appQuery<{ modulo: string; secao: string; nivel: Nivel }>(
+      `select modulo, secao, nivel from cargo_secao where cargo_id = $1`,
+      [u.cargo_id]
+    );
+    for (const r of base) secoes[chaveSecao(r.modulo, r.secao)] = r.nivel;
+  }
+  const override = await appQuery<{ modulo: string; secao: string; nivel: "none" | Nivel }>(
     `select modulo, secao, nivel from usuario_secao where usuario_id = $1`,
     [u.id]
   );
-  const secoes: Record<string, Nivel> = {};
-  for (const r of secoesRows) secoes[chaveSecao(r.modulo, r.secao)] = r.nivel;
+  for (const r of override) {
+    const k = chaveSecao(r.modulo, r.secao);
+    if (r.nivel === "none") delete secoes[k];
+    else secoes[k] = r.nivel;
+  }
 
+  // Empresas: união do grupo do cargo + grupos do usuário + empresas avulsas.
   let permitidas: number[] = [];
   if (!u.todas_empresas) {
     const emp = await appQuery<{ codigoempresa: number }>(
@@ -75,8 +90,13 @@ export const getSessaoOpcional = cache(async (): Promise<Sessao | null> => {
        select i.codigoempresa
          from usuario_grupo g
          join empresa_grupo_item i on i.grupo_id = g.grupo_id
-        where g.usuario_id = $1`,
-      [u.id]
+        where g.usuario_id = $1
+       union
+       select i.codigoempresa
+         from cargo_grupo cg
+         join empresa_grupo_item i on i.grupo_id = cg.grupo_id
+        where cg.cargo_id = $2`,
+      [u.id, u.cargo_id]
     );
     permitidas = emp.map((e) => e.codigoempresa);
   }

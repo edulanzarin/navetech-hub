@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { appPool } from "@/lib/app-db";
+import { appPool, appQuery } from "@/lib/app-db";
 import { hashSenha } from "@/lib/auth";
 import { assertAdmin } from "@/lib/sessao";
 import { MODULOS, secoesDoModulo } from "@/lib/modulos";
@@ -13,6 +13,32 @@ function secoesValidas(): Set<string> {
   for (const m of MODULOS) for (const sec of secoesDoModulo(m.id)) s.add(`${m.id}/${sec.id}`);
   return s;
 }
+
+type NivelForm = "none" | "view" | "edit";
+
+/** Lê os rádios "sec:<modulo>:<secao>" do form, só as chaves válidas. */
+function lerSecoes(formData: FormData): { modulo: string; secao: string; nivel: NivelForm }[] {
+  const validas = secoesValidas();
+  const out: { modulo: string; secao: string; nivel: NivelForm }[] = [];
+  for (const [k, v] of formData.entries()) {
+    if (!k.startsWith("sec:")) continue;
+    const nivel = String(v);
+    if (nivel !== "none" && nivel !== "view" && nivel !== "edit") continue;
+    const [, modulo, secao] = k.split(":");
+    if (validas.has(`${modulo}/${secao}`)) out.push({ modulo, secao, nivel });
+  }
+  return out;
+}
+
+const limpo = (v: FormDataEntryValue | null): string | null => {
+  const s = String(v ?? "").trim();
+  return s || null;
+};
+
+const idNum = (v: FormDataEntryValue | null): number | null => {
+  const n = Number(v);
+  return Number.isInteger(n) && n > 0 ? n : null;
+};
 
 type Q = (sql: string, p?: unknown[]) => Promise<{ rows: Record<string, unknown>[] }>;
 
@@ -40,13 +66,8 @@ export async function salvarUsuario(formData: FormData): Promise<void> {
   const nome = String(formData.get("nome") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const senha = String(formData.get("senha") ?? "");
-  const limpo = (v: FormDataEntryValue | null) => {
-    const s = String(v ?? "").trim();
-    return s || null;
-  };
-  const cargo = limpo(formData.get("cargo"));
-  const setor = limpo(formData.get("setor"));
   const telefone = limpo(formData.get("telefone"));
+  const cargoId = idNum(formData.get("cargo_id"));
   const ativo = formData.get("ativo") === "on";
   const admin = formData.get("admin") === "on";
   const todasEmpresas = admin || formData.get("todas_empresas") === "on";
@@ -65,17 +86,20 @@ export async function salvarUsuario(formData: FormData): Promise<void> {
     avatar = { mime: arquivo.type, bytes: Buffer.from(await arquivo.arrayBuffer()) };
   }
 
-  // Perfil por seção: chaves "sec:<modulo>:<secao>" com valor view|edit (none
-  // = ausente). Só as chaves válidas entram.
-  const validas = secoesValidas();
-  const perfis: { modulo: string; secao: string; nivel: string }[] = [];
-  for (const [k, v] of formData.entries()) {
-    if (!k.startsWith("sec:")) continue;
-    const nivel = String(v);
-    if (nivel !== "view" && nivel !== "edit") continue;
-    const [, modulo, secao] = k.split(":");
-    if (validas.has(`${modulo}/${secao}`)) perfis.push({ modulo, secao, nivel });
+  // Base do cargo escolhido: só guardamos usuario_secao quando o nível pedido
+  // DIFERE do que o cargo já concede (delta). Igual = herda, sem linha.
+  const base: Record<string, NivelForm> = {};
+  if (cargoId != null) {
+    const rows = await appQuery<{ modulo: string; secao: string; nivel: "view" | "edit" }>(
+      `select modulo, secao, nivel from cargo_secao where cargo_id = $1`,
+      [cargoId]
+    );
+    for (const r of rows) base[`${r.modulo}/${r.secao}`] = r.nivel;
   }
+  const overrides = lerSecoes(formData).filter((s) => {
+    const herdado = base[`${s.modulo}/${s.secao}`] ?? "none";
+    return s.nivel !== herdado; // só o que difere do cargo vira override
+  });
 
   const grupos = formData.getAll("grupos").map((g) => Number(g)).filter(Number.isInteger);
   const empresas = formData.getAll("empresas").map((e) => Number(e)).filter(Number.isInteger);
@@ -86,19 +110,19 @@ export async function salvarUsuario(formData: FormData): Promise<void> {
     let usuarioId = id;
     if (id) {
       await q(
-        `update usuario set nome = $2, email = $3, cargo = $4, setor = $5, telefone = $6,
-                ativo = $7, admin = $8, todas_empresas = $9
-           ${senhaHash ? ", senha_hash = $10" : ""}
+        `update usuario set nome = $2, email = $3, telefone = $4, cargo_id = $5,
+                ativo = $6, admin = $7, todas_empresas = $8
+           ${senhaHash ? ", senha_hash = $9" : ""}
          where id = $1`,
         senhaHash
-          ? [id, nome, email, cargo, setor, telefone, ativo, admin, todasEmpresas, senhaHash]
-          : [id, nome, email, cargo, setor, telefone, ativo, admin, todasEmpresas]
+          ? [id, nome, email, telefone, cargoId, ativo, admin, todasEmpresas, senhaHash]
+          : [id, nome, email, telefone, cargoId, ativo, admin, todasEmpresas]
       );
     } else {
       const { rows } = await q(
-        `insert into usuario (nome, email, cargo, setor, telefone, senha_hash, ativo, admin, todas_empresas)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9) returning id`,
-        [nome, email, cargo, setor, telefone, senhaHash, ativo, admin, todasEmpresas]
+        `insert into usuario (nome, email, telefone, cargo_id, senha_hash, ativo, admin, todas_empresas)
+         values ($1, $2, $3, $4, $5, $6, $7, $8) returning id`,
+        [nome, email, telefone, cargoId, senhaHash, ativo, admin, todasEmpresas]
       );
       usuarioId = rows[0].id as string;
     }
@@ -117,12 +141,12 @@ export async function salvarUsuario(formData: FormData): Promise<void> {
       );
     }
 
-    // Perfil, grupos e empresas: recria do zero (o form é a verdade completa).
+    // Overrides, grupos e empresas: recria do zero (o form é a verdade completa).
     await q(`delete from usuario_secao where usuario_id = $1`, [usuarioId]);
-    for (const p of perfis) {
+    for (const o of overrides) {
       await q(
         `insert into usuario_secao (usuario_id, modulo, secao, nivel) values ($1, $2, $3, $4)`,
-        [usuarioId, p.modulo, p.secao, p.nivel]
+        [usuarioId, o.modulo, o.secao, o.nivel]
       );
     }
     await q(`delete from usuario_grupo where usuario_id = $1`, [usuarioId]);
@@ -148,6 +172,88 @@ export async function excluirUsuario(formData: FormData): Promise<void> {
   }
   revalidatePath("/admin/usuarios");
   redirect("/admin/usuarios");
+}
+
+// -------------------------------------------------------------------- Cargos
+
+export async function salvarCargo(formData: FormData): Promise<void> {
+  await assertAdmin();
+  const id = idNum(formData.get("id"));
+  const nome = String(formData.get("nome") ?? "").trim();
+  if (!nome) throw new Error("Dê um nome ao cargo");
+  const setorId = idNum(formData.get("setor_id"));
+  const descricao = limpo(formData.get("descricao"));
+  // Cargo só concede (view/edit); 'none' = não faz parte do cargo.
+  const secoes = lerSecoes(formData).filter((s) => s.nivel !== "none");
+  const grupos = formData.getAll("grupos").map((g) => Number(g)).filter(Number.isInteger);
+
+  await comTransacao(async (q) => {
+    let cargoId = id;
+    if (id != null) {
+      await q(`update cargo set nome = $2, setor_id = $3, descricao = $4 where id = $1`, [
+        id,
+        nome,
+        setorId,
+        descricao,
+      ]);
+    } else {
+      const { rows } = await q(
+        `insert into cargo (nome, setor_id, descricao) values ($1, $2, $3) returning id`,
+        [nome, setorId, descricao]
+      );
+      cargoId = rows[0].id as number;
+    }
+    await q(`delete from cargo_secao where cargo_id = $1`, [cargoId]);
+    for (const s of secoes) {
+      await q(`insert into cargo_secao (cargo_id, modulo, secao, nivel) values ($1, $2, $3, $4)`, [
+        cargoId,
+        s.modulo,
+        s.secao,
+        s.nivel,
+      ]);
+    }
+    await q(`delete from cargo_grupo where cargo_id = $1`, [cargoId]);
+    for (const g of grupos) {
+      await q(`insert into cargo_grupo (cargo_id, grupo_id) values ($1, $2)`, [cargoId, g]);
+    }
+  });
+
+  revalidatePath("/admin/cargos");
+  redirect("/admin/cargos");
+}
+
+export async function excluirCargo(formData: FormData): Promise<void> {
+  await assertAdmin();
+  const id = idNum(formData.get("id"));
+  // Usuários com este cargo ficam sem cargo (FK on delete set null).
+  if (id != null) await appPool.query(`delete from cargo where id = $1`, [id]);
+  revalidatePath("/admin/cargos");
+  redirect("/admin/cargos");
+}
+
+// -------------------------------------------------------------------- Setores
+
+export async function salvarSetor(formData: FormData): Promise<void> {
+  await assertAdmin();
+  const id = idNum(formData.get("id"));
+  const nome = String(formData.get("nome") ?? "").trim();
+  if (!nome) throw new Error("Dê um nome ao setor");
+  if (id != null) {
+    await appPool.query(`update setor set nome = $2 where id = $1`, [id, nome]);
+  } else {
+    await appPool.query(`insert into setor (nome) values ($1)`, [nome]);
+  }
+  revalidatePath("/admin/setores");
+  redirect("/admin/setores");
+}
+
+export async function excluirSetor(formData: FormData): Promise<void> {
+  await assertAdmin();
+  const id = idNum(formData.get("id"));
+  // Cargos do setor ficam sem setor (FK on delete set null).
+  if (id != null) await appPool.query(`delete from setor where id = $1`, [id]);
+  revalidatePath("/admin/setores");
+  redirect("/admin/setores");
 }
 
 // -------------------------------------------------------------------- Grupos

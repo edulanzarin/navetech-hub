@@ -1,31 +1,76 @@
+"use client";
+
+import { useMemo, useState } from "react";
 import { MODULOS, secoesDoModulo } from "@/lib/modulos";
+import { PermissaoMatriz, type NivelForm } from "@/components/admin/permissao-matriz";
+import { EmpresaPicker } from "@/components/admin/empresa-picker";
 import { salvarUsuario, excluirUsuario } from "../actions";
-import type { UsuarioDetalhe, GrupoResumo, EmpresaOpcao } from "../dados";
+import type { UsuarioDetalhe, CargoOpcao, GrupoResumo, EmpresaOpcao } from "../dados";
 import { AvatarCampo } from "./avatar-campo";
 
 const input =
   "h-10 rounded-lg border border-hairline bg-surface px-3 text-sm text-ink outline-none placeholder:text-muted focus:border-ent/50";
 const check = "size-4 accent-[var(--ent)]";
 
+/** Todas as chaves "modulo/secao" dos módulos ativos — para recalcular a matriz. */
+const TODAS_SECOES: string[] = MODULOS.filter((m) => m.ativo).flatMap((m) =>
+  secoesDoModulo(m.id).map((s) => `${m.id}/${s.id}`)
+);
+
 /**
- * Cria ou edita um usuário: identidade, flags, perfil por SEÇÃO (matriz
- * none/view/edit) e escopo de empresa (grupos + extras). Form puro sobre Server
- * Action — a checagem admin mora na action. Admin já tem acesso total, então a
- * matriz é ignorada para ele (o texto avisa).
+ * Cria ou edita um usuário. O CARGO é a base (traz seções e grupos); a matriz
+ * abaixo é o AJUSTE individual por cima do cargo (só o que difere vira exceção).
+ * Admin tem acesso total — a matriz é ignorada para ele. Form client sobre Server
+ * Action; a checagem admin mora na action.
  */
 export function UsuarioForm({
   usuario,
+  cargos,
   grupos,
   empresas,
 }: {
   usuario: UsuarioDetalhe | null;
+  cargos: CargoOpcao[];
   grupos: GrupoResumo[];
   empresas: EmpresaOpcao[];
 }) {
-  const modulos = MODULOS.filter((m) => m.ativo);
+  const [cargoId, setCargoId] = useState<string>(usuario?.cargo_id ? String(usuario.cargo_id) : "");
+  const cargo = useMemo(() => cargos.find((c) => String(c.id) === cargoId) ?? null, [cargos, cargoId]);
+  const base = cargo?.secoes ?? {};
+
+  // Efetivo inicial = base do cargo + overrides do usuário (override vence).
+  const [escolha, setEscolha] = useState<Record<string, NivelForm>>(() => {
+    const eff: Record<string, NivelForm> = { ...(usuario ? {} : {}) };
+    const c = cargos.find((x) => x.id === usuario?.cargo_id);
+    if (c) for (const [k, v] of Object.entries(c.secoes)) eff[k] = v;
+    if (usuario) for (const [k, v] of Object.entries(usuario.overrides)) eff[k] = v;
+    return eff;
+  });
+  // Seções que o admin mexeu à mão: não são resetadas ao trocar de cargo.
+  const [tocado, setTocado] = useState<Set<string>>(new Set());
+
+  const [admin, setAdmin] = useState(usuario?.admin ?? false);
+
+  const trocarCargo = (novo: string) => {
+    setCargoId(novo);
+    const c = cargos.find((x) => String(x.id) === novo) ?? null;
+    setEscolha((prev) => {
+      const next: Record<string, NivelForm> = {};
+      for (const k of TODAS_SECOES) {
+        if (tocado.has(k)) next[k] = prev[k] ?? "none";
+        else next[k] = c?.secoes[k] ?? "none";
+      }
+      return next;
+    });
+  };
+
+  const mudarSecao = (chave: string, nivel: NivelForm) => {
+    setTocado((prev) => new Set(prev).add(chave));
+    setEscolha((prev) => ({ ...prev, [chave]: nivel }));
+  };
 
   return (
-    <form action={salvarUsuario} encType="multipart/form-data" className="flex flex-col gap-6">
+    <form action={salvarUsuario} className="flex flex-col gap-6">
       {usuario && <input type="hidden" name="id" value={usuario.id} />}
 
       <AvatarCampo
@@ -42,21 +87,19 @@ export function UsuarioForm({
         </label>
         <label className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-ink-2">Email</span>
-          <input
-            name="email"
-            type="email"
-            required
-            defaultValue={usuario?.email ?? ""}
-            className={input}
-          />
+          <input name="email" type="email" required defaultValue={usuario?.email ?? ""} className={input} />
         </label>
         <label className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-ink-2">Cargo</span>
-          <input name="cargo" defaultValue={usuario?.cargo ?? ""} className={input} placeholder="Ex.: Analista Fiscal" />
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-medium text-ink-2">Setor</span>
-          <input name="setor" defaultValue={usuario?.setor ?? ""} className={input} placeholder="Ex.: Fiscal" />
+          <select name="cargo_id" value={cargoId} onChange={(e) => trocarCargo(e.target.value)} className={input}>
+            <option value="">Sem cargo</option>
+            {cargos.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nome}
+                {c.setorNome ? ` · ${c.setorNome}` : ""}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-ink-2">Telefone</span>
@@ -83,7 +126,13 @@ export function UsuarioForm({
           Ativo
         </label>
         <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" name="admin" defaultChecked={usuario?.admin ?? false} className={check} />
+          <input
+            type="checkbox"
+            name="admin"
+            checked={admin}
+            onChange={(e) => setAdmin(e.target.checked)}
+            className={check}
+          />
           Administrador
         </label>
         <label className="flex items-center gap-2 text-sm">
@@ -97,86 +146,67 @@ export function UsuarioForm({
         </label>
       </section>
 
-      <section>
-        <h2 className="text-sm font-semibold">Acesso por seção</h2>
-        <p className="mt-0.5 text-xs text-muted">
-          Admin tem acesso total (a matriz abaixo é ignorada para ele).
+      {admin ? (
+        <p className="card px-4 py-3 text-sm text-muted">
+          Administrador tem acesso total — cargo, seções e empresas abaixo são ignorados para ele.
         </p>
-        <div className="mt-3 flex flex-col gap-5">
-          {modulos.map((m) => (
-            <div key={m.id}>
-              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
-                {m.titulo}
+      ) : (
+        <>
+          <section>
+            <h2 className="text-sm font-semibold">Acesso por seção</h2>
+            <p className="mt-0.5 text-xs text-muted">
+              A base vem do cargo. Marque abaixo só as <strong>exceções</strong> desta pessoa —
+              &quot;Sem acesso&quot; numa seção do cargo <strong>remove</strong> o acesso dela.
+            </p>
+            <div className="mt-3">
+              <PermissaoMatriz valor={escolha} onChange={mudarSecao} base={base} />
+            </div>
+          </section>
+
+          <section className="grid gap-5 sm:grid-cols-2">
+            <div>
+              <h2 className="text-sm font-semibold">Grupos de empresa</h2>
+              <p className="mt-0.5 text-xs text-muted">
+                Somam ao que o cargo já concede. Ignorados se &quot;vê todas&quot; estiver marcado.
               </p>
-              <div className="card divide-y divide-hairline">
-                {secoesDoModulo(m.id).map((s) => {
-                  const atual = usuario?.secoes[`${m.id}/${s.id}`];
-                  const nome = `sec:${m.id}:${s.id}`;
+              <div className="card mt-3 max-h-56 divide-y divide-hairline overflow-auto">
+                {grupos.length === 0 && (
+                  <p className="px-4 py-3 text-xs text-muted">Nenhum grupo criado.</p>
+                )}
+                {grupos.map((g) => {
+                  const noCargo = cargo?.grupos.includes(g.id) ?? false;
                   return (
-                    <div key={s.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
-                      <span className="text-sm">{s.rotulo}</span>
-                      <div className="flex gap-4 text-xs">
-                        {(["none", "view", "edit"] as const).map((op) => (
-                          <label key={op} className="flex items-center gap-1.5">
-                            <input
-                              type="radio"
-                              name={nome}
-                              value={op}
-                              defaultChecked={(atual ?? "none") === op}
-                              className={check}
-                            />
-                            {op === "none" ? "Sem acesso" : op === "view" ? "Ver" : "Editar"}
-                          </label>
-                        ))}
-                      </div>
-                    </div>
+                    <label key={g.id} className="flex items-center gap-2.5 px-4 py-2.5 text-sm">
+                      <input
+                        type="checkbox"
+                        name="grupos"
+                        value={g.id}
+                        defaultChecked={usuario?.grupos.includes(g.id) ?? false}
+                        className={check}
+                      />
+                      <span className="min-w-0 truncate">{g.nome}</span>
+                      {noCargo && (
+                        <span className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 text-[10px] text-muted">
+                          no cargo
+                        </span>
+                      )}
+                      <span className="ml-auto shrink-0 text-xs text-muted">{g.empresas} empresas</span>
+                    </label>
                   );
                 })}
               </div>
             </div>
-          ))}
-        </div>
-      </section>
 
-      <section className="grid gap-5 sm:grid-cols-2">
-        <div>
-          <h2 className="text-sm font-semibold">Grupos de empresa</h2>
-          <p className="mt-0.5 text-xs text-muted">Ignorados se &quot;vê todas&quot; estiver marcado.</p>
-          <div className="card mt-3 max-h-56 divide-y divide-hairline overflow-auto">
-            {grupos.length === 0 && <p className="px-4 py-3 text-xs text-muted">Nenhum grupo criado.</p>}
-            {grupos.map((g) => (
-              <label key={g.id} className="flex items-center gap-2.5 px-4 py-2.5 text-sm">
-                <input
-                  type="checkbox"
-                  name="grupos"
-                  value={g.id}
-                  defaultChecked={usuario?.grupos.includes(g.id) ?? false}
-                  className={check}
-                />
-                <span className="min-w-0 truncate">{g.nome}</span>
-                <span className="ml-auto shrink-0 text-xs text-muted">{g.empresas} empresas</span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <h2 className="text-sm font-semibold">Empresas avulsas</h2>
-          <p className="mt-0.5 text-xs text-muted">Extras além dos grupos (Ctrl/Shift para várias).</p>
-          <select
-            name="empresas"
-            multiple
-            defaultValue={(usuario?.empresas ?? []).map(String)}
-            className="mt-3 h-56 w-full rounded-lg border border-hairline bg-surface p-2 text-sm text-ink outline-none focus:border-ent/50"
-          >
-            {empresas.map((e) => (
-              <option key={e.codigo} value={e.codigo} className="rounded px-1 py-0.5">
-                {e.codigo} · {e.nome}
-              </option>
-            ))}
-          </select>
-        </div>
-      </section>
+            <div>
+              <h2 className="text-sm font-semibold">Empresas avulsas</h2>
+              <p className="mt-0.5 text-xs text-muted">Extras além dos grupos.</p>
+              <div className="mt-3">
+                <EmpresaPicker name="empresas" empresas={empresas} inicial={usuario?.empresas ?? []} />
+              </div>
+            </div>
+          </section>
+        </>
+      )}
 
       <div className="flex items-center justify-between border-t border-hairline pt-4">
         {usuario ? (

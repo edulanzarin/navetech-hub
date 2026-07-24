@@ -1,10 +1,14 @@
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
-import { listarGrupos, listarTodasEmpresas } from "../../dados";
+import { listarCargosParaForm, listarGrupos, listarTodasEmpresas } from "../../dados";
 import { UsuarioForm } from "../usuario-form";
 
 export default async function NovoUsuario() {
-  const [grupos, empresas] = await Promise.all([listarGrupos(), listarTodasEmpresas()]);
+  const [cargos, grupos, empresas] = await Promise.all([
+    listarCargosParaForm(),
+    listarGrupos(),
+    listarTodasEmpresas(),
+  ]);
   return (
     <div>
       <Link
@@ -14,7 +18,7 @@ export default async function NovoUsuario() {
         <ChevronLeft className="size-3.5" /> Usuários
       </Link>
       <h1 className="mt-2 mb-6 text-xl font-semibold tracking-tight">Novo usuário</h1>
-      <UsuarioForm usuario={null} grupos={grupos} empresas={empresas} />
+      <UsuarioForm usuario={null} cargos={cargos} grupos={grupos} empresas={empresas} />
     </div>
   );
 }
