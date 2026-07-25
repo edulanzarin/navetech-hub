@@ -15,7 +15,7 @@ export function PessoasTabela({
   recarregando,
 }: {
   dados: FolhaMovimentacao[];
-  onAbrir: (contrato: number) => void;
+  onAbrir: (m: FolhaMovimentacao) => void;
   altura?: string;
   recarregando?: boolean;
 }) {
@@ -35,8 +35,8 @@ export function PessoasTabela({
         <tbody>
           {dados.map((m) => (
             <tr
-              key={m.contrato}
-              onClick={() => onAbrir(m.contrato)}
+              key={`${m.codigoempresa}-${m.contrato}`}
+              onClick={() => onAbrir(m)}
               className="cursor-pointer border-b border-hairline/60 last:border-0 hover:bg-surface-2/50"
             >
               <td className="py-2.5 pr-3">

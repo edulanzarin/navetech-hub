@@ -6,23 +6,28 @@ import clsx from "clsx";
 import { TurnoverSerieChart } from "@/components/charts/turnover-serie-chart";
 import { RotatividadeQuebra } from "@/components/rotatividade-quebra";
 import { RotatividadeBarras } from "@/components/rotatividade-barras";
-import { FolhaFiltros } from "@/components/folha-filtros";
 import { FolhaMovimentacoes } from "@/components/folha-movimentacoes";
 import { PessoasModal, type Drill } from "@/components/folha-pessoas-modal";
-import { useFiltros } from "@/hooks/use-filters";
-import { useTurnover, useFolhaFiltros } from "@/hooks/use-api";
+import { useTurnover } from "@/hooks/use-api";
+import { EMPRESAS_RH, nomeEmpresaRh } from "@/lib/rh";
 import { deltaPct, num } from "@/lib/format";
-import {
-  FOLHA_SELECAO_VAZIA,
-  serializarFolhaSelecao,
-  type FolhaSelecao,
-} from "@/lib/folha-filtros";
+
+type FiltroEmpresa = "todas" | number;
 
 const pct = (v: number) => `${v.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`;
 const anos = (dias: number | null) =>
   dias == null ? "—" : `${(dias / 365).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} anos`;
 
-/** Delta vs período anterior. `sentido` diz qual direção é boa (cor). */
+/** ISO de hoje e de N meses atrás (para o período). */
+function isoHoje(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+function isoMesesAtras(n: number): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() - n);
+  return d.toISOString().slice(0, 10);
+}
+
 function Delta({
   atual,
   anterior,
@@ -71,10 +76,7 @@ function Kpi({
     <div className="card anim-fade-up flex flex-col gap-2 p-5">
       <div className="flex items-center justify-between">
         <p className="text-xs text-ink-2">{rotulo}</p>
-        <span
-          className={clsx("grid size-8 place-items-center rounded-lg", corIcone)}
-          style={estiloIcone}
-        >
+        <span className={clsx("grid size-8 place-items-center rounded-lg", corIcone)} style={estiloIcone}>
           {icone}
         </span>
       </div>
@@ -93,25 +95,22 @@ function Stat({ rotulo, valor, cor }: { rotulo: string; valor: string; cor?: str
   );
 }
 
-export default function RotatividadePage() {
-  const { qs, filtros } = useFiltros();
-  const empresa = filtros.empresas[0] ?? null;
+const PRESETS: { rotulo: string; meses: number }[] = [
+  { rotulo: "3 meses", meses: 3 },
+  { rotulo: "6 meses", meses: 6 },
+  { rotulo: "12 meses", meses: 12 },
+];
 
-  // Filtros avançados: resetam quando a empresa muda (são específicos dela).
-  // Ajuste de estado no render (padrão do React p/ derivar de prop) — o mesmo de
-  // useRascunhoFiltros; evita o setState-em-effect.
-  const [sel, setSel] = useState<FolhaSelecao>(FOLHA_SELECAO_VAZIA);
-  const [empresaSel, setEmpresaSel] = useState(empresa);
-  if (empresaSel !== empresa) {
-    setEmpresaSel(empresa);
-    setSel(FOLHA_SELECAO_VAZIA);
-  }
+export default function Conteudo() {
+  const [empresa, setEmpresa] = useState<FiltroEmpresa>("todas");
+  const [inicio, setInicio] = useState(() => isoMesesAtras(12));
+  const [fim, setFim] = useState(() => isoHoje());
+  const [presetAtivo, setPresetAtivo] = useState(12);
 
-  const qsCompleto = qs + serializarFolhaSelecao(sel);
+  const empresasParam = empresa === "todas" ? EMPRESAS_RH.join(",") : String(empresa);
+  const qs = `inicio=${inicio}&fim=${fim}&empresas=${empresasParam}`;
 
-  const opcoes = useFolhaFiltros(qs);
-  const turnover = useTurnover(qsCompleto);
-
+  const turnover = useTurnover(qs, true, "rh");
   const d = turnover.data;
   const c = d?.consolidado;
   const carregando = turnover.isLoading;
@@ -120,14 +119,84 @@ export default function RotatividadePage() {
   const motivos = useMemo(() => d?.motivos, [d]);
   const tenure = useMemo(() => d?.tenure, [d]);
 
-  // Drill: clicar em qualquer quebra abre as pessoas do grupo.
   const [drill, setDrill] = useState<Drill | null>(null);
-  const abrirDrill = (dim: string, valor: string, rotulo: string) =>
-    setDrill({ dim, valor, rotulo });
+  const abrirDrill = (dim: string, valor: string, rotulo: string) => setDrill({ dim, valor, rotulo });
+
+  const aplicarPreset = (meses: number) => {
+    setPresetAtivo(meses);
+    setInicio(isoMesesAtras(meses));
+    setFim(isoHoje());
+  };
+
+  const empresaSeg: { valor: FiltroEmpresa; rotulo: string }[] = [
+    { valor: "todas", rotulo: "Ambas" },
+    ...EMPRESAS_RH.map((cod) => ({ valor: cod as FiltroEmpresa, rotulo: nomeEmpresaRh(cod) })),
+  ];
 
   return (
     <>
-      <FolhaFiltros opcoes={opcoes.data} sel={sel} onChange={setSel} />
+      {/* Controles: empresa + período */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="inline-flex rounded-lg border border-hairline bg-surface p-0.5">
+          {empresaSeg.map((s) => (
+            <button
+              key={String(s.valor)}
+              onClick={() => setEmpresa(s.valor)}
+              className={clsx(
+                "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                empresa === s.valor ? "bg-surface-2 text-ink" : "text-muted hover:text-ink"
+              )}
+            >
+              {s.rotulo}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-lg border border-hairline bg-surface p-0.5">
+            {PRESETS.map((p) => (
+              <button
+                key={p.meses}
+                onClick={() => aplicarPreset(p.meses)}
+                className={clsx(
+                  "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                  presetAtivo === p.meses ? "bg-surface-2 text-ink" : "text-muted hover:text-ink"
+                )}
+              >
+                {p.rotulo}
+              </button>
+            ))}
+          </div>
+          <input
+            type="date"
+            value={inicio}
+            max={fim}
+            onChange={(e) => {
+              setInicio(e.target.value);
+              setPresetAtivo(0);
+            }}
+            className="h-8 rounded-lg border border-hairline bg-surface px-2 text-xs text-ink-2 outline-none focus:border-ink/30"
+          />
+          <span className="text-xs text-muted">até</span>
+          <input
+            type="date"
+            value={fim}
+            min={inicio}
+            max={isoHoje()}
+            onChange={(e) => {
+              setFim(e.target.value);
+              setPresetAtivo(0);
+            }}
+            className="h-8 rounded-lg border border-hairline bg-surface px-2 text-xs text-ink-2 outline-none focus:border-ink/30"
+          />
+        </div>
+      </div>
+
+      {turnover.error && (
+        <p className="text-sm text-critical">
+          {turnover.error instanceof Error ? turnover.error.message : "Falha ao carregar"}
+        </p>
+      )}
 
       {/* KPIs principais */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -140,18 +209,14 @@ export default function RotatividadePage() {
               icone={<Repeat className="size-4" style={{ color: "var(--esp-5)" }} />}
               estiloIcone={{ backgroundColor: "color-mix(in srgb, var(--esp-5) 12%, transparent)" }}
               valor={pct(c.turnover)}
-              secundario={
-                <Delta atual={c.turnover} anterior={d!.anterior.turnover} sentido="menorMelhor" />
-              }
+              secundario={<Delta atual={c.turnover} anterior={d!.anterior.turnover} sentido="menorMelhor" />}
             />
             <Kpi
               rotulo="Admissões"
               icone={<UserPlus className="size-4 text-good" />}
               corIcone="bg-good/12"
               valor={num(c.admissoes)}
-              secundario={
-                <Delta atual={c.admissoes} anterior={d!.anterior.admissoes} sentido="neutro" />
-              }
+              secundario={<Delta atual={c.admissoes} anterior={d!.anterior.admissoes} sentido="neutro" />}
             />
             <Kpi
               rotulo="Desligamentos"
@@ -159,11 +224,7 @@ export default function RotatividadePage() {
               corIcone="bg-critical/12"
               valor={num(c.desligamentos)}
               secundario={
-                <Delta
-                  atual={c.desligamentos}
-                  anterior={d!.anterior.desligamentos}
-                  sentido="menorMelhor"
-                />
+                <Delta atual={c.desligamentos} anterior={d!.anterior.desligamentos} sentido="menorMelhor" />
               }
             />
             <Kpi
@@ -171,9 +232,7 @@ export default function RotatividadePage() {
               icone={<Users className="size-4 text-ink-2" />}
               corIcone="bg-surface-2"
               valor={num(c.ativos)}
-              secundario={
-                <Delta atual={c.ativos} anterior={d!.anterior.ativos} sentido="maiorMelhor" />
-              }
+              secundario={<Delta atual={c.ativos} anterior={d!.anterior.ativos} sentido="maiorMelhor" />}
             />
           </>
         )}
@@ -193,15 +252,15 @@ export default function RotatividadePage() {
         </div>
       )}
 
-      {/* Tendência (só com 2+ meses) */}
+      {/* Tendência */}
       {(carregando || (d && d.serie.length >= 2)) && (
         <TurnoverSerieChart dados={d?.serie} carregando={carregando} recarregando={recarregando} />
       )}
 
-      {/* Movimentações / efetivo + ficha */}
-      <FolhaMovimentacoes qs={qsCompleto} />
+      {/* Movimentações + ficha (empresa vem da linha) */}
+      <FolhaMovimentacoes qs={qs} modulo="rh" />
 
-      {/* Sobre os desligados */}
+      {/* Desligados */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <RotatividadeBarras
           titulo="Motivo do desligamento"
@@ -227,11 +286,11 @@ export default function RotatividadePage() {
         />
       </div>
 
-      {/* Quebras por dimensão */}
+      {/* Quebras */}
       <RotatividadeQuebra
-        titulo="Turnover por organograma"
-        subtitulo="Cada setor com seu efetivo e movimentação · clique numa linha para ver as pessoas"
-        rotuloColuna="Organograma"
+        titulo="Turnover por setor"
+        subtitulo="Cada setor com efetivo e movimentação · clique numa linha para ver as pessoas"
+        rotuloColuna="Setor"
         dados={d?.organogramas}
         total={c}
         carregando={carregando}
@@ -241,7 +300,7 @@ export default function RotatividadePage() {
       />
       <RotatividadeQuebra
         titulo="Turnover por cargo"
-        subtitulo="Cada cargo com seu efetivo e movimentação · clique numa linha para ver as pessoas"
+        subtitulo="Cada cargo com efetivo e movimentação · clique numa linha para ver as pessoas"
         rotuloColuna="Cargo"
         dados={d?.cargos}
         total={c}
@@ -250,19 +309,7 @@ export default function RotatividadePage() {
         dim="cargo"
         onDrill={abrirDrill}
       />
-      <RotatividadeQuebra
-        titulo="Turnover por horário"
-        subtitulo="Rotatividade por escala/horário de trabalho · clique numa linha para ver as pessoas"
-        rotuloColuna="Horário"
-        dados={d?.horarios}
-        total={c}
-        carregando={carregando}
-        recarregando={recarregando}
-        dim="horario"
-        onDrill={abrirDrill}
-      />
 
-      {/* Faixa etária ocupa a linha toda; as 4 menores em 2×2 (sem célula vazia). */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="md:col-span-2">
           <RotatividadeQuebra
@@ -314,28 +361,15 @@ export default function RotatividadePage() {
           onDrill={abrirDrill}
           compacto
         />
-        <RotatividadeQuebra
-          titulo="Turnover por estado civil"
-          subtitulo="Rotatividade por estado civil · clique para ver as pessoas"
-          rotuloColuna="Estado civil"
-          dados={d?.estadoCivil}
-          total={c}
-          carregando={carregando}
-          recarregando={recarregando}
-          dim="estadoCivil"
-          onDrill={abrirDrill}
-          compacto
-        />
       </div>
 
       <p className="text-[11px] text-muted">
         Turnover = (admissões + desligamentos) ÷ 2, sobre os colaboradores ativos
-        (efetivo no fim do período). Setor, cargo e estabelecimento pela lotação
-        atual; voluntário = iniciativa do empregado. Filtros no topo recortam todo
-        o painel; clique em qualquer quebra para ver as pessoas.
+        (efetivo no fim do período), só das empresas NAVECON e FOUR. Clique em
+        qualquer quebra para ver as pessoas.
       </p>
 
-      <PessoasModal qsBase={qsCompleto} drill={drill} onFechar={() => setDrill(null)} />
+      <PessoasModal qsBase={qs} drill={drill} onFechar={() => setDrill(null)} modulo="rh" />
     </>
   );
 }

@@ -5,6 +5,7 @@ import { Modal } from "@/components/ui/modal";
 import { FichaModal } from "@/components/folha-ficha-modal";
 import { PessoasTabela } from "@/components/folha-pessoas-tabela";
 import { useFolhaPessoas } from "@/hooks/use-api";
+import type { FolhaMovimentacao } from "@/lib/types";
 
 /** A quebra clicada: dimensão, valor do grupo e o rótulo para o título. */
 export interface Drill {
@@ -20,23 +21,24 @@ export interface Drill {
  * chega na pessoa.
  */
 export function PessoasModal({
-  empresa,
   qsBase,
   drill,
   onFechar,
+  modulo = "folha",
 }: {
-  empresa: number | null;
   /** qs com período + filtros avançados; o dim/valor entram aqui. */
   qsBase: string;
   drill: Drill | null;
   onFechar: () => void;
+  /** Módulo dono das rotas (Folha padrão; RH usa /api/rh/*). */
+  modulo?: "folha" | "rh";
 }) {
-  const [ficha, setFicha] = useState<number | null>(null);
+  const [ficha, setFicha] = useState<FolhaMovimentacao | null>(null);
 
   const qs = drill
     ? `${qsBase}&dim=${encodeURIComponent(drill.dim)}&valor=${encodeURIComponent(drill.valor)}`
     : "";
-  const { data, isLoading, isFetching } = useFolhaPessoas(qs, drill != null);
+  const { data, isLoading, isFetching } = useFolhaPessoas(qs, drill != null, modulo);
 
   return (
     <>
@@ -65,7 +67,12 @@ export function PessoasModal({
         </div>
       </Modal>
 
-      <FichaModal empresa={empresa} contrato={ficha} onFechar={() => setFicha(null)} />
+      <FichaModal
+        modulo={modulo}
+        empresa={ficha?.codigoempresa ?? null}
+        contrato={ficha?.contrato ?? null}
+        onFechar={() => setFicha(null)}
+      />
     </>
   );
 }

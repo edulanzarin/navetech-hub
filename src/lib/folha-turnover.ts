@@ -37,19 +37,29 @@ export function parseFolhaFiltrosSel(sp: URLSearchParams): FolhaFiltrosSel {
 export async function construirBase(
   f: FiscalFilters,
   sel: FolhaFiltrosSel,
-  incluirPeriodo = true
+  incluirPeriodo = true,
+  empresasForcadas?: number[]
 ): Promise<{ cte: string; params: unknown[] }> {
   // Escopo de empresa aplicado aqui (mesmo funil da Folha que o buildWhere é do
   // Fiscal/Contábil): "todas" usa o que o cliente pediu; senão limita ao
   // permitido (interseção), e vazio não casa nenhuma empresa.
-  const sessao = await getSessaoOpcional();
-  const escopo: number[] | "todas" = sessao ? empresasPermitidas(sessao) : [];
-  const empresas =
-    escopo === "todas"
-      ? f.empresas
-      : f.empresas.length > 0
-        ? f.empresas.filter((e) => escopo.includes(e))
-        : escopo;
+  //
+  // `empresasForcadas` pula o escopo da sessão: é o RH, cujo dado é fixo em
+  // NAVECON/FOUR (o gate é o módulo, não o grupo de empresas — o grupo padrão
+  // até esconde a NAVECON). O chamador já garantiu o acesso.
+  let empresas: number[];
+  if (empresasForcadas) {
+    empresas = empresasForcadas;
+  } else {
+    const sessao = await getSessaoOpcional();
+    const escopo: number[] | "todas" = sessao ? empresasPermitidas(sessao) : [];
+    empresas =
+      escopo === "todas"
+        ? f.empresas
+        : f.empresas.length > 0
+          ? f.empresas.filter((e) => escopo.includes(e))
+          : escopo;
+  }
   const params: unknown[] = incluirPeriodo
     ? [empresas, f.inicio, f.fim]
     : [empresas];

@@ -1,11 +1,12 @@
 import { apiRoute } from "@/lib/api-route";
-import { FilterError } from "@/lib/fiscal-filters";
 import { montarMovimentacoes, parseTurnoverReq } from "@/lib/folha-turnover-query";
+import { EMPRESAS_RH, ehEmpresaRh } from "@/lib/rh";
 
-/** Admitidos/desligados (ou efetivo) no período — cada linha abre a ficha. */
+/** Movimentações do RH — empresas forçadas em NAVECON/FOUR. */
 export const GET = apiRoute(async (req) => {
   const { f, sel } = parseTurnoverReq(req.nextUrl.searchParams);
-  if (f.empresas.length === 0) throw new FilterError("Selecione a empresa");
+  const pedido = f.empresas.filter(ehEmpresaRh);
+  const empresas = pedido.length > 0 ? pedido : [...EMPRESAS_RH];
   const efetivo = req.nextUrl.searchParams.get("escopo") === "efetivo";
-  return montarMovimentacoes(f, sel, efetivo);
+  return montarMovimentacoes(f, sel, efetivo, empresas);
 });
