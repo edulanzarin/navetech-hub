@@ -29,12 +29,15 @@ export function FichaModal({
   empresa,
   contrato,
   onFechar,
+  modulo = "folha",
 }: {
   empresa: number | null;
   contrato: number | null;
   onFechar: () => void;
+  /** Rota da ficha: Folha (padrão) ou RH. A ficha é a mesma; muda só o gate. */
+  modulo?: "folha" | "rh";
 }) {
-  const { data: f, isLoading } = useFicha(empresa, contrato);
+  const { data: f, isLoading } = useFicha(empresa, contrato, modulo);
   return (
     <Modal
       aberto={contrato != null}
