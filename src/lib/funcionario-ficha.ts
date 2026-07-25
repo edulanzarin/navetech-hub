@@ -56,7 +56,10 @@ export async function fichaFuncionario(
             nullif(btrim(mu.nomemunic), '') as cidade, f.siglaestado as uf
        from funcionario f
        left join cargo ca on ca.codigocargo = f.codigocargo
-       left join funcao fu on fu.codigofuncao = f.codigofuncao
+       -- codigofuncao = 0 é "sem função" (a maioria só tem cargo); há um registro
+       -- lixo em funcao com código 0 ("MOTORISTA DE CAMINHÃO MUNCK") que casaria
+       -- para todo mundo — nullif evita puxá-lo.
+       left join funcao fu on fu.codigofuncao = nullif(f.codigofuncao, 0)
        left join organograma o
          on o.codigoempresa = f.codigoempresa and o.codigoestab = f.codigoestab and o.classiforgan = f.classiforgan
        left join estab es on es.codigoempresa = f.codigoempresa and es.codigoestab = f.codigoestab
