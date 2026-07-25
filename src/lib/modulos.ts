@@ -1,9 +1,10 @@
-import { BookOpen, Landmark, Receipt, Users, type LucideIcon } from "lucide-react";
+import { BookOpen, Contact, Landmark, Receipt, Users, type LucideIcon } from "lucide-react";
 import { SECOES_FISCAL, type SecaoFiscal } from "./fiscal-secoes";
 import { SECOES_CONTABIL } from "./contabil-secoes";
 import { SECOES_FOLHA } from "./folha-secoes";
+import { SECOES_RH } from "./rh-secoes";
 
-export type ModuloId = "fiscal" | "contabil" | "folha" | "patrimonio";
+export type ModuloId = "fiscal" | "contabil" | "folha" | "rh" | "patrimonio";
 
 /**
  * Catálogo dos módulos do Navetech Hub. É a fonte única: dirige o launcher, a
@@ -48,6 +49,14 @@ export const MODULOS: Modulo[] = [
     home: "/folha/rotatividade",
   },
   {
+    id: "rh",
+    titulo: "RH",
+    descricao: "Pessoal da Navecon: diretório e experiência",
+    icone: Contact,
+    ativo: true,
+    home: "/rh/diretorio",
+  },
+  {
     id: "patrimonio",
     titulo: "Patrimônio",
     descricao: "Em breve",
@@ -65,6 +74,7 @@ const SECOES: Record<ModuloId, SecaoFiscal[]> = {
   fiscal: SECOES_FISCAL,
   contabil: SECOES_CONTABIL,
   folha: SECOES_FOLHA,
+  rh: SECOES_RH,
   patrimonio: [],
 };
 
