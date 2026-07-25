@@ -130,7 +130,72 @@ export function FilterBar({ mostrarMetrica = true }: { mostrarMetrica?: boolean 
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {/* Período primeiro — é o filtro mais usado */}
+      {/* Empresa primeiro — é o contexto; a data vem logo depois */}
+      <Dropdown
+        icone={<Building2 className="size-4" />}
+        rotulo={rotuloEmpresas}
+        ativo={rascunho.empresas.length > 0}
+        largura="w-80"
+      >
+        {() => (
+          <div>
+            <div className="flex items-center gap-2 border-b border-hairline px-3 py-2">
+              <Search className="size-4 text-muted" />
+              <input
+                autoFocus
+                value={buscaEmpresa}
+                onChange={(e) => setBuscaEmpresa(e.target.value)}
+                placeholder="Buscar por nome ou código…"
+                className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-muted"
+              />
+              {rascunho.empresas.length > 0 && (
+                <button
+                  onClick={() => editar({ empresas: [] })}
+                  className="shrink-0 text-xs text-ent hover:underline"
+                >
+                  Limpar
+                </button>
+              )}
+            </div>
+            <div className="max-h-72 overflow-y-auto py-1">
+              {!empresas && (
+                <p className="px-3 py-2 text-sm text-muted">Carregando empresas…</p>
+              )}
+              {empresas && empresasFiltradas.length === 0 && (
+                <p className="px-3 py-2 text-sm text-muted">Nenhuma empresa encontrada</p>
+              )}
+              {empresasFiltradas.slice(0, 200).map((e) => {
+                const marcada = rascunho.empresas.includes(e.codigo);
+                return (
+                  <ItemLista
+                    key={e.codigo}
+                    selecionado={marcada}
+                    onClick={() => toggleEmpresa(e.codigo)}
+                  >
+                    <span
+                      className={clsx(
+                        "grid size-4 shrink-0 place-items-center rounded border",
+                        marcada ? "border-ent bg-ent text-white" : "border-baseline"
+                      )}
+                    >
+                      {marcada && <Check className="size-3 stroke-[3]" />}
+                    </span>
+                    <span className="flex-1 truncate">{e.nome}</span>
+                    <span className="tnum text-xs text-muted">{e.codigo}</span>
+                  </ItemLista>
+                );
+              })}
+              {empresasFiltradas.length > 200 && (
+                <p className="px-3 py-2 text-xs text-muted">
+                  Mostrando 200 de {empresasFiltradas.length} — refine a busca
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+      </Dropdown>
+
+      {/* Período — logo após a empresa */}
       <Dropdown
         icone={<CalendarRange className="size-4" />}
         rotulo={
@@ -212,70 +277,6 @@ export function FilterBar({ mostrarMetrica = true }: { mostrarMetrica?: boolean 
                   Definir período
                 </button>
               </div>
-            </div>
-          </div>
-        )}
-      </Dropdown>
-
-      <Dropdown
-        icone={<Building2 className="size-4" />}
-        rotulo={rotuloEmpresas}
-        ativo={rascunho.empresas.length > 0}
-        largura="w-80"
-      >
-        {() => (
-          <div>
-            <div className="flex items-center gap-2 border-b border-hairline px-3 py-2">
-              <Search className="size-4 text-muted" />
-              <input
-                autoFocus
-                value={buscaEmpresa}
-                onChange={(e) => setBuscaEmpresa(e.target.value)}
-                placeholder="Buscar por nome ou código…"
-                className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-muted"
-              />
-              {rascunho.empresas.length > 0 && (
-                <button
-                  onClick={() => editar({ empresas: [] })}
-                  className="shrink-0 text-xs text-ent hover:underline"
-                >
-                  Limpar
-                </button>
-              )}
-            </div>
-            <div className="max-h-72 overflow-y-auto py-1">
-              {!empresas && (
-                <p className="px-3 py-2 text-sm text-muted">Carregando empresas…</p>
-              )}
-              {empresas && empresasFiltradas.length === 0 && (
-                <p className="px-3 py-2 text-sm text-muted">Nenhuma empresa encontrada</p>
-              )}
-              {empresasFiltradas.slice(0, 200).map((e) => {
-                const marcada = rascunho.empresas.includes(e.codigo);
-                return (
-                  <ItemLista
-                    key={e.codigo}
-                    selecionado={marcada}
-                    onClick={() => toggleEmpresa(e.codigo)}
-                  >
-                    <span
-                      className={clsx(
-                        "grid size-4 shrink-0 place-items-center rounded border",
-                        marcada ? "border-ent bg-ent text-white" : "border-baseline"
-                      )}
-                    >
-                      {marcada && <Check className="size-3 stroke-[3]" />}
-                    </span>
-                    <span className="flex-1 truncate">{e.nome}</span>
-                    <span className="tnum text-xs text-muted">{e.codigo}</span>
-                  </ItemLista>
-                );
-              })}
-              {empresasFiltradas.length > 200 && (
-                <p className="px-3 py-2 text-xs text-muted">
-                  Mostrando 200 de {empresasFiltradas.length} — refine a busca
-                </p>
-              )}
             </div>
           </div>
         )}
