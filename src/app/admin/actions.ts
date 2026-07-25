@@ -14,18 +14,15 @@ function secoesValidas(): Set<string> {
   return s;
 }
 
-type NivelForm = "none" | "view" | "edit";
-
-/** Lê os rádios "sec:<modulo>:<secao>" do form, só as chaves válidas. */
-function lerSecoes(formData: FormData): { modulo: string; secao: string; nivel: NivelForm }[] {
+/** Chaves "modulo/secao" marcadas no form (checkbox "sec:<modulo>:<secao>"). */
+function lerSecoesMarcadas(formData: FormData): Set<string> {
   const validas = secoesValidas();
-  const out: { modulo: string; secao: string; nivel: NivelForm }[] = [];
-  for (const [k, v] of formData.entries()) {
+  const out = new Set<string>();
+  for (const k of formData.keys()) {
     if (!k.startsWith("sec:")) continue;
-    const nivel = String(v);
-    if (nivel !== "none" && nivel !== "view" && nivel !== "edit") continue;
     const [, modulo, secao] = k.split(":");
-    if (validas.has(`${modulo}/${secao}`)) out.push({ modulo, secao, nivel });
+    const chave = `${modulo}/${secao}`;
+    if (validas.has(chave)) out.add(chave);
   }
   return out;
 }
@@ -86,20 +83,24 @@ export async function salvarUsuario(formData: FormData): Promise<void> {
     avatar = { mime: arquivo.type, bytes: Buffer.from(await arquivo.arrayBuffer()) };
   }
 
-  // Base do cargo escolhido: só guardamos usuario_secao quando o nível pedido
-  // DIFERE do que o cargo já concede (delta). Igual = herda, sem linha.
-  const base: Record<string, NivelForm> = {};
+  // Base do cargo escolhido: só guardamos usuario_secao quando o pedido DIFERE
+  // do que o cargo concede (delta). Liberar = marcado; bloquear = desmarcado.
+  const base = new Set<string>();
   if (cargoId != null) {
-    const rows = await appQuery<{ modulo: string; secao: string; nivel: "view" | "edit" }>(
-      `select modulo, secao, nivel from cargo_secao where cargo_id = $1`,
+    const rows = await appQuery<{ modulo: string; secao: string }>(
+      `select modulo, secao from cargo_secao where cargo_id = $1`,
       [cargoId]
     );
-    for (const r of rows) base[`${r.modulo}/${r.secao}`] = r.nivel;
+    for (const r of rows) base.add(`${r.modulo}/${r.secao}`);
   }
-  const overrides = lerSecoes(formData).filter((s) => {
-    const herdado = base[`${s.modulo}/${s.secao}`] ?? "none";
-    return s.nivel !== herdado; // só o que difere do cargo vira override
-  });
+  const marcadas = lerSecoesMarcadas(formData);
+  // Override em toda seção onde o efetivo diverge do cargo: marcada e não no
+  // cargo => libera (true); no cargo e desmarcada => bloqueia (false).
+  const overrides: { chave: string; permitido: boolean }[] = [];
+  for (const chave of new Set([...base, ...marcadas])) {
+    const efetivo = marcadas.has(chave);
+    if (efetivo !== base.has(chave)) overrides.push({ chave, permitido: efetivo });
+  }
 
   const grupos = formData.getAll("grupos").map((g) => Number(g)).filter(Number.isInteger);
   const empresas = formData.getAll("empresas").map((e) => Number(e)).filter(Number.isInteger);
@@ -144,9 +145,10 @@ export async function salvarUsuario(formData: FormData): Promise<void> {
     // Overrides, grupos e empresas: recria do zero (o form é a verdade completa).
     await q(`delete from usuario_secao where usuario_id = $1`, [usuarioId]);
     for (const o of overrides) {
+      const [modulo, secao] = o.chave.split("/");
       await q(
-        `insert into usuario_secao (usuario_id, modulo, secao, nivel) values ($1, $2, $3, $4)`,
-        [usuarioId, o.modulo, o.secao, o.nivel]
+        `insert into usuario_secao (usuario_id, modulo, secao, permitido) values ($1, $2, $3, $4)`,
+        [usuarioId, modulo, secao, o.permitido]
       );
     }
     await q(`delete from usuario_grupo where usuario_id = $1`, [usuarioId]);
@@ -184,8 +186,8 @@ export async function salvarCargo(formData: FormData): Promise<void> {
   const setorIdForm = idNum(formData.get("setor_id"));
   const setorNovo = limpo(formData.get("setor_novo"));
   const descricao = limpo(formData.get("descricao"));
-  // Cargo só concede (view/edit); 'none' = não faz parte do cargo.
-  const secoes = lerSecoes(formData).filter((s) => s.nivel !== "none");
+  // Seções marcadas = as que o cargo concede.
+  const secoes = [...lerSecoesMarcadas(formData)];
   const grupos = formData.getAll("grupos").map((g) => Number(g)).filter(Number.isInteger);
 
   await comTransacao(async (q) => {
@@ -216,12 +218,12 @@ export async function salvarCargo(formData: FormData): Promise<void> {
       cargoId = rows[0].id as number;
     }
     await q(`delete from cargo_secao where cargo_id = $1`, [cargoId]);
-    for (const s of secoes) {
-      await q(`insert into cargo_secao (cargo_id, modulo, secao, nivel) values ($1, $2, $3, $4)`, [
+    for (const chave of secoes) {
+      const [modulo, secao] = chave.split("/");
+      await q(`insert into cargo_secao (cargo_id, modulo, secao) values ($1, $2, $3)`, [
         cargoId,
-        s.modulo,
-        s.secao,
-        s.nivel,
+        modulo,
+        secao,
       ]);
     }
     await q(`delete from cargo_grupo where cargo_id = $1`, [cargoId]);

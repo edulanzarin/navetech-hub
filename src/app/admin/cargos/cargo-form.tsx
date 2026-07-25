@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { PermissaoMatriz, type NivelForm } from "@/components/admin/permissao-matriz";
+import { PermissaoMatriz } from "@/components/admin/permissao-matriz";
 import { ComboCriavel } from "@/components/ui/combo-criavel";
 import { salvarCargo, excluirCargo } from "../actions";
 import type { CargoDetalhe, SetorOpcao, GrupoResumo } from "../dados";
@@ -23,7 +23,9 @@ export function CargoForm({
   setores: SetorOpcao[];
   grupos: GrupoResumo[];
 }) {
-  const [escolha, setEscolha] = useState<Record<string, NivelForm>>(() => ({ ...(cargo?.secoes ?? {}) }));
+  const [escolha, setEscolha] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries((cargo?.secoes ?? []).map((k) => [k, true]))
+  );
 
   return (
     <form action={salvarCargo} className="flex flex-col gap-6">

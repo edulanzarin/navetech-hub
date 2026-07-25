@@ -1,7 +1,6 @@
 import "server-only";
 import { appQuery } from "@/lib/app-db";
 import { query } from "@/lib/db";
-import type { Nivel } from "@/lib/sessao";
 
 /**
  * Leituras da área admin. Usuários/grupos/cargos vêm do banco do app; a lista de
@@ -9,12 +8,10 @@ import type { Nivel } from "@/lib/sessao";
  * TODAS as empresas, independente do escopo dele.
  *
  * Modelo: o CARGO é o molde (seções + grupos de empresa). O usuário herda um
- * cargo e ajusta por cima — seção via override (`usuario_secao`, com 'none'
- * negando) e empresa somando (`usuario_grupo`/`usuario_empresa`).
+ * cargo e ajusta por cima — seção via override binário (`usuario_secao.permitido`)
+ * e empresa somando (`usuario_grupo`/`usuario_empresa`). Permissão é binária:
+ * a seção é acessível ou não.
  */
-
-/** Nível de um override individual de seção: 'none' NEGA o que o cargo concede. */
-export type NivelOverride = Nivel | "none";
 
 export interface UsuarioDetalhe {
   id: string;
@@ -29,8 +26,8 @@ export interface UsuarioDetalhe {
   setorNome: string | null;
   /** Timestamp da foto (ms), para cache-buster no <img>; null = sem foto. */
   avatarVersao: number | null;
-  /** Overrides individuais de seção ("modulo/secao" -> nível), por cima do cargo. */
-  overrides: Record<string, NivelOverride>;
+  /** Overrides de seção ("modulo/secao" -> liberado?), por cima do cargo. */
+  overrides: Record<string, boolean>;
   grupos: number[];
   empresas: number[];
 }
@@ -62,8 +59,8 @@ export async function carregarUsuario(id: string): Promise<UsuarioDetalhe | null
   if (!u) return null;
 
   const [overrides, grupos, empresas] = await Promise.all([
-    appQuery<{ modulo: string; secao: string; nivel: NivelOverride }>(
-      `select modulo, secao, nivel from usuario_secao where usuario_id = $1`,
+    appQuery<{ modulo: string; secao: string; permitido: boolean }>(
+      `select modulo, secao, permitido from usuario_secao where usuario_id = $1`,
       [id]
     ),
     appQuery<{ grupo_id: number }>(`select grupo_id from usuario_grupo where usuario_id = $1`, [id]),
@@ -73,8 +70,8 @@ export async function carregarUsuario(id: string): Promise<UsuarioDetalhe | null
     ),
   ]);
 
-  const overMap: Record<string, NivelOverride> = {};
-  for (const s of overrides) overMap[`${s.modulo}/${s.secao}`] = s.nivel;
+  const overMap: Record<string, boolean> = {};
+  for (const s of overrides) overMap[`${s.modulo}/${s.secao}`] = s.permitido;
 
   return {
     id: u.id,
@@ -214,8 +211,8 @@ export interface CargoDetalhe {
   nome: string;
   setor_id: number | null;
   descricao: string | null;
-  /** Seções do cargo: "modulo/secao" -> nível. */
-  secoes: Record<string, Nivel>;
+  /** Seções que o cargo concede, como chaves "modulo/secao". */
+  secoes: string[];
   grupos: number[];
 }
 
@@ -229,22 +226,19 @@ export async function carregarCargo(id: number): Promise<CargoDetalhe | null> {
   if (!c) return null;
 
   const [secoes, grupos] = await Promise.all([
-    appQuery<{ modulo: string; secao: string; nivel: Nivel }>(
-      `select modulo, secao, nivel from cargo_secao where cargo_id = $1`,
+    appQuery<{ modulo: string; secao: string }>(
+      `select modulo, secao from cargo_secao where cargo_id = $1`,
       [id]
     ),
     appQuery<{ grupo_id: number }>(`select grupo_id from cargo_grupo where cargo_id = $1`, [id]),
   ]);
-
-  const secMap: Record<string, Nivel> = {};
-  for (const s of secoes) secMap[`${s.modulo}/${s.secao}`] = s.nivel;
 
   return {
     id: c.id,
     nome: c.nome,
     setor_id: c.setor_id,
     descricao: c.descricao,
-    secoes: secMap,
+    secoes: secoes.map((s) => `${s.modulo}/${s.secao}`),
     grupos: grupos.map((g) => g.grupo_id),
   };
 }
@@ -254,7 +248,8 @@ export interface CargoOpcao {
   id: number;
   nome: string;
   setorNome: string | null;
-  secoes: Record<string, Nivel>;
+  /** Seções que o cargo concede, como chaves "modulo/secao". */
+  secoes: string[];
   grupos: number[];
 }
 
@@ -268,17 +263,17 @@ export async function listarCargosParaForm(): Promise<CargoOpcao[]> {
   if (cargos.length === 0) return [];
 
   const [secoes, grupos] = await Promise.all([
-    appQuery<{ cargo_id: number; modulo: string; secao: string; nivel: Nivel }>(
-      `select cargo_id, modulo, secao, nivel from cargo_secao`
+    appQuery<{ cargo_id: number; modulo: string; secao: string }>(
+      `select cargo_id, modulo, secao from cargo_secao`
     ),
     appQuery<{ cargo_id: number; grupo_id: number }>(`select cargo_id, grupo_id from cargo_grupo`),
   ]);
 
-  const secPorCargo = new Map<number, Record<string, Nivel>>();
+  const secPorCargo = new Map<number, string[]>();
   for (const s of secoes) {
-    const m = secPorCargo.get(s.cargo_id) ?? {};
-    m[`${s.modulo}/${s.secao}`] = s.nivel;
-    secPorCargo.set(s.cargo_id, m);
+    const arr = secPorCargo.get(s.cargo_id) ?? [];
+    arr.push(`${s.modulo}/${s.secao}`);
+    secPorCargo.set(s.cargo_id, arr);
   }
   const grpPorCargo = new Map<number, number[]>();
   for (const g of grupos) {
@@ -291,7 +286,7 @@ export async function listarCargosParaForm(): Promise<CargoOpcao[]> {
     id: c.id,
     nome: c.nome,
     setorNome: c.setor_nome,
-    secoes: secPorCargo.get(c.id) ?? {},
+    secoes: secPorCargo.get(c.id) ?? [],
     grupos: grpPorCargo.get(c.id) ?? [],
   }));
 }

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { MODULOS, secoesDoModulo } from "@/lib/modulos";
-import { PermissaoMatriz, type NivelForm } from "@/components/admin/permissao-matriz";
+import { PermissaoMatriz } from "@/components/admin/permissao-matriz";
 import { EmpresaPicker } from "@/components/admin/empresa-picker";
 import { ComboCriavel } from "@/components/ui/combo-criavel";
 import { salvarUsuario, excluirUsuario } from "../actions";
@@ -37,13 +37,13 @@ export function UsuarioForm({
 }) {
   const [cargoId, setCargoId] = useState<string>(usuario?.cargo_id ? String(usuario.cargo_id) : "");
   const cargo = useMemo(() => cargos.find((c) => String(c.id) === cargoId) ?? null, [cargos, cargoId]);
-  const base = cargo?.secoes ?? {};
+  const base = useMemo(() => new Set(cargo?.secoes ?? []), [cargo]);
 
   // Efetivo inicial = base do cargo + overrides do usuário (override vence).
-  const [escolha, setEscolha] = useState<Record<string, NivelForm>>(() => {
-    const eff: Record<string, NivelForm> = { ...(usuario ? {} : {}) };
+  const [escolha, setEscolha] = useState<Record<string, boolean>>(() => {
+    const eff: Record<string, boolean> = {};
     const c = cargos.find((x) => x.id === usuario?.cargo_id);
-    if (c) for (const [k, v] of Object.entries(c.secoes)) eff[k] = v;
+    if (c) for (const k of c.secoes) eff[k] = true;
     if (usuario) for (const [k, v] of Object.entries(usuario.overrides)) eff[k] = v;
     return eff;
   });
@@ -55,19 +55,19 @@ export function UsuarioForm({
   const trocarCargo = (novo: string) => {
     setCargoId(novo);
     const c = cargos.find((x) => String(x.id) === novo) ?? null;
+    const novaBase = new Set(c?.secoes ?? []);
     setEscolha((prev) => {
-      const next: Record<string, NivelForm> = {};
+      const next: Record<string, boolean> = {};
       for (const k of TODAS_SECOES) {
-        if (tocado.has(k)) next[k] = prev[k] ?? "none";
-        else next[k] = c?.secoes[k] ?? "none";
+        next[k] = tocado.has(k) ? !!prev[k] : novaBase.has(k);
       }
       return next;
     });
   };
 
-  const mudarSecao = (chave: string, nivel: NivelForm) => {
+  const mudarSecao = (chave: string, liberado: boolean) => {
     setTocado((prev) => new Set(prev).add(chave));
-    setEscolha((prev) => ({ ...prev, [chave]: nivel }));
+    setEscolha((prev) => ({ ...prev, [chave]: liberado }));
   };
 
   return (
