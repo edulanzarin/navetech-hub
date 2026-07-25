@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Search, UserRound } from "lucide-react";
 import clsx from "clsx";
 import { FichaModal, tempoCasa } from "@/components/folha-ficha-modal";
+import { SeloEmpresa } from "@/components/rh-selo-empresa";
 import { useRhFuncionarios } from "@/hooks/use-api";
 import { EMPRESAS_RH, nomeEmpresaRh } from "@/lib/rh";
 import { dataBR } from "@/lib/format";
@@ -20,21 +21,6 @@ function normalizar(s: string): string {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
-}
-
-/** Selo da empresa: NAVECON e FOUR em cores distintas. */
-function SeloEmpresa({ codigo }: { codigo: number }) {
-  const navecon = codigo === 1;
-  return (
-    <span
-      className={clsx(
-        "rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide",
-        navecon ? "bg-ent/12 text-ent" : "bg-sai/12 text-sai"
-      )}
-    >
-      {nomeEmpresaRh(codigo)}
-    </span>
-  );
 }
 
 export default function Conteudo() {
