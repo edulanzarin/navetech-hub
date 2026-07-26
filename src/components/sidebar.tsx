@@ -93,12 +93,16 @@ export function ModuloSidebar({
       <div className="mt-2 flex flex-col gap-0.5 border-t border-hairline pt-2">
         <ThemeToggle />
         {usuario && (
-          <div className="flex items-center gap-2 px-2 pb-1.5 pt-1">
+          <Link
+            href="/perfil"
+            title="Meu perfil"
+            className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-surface-2"
+          >
             <Avatar id={usuario.id} nome={usuario.nome} temFoto={usuario.temFoto} size={28} />
             <p className="truncate text-xs text-ink-2" title={usuario.nome}>
               {usuario.nome}
             </p>
-          </div>
+          </Link>
         )}
         <form action={sair}>
           <button

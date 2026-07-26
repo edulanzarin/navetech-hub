@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronLeft, LogOut } from "lucide-react";
+import { ChevronLeft, LogOut, User } from "lucide-react";
 import { assertAdmin } from "@/lib/sessao";
 import { sair } from "@/app/login/actions";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -36,6 +36,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
         <div className="mt-2 flex flex-col gap-0.5 border-t border-hairline pt-2">
           <ThemeToggle />
+          <Link href="/perfil" className={link}>
+            <User className="size-4 shrink-0" />
+            Meu perfil
+          </Link>
           <form action={sair}>
             <button type="submit" className={`${link} w-full`}>
               <LogOut className="size-4 shrink-0" />
