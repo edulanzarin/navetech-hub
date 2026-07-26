@@ -795,3 +795,94 @@ export interface FolhaFicha {
   cidade: string | null;
   uf: string | null;
 }
+
+// ── Análise de Balancete (motor determinístico + laudo opcional por IA) ──────
+
+/** Conta cujo saldo final tem sinal contrário à sua natureza (violação de regra). */
+export interface AnomaliaConta {
+  conta: number;
+  classif: string;
+  descricao: string;
+  natureza: "D" | "C";
+  /** Saldo final (deb − cred): devedor positivo, credor negativo. */
+  saldoFinal: number;
+}
+
+/** Validação contábil determinística: fecha, anomalias de sinal e cobertura. */
+export interface ValidacaoBalancete {
+  /** O balancete fecha? (Σ saldos devedores = Σ saldos credores, na tolerância.) */
+  fecha: boolean;
+  /** Quanto não fecha (Σ dos saldos das analíticas; 0 = fecha). */
+  difFechamento: number;
+  /** Contas com saldo de sinal atípico (devedora credora, ou credora devedora). */
+  anomalias: AnomaliaConta[];
+  cobertura: {
+    mesesSolicitados: number;
+    mesesComMovimento: number;
+    primeiroMesComDado: string | null;
+    temSaldoInicial: boolean;
+  };
+}
+
+/** Grupo estrutural do balancete (Ativo Circulante, Passivo, PL, Receita…). */
+export interface GrupoBalancete {
+  chave: string;
+  nome: string;
+  /** Magnitude natural (positiva) no último mês. */
+  saldoFinal: number;
+  /** % da base do grupo (Ativo total, ou Passivo+PL); null quando não se aplica. */
+  pctBase: number | null;
+  /** Magnitude por mês, na ordem de `meses`. */
+  serie: number[];
+}
+
+/** Indicador financeiro calculado — determinístico. */
+export interface IndicadorCalc {
+  chave: string;
+  nome: string;
+  /** Valor no último mês; null quando não calculável com os dados. */
+  valor: number | null;
+  formatado: string;
+  unidade: "indice" | "pct" | "reais";
+  /** Faixa de leitura (cor): boa, atenção, ruim ou neutra. */
+  faixa: "bom" | "atencao" | "ruim" | "neutro";
+  interpretacao: string;
+  tendencia: "melhora" | "estavel" | "piora" | "indef";
+  serie: (number | null)[];
+}
+
+/** Achado do motor: inconsistência ou observação, com severidade. */
+export interface Inconsistencia {
+  severidade: "alta" | "media" | "baixa";
+  tipo: string;
+  titulo: string;
+  detalhe: string;
+  conta?: number;
+  valor?: number;
+}
+
+/** Resultado do MOTOR determinístico — sem IA, roda no Executar (custo zero). */
+export interface AnaliseDeterministica {
+  /** Saúde geral, derivada por regra dos achados (não é opinião de IA). */
+  saudeGeral: "forte" | "estavel" | "atencao" | "critica";
+  fecha: boolean;
+  difFechamento: number;
+  cobertura: ValidacaoBalancete["cobertura"];
+  grupos: GrupoBalancete[];
+  indicadores: IndicadorCalc[];
+  inconsistencias: Inconsistencia[];
+  meses: string[];
+}
+
+/** Resposta da rota principal (motor determinístico). */
+export interface AnaliseBalanceteResp {
+  analise: AnaliseDeterministica;
+  empresa: { codigo: number; nome: string; cnpj: string | null };
+  periodo: { inicio: string; fim: string; meses: string[] };
+}
+
+/** Resposta do laudo ESCRITO por IA (botão opcional; só aqui gasta API). */
+export interface LaudoEscritoResp {
+  texto: string;
+  meta: { modelo: string; tokensEntrada: number; tokensSaida: number };
+}

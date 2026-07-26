@@ -3,9 +3,11 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 import { ChevronLeft, LogOut } from "lucide-react";
 import clsx from "clsx";
 import { getModulo, secoesDoModulo, type ModuloId } from "@/lib/modulos";
+import { filtrosLembrados, lembrarFiltrosSecao } from "@/lib/estado-filtros-secao";
 import { sair } from "@/app/login/actions";
 import { ThemeToggle } from "./theme-toggle";
 import { Avatar } from "./avatar";
@@ -28,12 +30,29 @@ export function ModuloSidebar({
 }) {
   const pathname = usePathname();
   const sp = useSearchParams();
-  const qs = sp.toString();
-  const suffix = qs ? `?${qs}` : "";
 
   const modulo = getModulo(moduloId);
   const permitidas = visiveis ? new Set(visiveis) : null;
   const secoes = secoesDoModulo(moduloId).filter((s) => !permitidas || permitidas.has(s.id));
+
+  // Seção ativa (a que o caminho atual pertence): é dela que gravamos o filtro.
+  const secaoAtiva = secoes.find(
+    (s) => pathname === s.path || pathname.startsWith(s.path + "/")
+  );
+  const secaoAtivaPath = secaoAtiva?.path;
+  const query = sp.toString();
+  // Cada mudança de filtro/execução na seção ativa atualiza a memória DELA.
+  useEffect(() => {
+    if (secaoAtivaPath) lembrarFiltrosSecao(secaoAtivaPath, query);
+  }, [secaoAtivaPath, query]);
+
+  // Link de cada seção usa a memória DA PRÓPRIA seção (não a da atual): seção
+  // nunca visitada nasce limpa; visitada é restaurada com o que tinha.
+  const linkDaSecao = (s: (typeof secoes)[number]) => {
+    const lembrado = s.path === secaoAtivaPath ? query : filtrosLembrados(s.path);
+    return lembrado ? `${s.path}?${lembrado}` : s.path;
+  };
+
   if (!modulo) return null;
 
   return (
@@ -57,7 +76,7 @@ export function ModuloSidebar({
           return (
             <Link
               key={s.id}
-              href={`${s.path}${suffix}`}
+              href={linkDaSecao(s)}
               className={clsx(
                 "rounded-lg px-3 py-2 text-sm transition-colors",
                 ativa

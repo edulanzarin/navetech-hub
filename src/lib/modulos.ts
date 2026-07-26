@@ -41,7 +41,7 @@ export const MODULOS: Modulo[] = [
     descricao: "Conferência fiscal e conciliação bancária",
     icone: "/images/contabil.png",
     ativo: true,
-    home: "/contabil/conferencia",
+    home: "/contabil/conciliacao",
   },
   {
     id: "folha",

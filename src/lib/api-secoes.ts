@@ -71,6 +71,8 @@ const MAPA: Record<ModuloId, Record<string, string[]>> = {
     "balancete-lancamentos": ["balancete"],
     "balancete-culpados": ["balancete"],
     "bf-check": ["balancete"],
+    // Análise de Balancete (laudo por IA)
+    "analise-balancete": ["analise"],
     // Conciliação (+ aba Regras)
     "extrato-importar": ["conciliacao"],
     "extrato-regras": ["conciliacao"],
