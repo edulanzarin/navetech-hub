@@ -1,13 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Plus, Trash2, Users, X, Check, Pencil } from "lucide-react";
-import clsx from "clsx";
-import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
-import { useRhSetores, useRhGestores } from "@/hooks/use-api";
 import { mutar } from "@/hooks/mutar";
+import { useRhGestores, useRhSetores } from "@/hooks/use-api";
 import type { GestorRh, SetorRh } from "@/lib/rh-tipos";
+import { useQueryClient } from "@tanstack/react-query";
+import clsx from "clsx";
+import { Check, Pencil, Plus, Trash2, Users, X } from "lucide-react";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
 
 const PAPEIS: GestorRh["papel"][] = ["supervisor", "coordenador", "outro"];
 const PAPEL_ROTULO: Record<GestorRh["papel"], string> = {
@@ -32,7 +32,7 @@ function PapelSegmentos({
           onClick={() => onMudar(p)}
           className={clsx(
             "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-            valor === p ? "bg-surface-2 text-ink" : "text-muted hover:text-ink"
+            valor === p ? "bg-surface-2 text-ink" : "text-muted hover:text-ink",
           )}
         >
           {PAPEL_ROTULO[p]}
@@ -42,9 +42,16 @@ function PapelSegmentos({
   );
 }
 
-function SetorCard({ setor, gestores }: { setor: SetorRh; gestores: GestorRh[] }) {
+function SetorCard({
+  setor,
+  gestores,
+}: {
+  setor: SetorRh;
+  gestores: GestorRh[];
+}) {
   const queryClient = useQueryClient();
-  const invalidar = () => queryClient.invalidateQueries({ queryKey: ["rh-gestores"] });
+  const invalidar = () =>
+    queryClient.invalidateQueries({ queryKey: ["rh-gestores"] });
 
   const [addNome, setAddNome] = useState("");
   const [addEmail, setAddEmail] = useState("");
@@ -122,7 +129,9 @@ function SetorCard({ setor, gestores }: { setor: SetorRh; gestores: GestorRh[] }
 
       <div className="divide-y divide-hairline/60">
         {gestores.length === 0 && (
-          <p className="px-4 py-3 text-sm text-muted">Nenhum gestor cadastrado neste departamento.</p>
+          <p className="px-4 py-3 text-sm text-muted">
+            Nenhum gestor cadastrado neste departamento.
+          </p>
         )}
         {gestores.map((g) =>
           editId === g.id ? (
@@ -162,10 +171,15 @@ function SetorCard({ setor, gestores }: { setor: SetorRh; gestores: GestorRh[] }
               </div>
             </div>
           ) : (
-            <div key={g.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
+            <div
+              key={g.id}
+              className="flex items-center justify-between gap-3 px-4 py-2.5"
+            >
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="truncate font-medium text-ink">{g.nome}</span>
+                  <span className="truncate font-medium text-ink">
+                    {g.nome}
+                  </span>
                   <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted">
                     {PAPEL_ROTULO[g.papel]}
                   </span>
@@ -189,7 +203,7 @@ function SetorCard({ setor, gestores }: { setor: SetorRh; gestores: GestorRh[] }
                 </button>
               </div>
             </div>
-          )
+          ),
         )}
       </div>
 
@@ -244,10 +258,7 @@ export default function Conteudo() {
   return (
     <>
       <p className="max-w-3xl text-sm text-muted">
-        Cadastre os supervisores e coordenadores de cada departamento. Eles recebem por e-mail
-        o formulário de avaliação de experiência dos funcionários do setor. NAVECON e FOUR são a
-        mesma empresa (CNPJs distintos), então cada departamento tem um cadastro só, valendo para
-        os funcionários das duas.
+        Cadastre os supervisores e coordenadores de cada departamento.
       </p>
 
       {isLoading ? (
@@ -266,7 +277,11 @@ export default function Conteudo() {
         // igualar a vizinha (o vazião do Societário sumiu).
         <div className="columns-1 gap-4 [&>*]:mb-4 lg:columns-2">
           {(setores ?? []).map((s) => (
-            <SetorCard key={s.classiforgan} setor={s} gestores={porSetor.get(s.classiforgan) ?? []} />
+            <SetorCard
+              key={s.classiforgan}
+              setor={s}
+              gestores={porSetor.get(s.classiforgan) ?? []}
+            />
           ))}
         </div>
       )}
