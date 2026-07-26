@@ -156,7 +156,7 @@ export async function coletarBalanceteContabil(
     classif: string;
     descr: string | null;
     tipoconta: number;
-    natursaldo: string | null;
+    natursaldo: number | null;
   }>(
     `select contactb conta, classifconta classif, descrconta descr,
             tipoconta, natursaldo
@@ -174,8 +174,8 @@ export async function coletarBalanceteContabil(
       classif: r.classif,
       descr: r.descr,
       sintetica,
-      // natursaldo costuma ser 'D'/'C'; na dúvida, devedora.
-      natureza: (r.natursaldo ?? "").toUpperCase().startsWith("C") ? "C" : "D",
+      // natursaldo é smallint no Questor: 1 = devedora, -1 = credora.
+      natureza: r.natursaldo === -1 ? "C" : "D",
     });
     if (sintetica) sinteticas.add(r.classif);
   }
