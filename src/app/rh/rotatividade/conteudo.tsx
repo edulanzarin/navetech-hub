@@ -9,42 +9,19 @@ import { RotatividadeQuebra } from "@/components/rotatividade-quebra";
 import { RotatividadeBarras } from "@/components/rotatividade-barras";
 import { FolhaMovimentacoes } from "@/components/folha-movimentacoes";
 import { PessoasModal, type Drill } from "@/components/folha-pessoas-modal";
-import { PeriodoDropdown, type Preset } from "@/components/filters/periodo-dropdown";
+import { PeriodoDropdown } from "@/components/filters/periodo-dropdown";
 import { BotaoExecutar } from "@/components/filters/botao-executar";
 import { FiltroPendente } from "@/components/filtro-pendente";
 import { useTurnover } from "@/hooks/use-api";
 import { useEstadoModulo } from "@/hooks/use-estado-modulo";
 import { EMPRESAS_RH, nomeEmpresaRh } from "@/lib/rh";
-import { deltaPct, num } from "@/lib/format";
+import { deltaPct, num, hojeISO, inicioDoMesISO } from "@/lib/format";
 
 type FiltroEmpresa = "todas" | number;
 
 const pct = (v: number) => `${v.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`;
 const anos = (dias: number | null) =>
   dias == null ? "—" : `${(dias / 365).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} anos`;
-
-/** Presets de período do turnover (janelas maiores) para o PeriodoDropdown. */
-function presetsTurnover(): Preset[] {
-  const hoje = new Date();
-  const iso = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  const mesesAtras = (n: number) => {
-    const d = new Date();
-    d.setMonth(d.getMonth() - n);
-    return iso(d);
-  };
-  return [
-    { nome: "3 meses", inicio: mesesAtras(3), fim: iso(hoje) },
-    { nome: "6 meses", inicio: mesesAtras(6), fim: iso(hoje) },
-    { nome: "12 meses", inicio: mesesAtras(12), fim: iso(hoje) },
-    { nome: "Este ano", inicio: `${hoje.getFullYear()}-01-01`, fim: iso(hoje) },
-    {
-      nome: "Ano anterior",
-      inicio: `${hoje.getFullYear() - 1}-01-01`,
-      fim: `${hoje.getFullYear() - 1}-12-31`,
-    },
-  ];
-}
 
 function Delta({
   atual,
@@ -114,10 +91,9 @@ function Stat({ rotulo, valor, cor }: { rotulo: string; valor: string; cor?: str
 }
 
 export default function Conteudo() {
-  const periodos = useMemo(presetsTurnover, []);
   const [empresa, setEmpresa] = useEstadoModulo<FiltroEmpresa>("rh/rotatividade:empresa", "todas");
-  const [inicio, setInicio] = useEstadoModulo("rh/rotatividade:inicio", periodos[2].inicio); // 12 meses
-  const [fim, setFim] = useEstadoModulo("rh/rotatividade:fim", periodos[2].fim);
+  const [inicio, setInicio] = useEstadoModulo("rh/rotatividade:inicio", inicioDoMesISO());
+  const [fim, setFim] = useEstadoModulo("rh/rotatividade:fim", hojeISO());
 
   const empresasParam = empresa === "todas" ? EMPRESAS_RH.join(",") : String(empresa);
   const qs = `inicio=${inicio}&fim=${fim}&empresas=${empresasParam}`;
@@ -183,7 +159,6 @@ export default function Conteudo() {
             setInicio(i);
             setFim(f);
           }}
-          presets={periodos}
         />
 
         <div className="ml-auto">
