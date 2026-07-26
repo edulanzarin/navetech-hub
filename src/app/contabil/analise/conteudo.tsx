@@ -1,62 +1,58 @@
 "use client";
 
+import { useState } from "react";
 import {
   AlertTriangle,
   Building2,
   CheckCircle2,
   FileDown,
-  Lightbulb,
   Loader2,
   Minus,
   Sparkles,
-  ThumbsDown,
-  ThumbsUp,
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
 import clsx from "clsx";
 import { useFiltros } from "@/hooks/use-filters";
-import { useAnaliseBalancete } from "@/hooks/use-api";
-import { brl, dataBR, num } from "@/lib/format";
+import { useAnaliseBalancete, useLaudoEscrito } from "@/hooks/use-api";
+import { brl, brlCompact, dataBR, mesBR, num } from "@/lib/format";
 import type {
   AnaliseBalanceteResp,
-  AnaliseIndicador,
-  LaudoAnalise,
-  ValidacaoBalancete,
+  AnaliseDeterministica,
+  IndicadorCalc,
+  Inconsistencia,
 } from "@/lib/types";
 
-const SAUDE: Record<
-  LaudoAnalise["saudeGeral"],
-  { rotulo: string; classe: string }
-> = {
+const SAUDE: Record<AnaliseDeterministica["saudeGeral"], { rotulo: string; classe: string }> = {
   forte: { rotulo: "Saúde forte", classe: "bg-good/12 text-good" },
   estavel: { rotulo: "Estável", classe: "bg-ent/12 text-ent" },
   atencao: { rotulo: "Requer atenção", classe: "bg-warning/12 text-warn" },
   critica: { rotulo: "Crítica", classe: "bg-critical/12 text-critical" },
 };
 
-const SEVERIDADE: Record<string, string> = {
-  alta: "border-critical/40 bg-critical/8 text-critical",
-  media: "border-warning/40 bg-warning/8 text-warn",
-  baixa: "border-hairline bg-surface-2 text-muted",
+const FAIXA: Record<IndicadorCalc["faixa"], string> = {
+  bom: "text-good",
+  atencao: "text-warn",
+  ruim: "text-critical",
+  neutro: "text-muted",
 };
 
-const PRIORIDADE: Record<string, string> = {
-  alta: "bg-critical/12 text-critical",
-  media: "bg-warning/12 text-warn",
-  baixa: "bg-surface-2 text-muted",
+const SEVERIDADE: Record<Inconsistencia["severidade"], string> = {
+  alta: "border-critical/40 bg-critical/8",
+  media: "border-warning/40 bg-warning/8",
+  baixa: "border-hairline bg-surface-2",
 };
 
-function TendenciaIcone({ t }: { t: AnaliseIndicador["tendencia"] }) {
+function Tendencia({ t }: { t: IndicadorCalc["tendencia"] }) {
   if (t === "melhora") return <TrendingUp className="size-3.5 text-good" />;
   if (t === "piora") return <TrendingDown className="size-3.5 text-critical" />;
-  return <Minus className="size-3.5 text-muted" />;
+  if (t === "estavel") return <Minus className="size-3.5 text-muted" />;
+  return null;
 }
 
 export default function AnaliseBalancetePage() {
   const { filtros, qs } = useFiltros();
   const temEmpresa = filtros.empresas.length === 1;
-
   const q = useAnaliseBalancete(qs, temEmpresa);
   const dados = q.data;
 
@@ -68,8 +64,8 @@ export default function AnaliseBalancetePage() {
         </span>
         <p className="text-sm font-medium text-ink">Selecione uma empresa</p>
         <p className="max-w-md text-xs text-muted">
-          Escolha uma empresa e o período (até 12 meses) no filtro acima e clique em
-          Analisar. A análise usa os saldos do contábil no período.
+          Escolha uma empresa e os meses no filtro acima e clique em Analisar. A análise
+          usa os saldos do contábil no período.
         </p>
       </section>
     );
@@ -78,16 +74,8 @@ export default function AnaliseBalancetePage() {
   if (q.isLoading || (q.isFetching && !dados)) {
     return (
       <section className="card grid place-items-center gap-4 px-6 py-20 text-center">
-        <span className="grid size-12 place-items-center rounded-2xl bg-ent/12 text-ent">
-          <Loader2 className="size-6 animate-spin" />
-        </span>
-        <div>
-          <p className="text-sm font-medium text-ink">Gerando a análise…</p>
-          <p className="mt-1 max-w-md text-xs text-muted">
-            Coletando os saldos do período e montando o laudo com a IA. Costuma levar de
-            alguns segundos a meio minuto.
-          </p>
-        </div>
+        <Loader2 className="size-6 animate-spin text-ent" />
+        <p className="text-sm text-muted">Coletando os saldos e aplicando as regras…</p>
       </section>
     );
   }
@@ -106,87 +94,30 @@ export default function AnaliseBalancetePage() {
     );
   }
 
-  return <Laudo dados={dados} />;
+  return <Laudo dados={dados} qs={qs} temEmpresa={temEmpresa} />;
 }
 
-function ValidacaoPainel({ val }: { val: ValidacaoBalancete }) {
-  const { cobertura: cob } = val;
-  const coberturaParcial =
-    cob.mesesComMovimento < cob.mesesSolicitados || !cob.temSaldoInicial;
-  const tudoOk = val.fecha && val.anomalias.length === 0;
+function Laudo({
+  dados,
+  qs,
+  temEmpresa,
+}: {
+  dados: AnaliseBalanceteResp;
+  qs: string;
+  temEmpresa: boolean;
+}) {
+  const { analise, empresa, periodo } = dados;
+  const saude = SAUDE[analise.saudeGeral] ?? SAUDE.estavel;
 
-  return (
-    <div className="mb-6 space-y-2">
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">
-        Validação contábil (regras)
-      </h2>
+  const [pedirLaudo, setPedirLaudo] = useState(false);
+  const laudo = useLaudoEscrito(qs, pedirLaudo && temEmpresa);
 
-      {!val.fecha && (
-        <div className="flex items-start gap-2 rounded-lg border border-critical/40 bg-critical/8 px-3 py-2 text-sm text-ink">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-critical" />
-          <span>
-            <strong className="text-critical">Balancete não fecha</strong> — diferença de{" "}
-            {brl(Math.abs(val.difFechamento))} entre débitos e créditos. Há erro de dado;
-            revise antes de confiar nos números.
-          </span>
-        </div>
-      )}
-
-      {val.anomalias.length > 0 && (
-        <div className="rounded-lg border border-warning/40 bg-warning/8 px-3 py-2">
-          <div className="flex items-center gap-2 text-sm font-medium text-ink">
-            <AlertTriangle className="size-4 shrink-0 text-warn" />
-            {num(val.anomalias.length)}{" "}
-            {val.anomalias.length === 1 ? "conta" : "contas"} com saldo de sinal atípico
-            (viola a natureza)
-          </div>
-          <ul className="mt-1.5 flex flex-col gap-1">
-            {val.anomalias.slice(0, 8).map((a) => (
-              <li key={a.conta} className="flex items-center justify-between gap-3 text-xs">
-                <span className="min-w-0 truncate text-ink-2">
-                  {a.conta} {a.descricao}
-                </span>
-                <span className="flex shrink-0 items-center gap-2 text-muted">
-                  <span>{a.natureza === "D" ? "devedora c/ saldo credor" : "credora c/ saldo devedor"}</span>
-                  <span className="tabular-nums text-ink">{brl(a.saldoFinal)}</span>
-                </span>
-              </li>
-            ))}
-            {val.anomalias.length > 8 && (
-              <li className="text-xs text-muted">+ {num(val.anomalias.length - 8)} outras</li>
-            )}
-          </ul>
-        </div>
-      )}
-
-      {coberturaParcial && (
-        <p className="text-xs text-muted">
-          Cobertura: {num(cob.mesesComMovimento)} de {num(cob.mesesSolicitados)} meses com
-          movimento
-          {cob.primeiroMesComDado ? ` (a partir de ${cob.primeiroMesComDado})` : ""}.
-          {!cob.temSaldoInicial && " Sem saldo antes do período — empresa nova no recorte ou início da escrituração."}{" "}
-          A análise considera isso.
-        </p>
-      )}
-
-      {tudoOk && (
-        <div className="flex items-center gap-2 rounded-lg border border-good/25 bg-good/5 px-3 py-2 text-sm text-ink">
-          <CheckCircle2 className="size-4 shrink-0 text-good" />
-          Regras básicas ok: o balancete fecha e nenhuma conta tem saldo com sinal atípico.
-        </div>
-      )}
-    </div>
+  const gruposEstrutura = analise.grupos.filter(
+    (g) => g.chave !== "receita" && g.chave !== "custoDespesa"
   );
-}
-
-function Laudo({ dados }: { dados: AnaliseBalanceteResp }) {
-  const { laudo, validacao, empresa, periodo, meta } = dados;
-  const saude = SAUDE[laudo.saudeGeral] ?? SAUDE.estavel;
-  const custoTokens = meta.tokensEntrada + meta.tokensSaida;
 
   return (
     <>
-      {/* CSS de impressão: some tudo e mostra só o laudo, limpo, no PDF. */}
       <style
         dangerouslySetInnerHTML={{
           __html: `@media print {
@@ -199,7 +130,7 @@ function Laudo({ dados }: { dados: AnaliseBalanceteResp }) {
       />
 
       <section id="laudo-print" className="card anim-fade-up p-6">
-        {/* Cabeçalho do laudo */}
+        {/* Cabeçalho */}
         <header className="mb-5 flex flex-wrap items-start justify-between gap-4 border-b border-hairline pb-5">
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-ent">
@@ -211,17 +142,12 @@ function Laudo({ dados }: { dados: AnaliseBalanceteResp }) {
             <h1 className="mt-1 text-lg font-semibold text-ink">{empresa.nome}</h1>
             <p className="text-xs text-muted">
               {empresa.cnpj ? `CNPJ ${empresa.cnpj} · ` : ""}
-              Período {dataBR(periodo.inicio)} – {dataBR(periodo.fim)} ({periodo.meses.length}{" "}
+              {dataBR(periodo.inicio)} – {dataBR(periodo.fim)} ({periodo.meses.length}{" "}
               {periodo.meses.length === 1 ? "mês" : "meses"})
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <span
-              className={clsx(
-                "rounded-full px-3 py-1 text-xs font-semibold",
-                saude.classe
-              )}
-            >
+            <span className={clsx("rounded-full px-3 py-1 text-xs font-semibold", saude.classe)}>
               {saude.rotulo}
             </span>
             <button
@@ -233,34 +159,24 @@ function Laudo({ dados }: { dados: AnaliseBalanceteResp }) {
           </div>
         </header>
 
-        {/* Validação determinística (regras) — fato, não opinião da IA */}
-        <ValidacaoPainel val={validacao} />
-
-        {/* Resumo executivo */}
-        <div className="mb-6">
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
-            Resumo executivo
-          </h2>
-          <p className="whitespace-pre-line text-sm leading-relaxed text-ink-2">
-            {laudo.resumoExecutivo}
-          </p>
-        </div>
+        {/* Inconsistências / regras */}
+        <Regras analise={analise} />
 
         {/* Indicadores */}
-        {laudo.indicadores.length > 0 && (
+        {analise.indicadores.length > 0 && (
           <div className="mb-6">
             <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
               Indicadores
             </h2>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {laudo.indicadores.map((ind, i) => (
-                <div key={i} className="rounded-xl border border-hairline bg-surface-2/40 p-3">
+              {analise.indicadores.map((ind) => (
+                <div key={ind.chave} className="rounded-xl border border-hairline bg-surface-2/40 p-3">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs font-medium text-muted">{ind.nome}</span>
-                    <TendenciaIcone t={ind.tendencia} />
+                    <Tendencia t={ind.tendencia} />
                   </div>
-                  <p className="mt-1 text-lg font-semibold tabular-nums text-ink">
-                    {ind.valor}
+                  <p className={clsx("mt-1 text-lg font-semibold tabular-nums", FAIXA[ind.faixa])}>
+                    {ind.formatado}
                   </p>
                   <p className="mt-1 text-xs leading-snug text-muted">{ind.interpretacao}</p>
                 </div>
@@ -269,102 +185,173 @@ function Laudo({ dados }: { dados: AnaliseBalanceteResp }) {
           </div>
         )}
 
-        {/* Pontos fortes e fracos, lado a lado */}
-        <div className="mb-6 grid gap-5 lg:grid-cols-2">
-          {laudo.pontosFortes.length > 0 && (
-            <div>
-              <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-good">
-                <ThumbsUp className="size-3.5" /> Pontos fortes
-              </h2>
-              <ul className="flex flex-col gap-2">
-                {laudo.pontosFortes.map((p, i) => (
-                  <li key={i} className="rounded-lg border border-good/25 bg-good/5 px-3 py-2">
-                    <p className="text-sm font-medium text-ink">{p.titulo}</p>
-                    <p className="mt-0.5 text-xs leading-snug text-muted">{p.detalhe}</p>
-                  </li>
-                ))}
-              </ul>
+        {/* Estrutura patrimonial */}
+        {gruposEstrutura.length > 0 && (
+          <div className="mb-6">
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+              Estrutura patrimonial (último mês)
+            </h2>
+            <div className="overflow-x-auto rounded-xl border border-hairline">
+              <table className="w-full text-sm">
+                <tbody>
+                  {gruposEstrutura.map((g) => (
+                    <tr key={g.chave} className="border-b border-hairline/50 last:border-0">
+                      <td className="px-3 py-2 text-ink-2">{g.nome}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-ink">{brl(g.saldoFinal)}</td>
+                      <td className="w-16 px-3 py-2 text-right tabular-nums text-muted">
+                        {g.pctBase != null ? `${(g.pctBase * 100).toFixed(0)}%` : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
-          {laudo.pontosFracos.length > 0 && (
+          </div>
+        )}
+
+        {/* Evolução mês a mês */}
+        {analise.meses.length > 1 && (
+          <div className="mb-6">
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+              Evolução mês a mês
+            </h2>
+            <div className="overflow-x-auto rounded-xl border border-hairline">
+              <table className="w-full min-w-[560px] text-xs">
+                <thead>
+                  <tr className="border-b border-hairline text-muted">
+                    <th className="px-3 py-2 text-left font-medium">Grupo</th>
+                    {analise.meses.map((m) => (
+                      <th key={m} className="px-2 py-2 text-right font-medium">
+                        {mesBR(m + "-01")}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {analise.grupos.map((g) => (
+                    <tr key={g.chave} className="border-b border-hairline/50 last:border-0">
+                      <td className="px-3 py-1.5 text-ink-2">{g.nome}</td>
+                      {g.serie.map((v, i) => (
+                        <td key={i} className="px-2 py-1.5 text-right tabular-nums text-ink">
+                          {brlCompact(v)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Laudo escrito por IA (opcional) */}
+        <div className="mt-6 border-t border-hairline pt-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-warn">
-                <ThumbsDown className="size-3.5" /> Pontos fracos
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">
+                Laudo escrito
               </h2>
-              <ul className="flex flex-col gap-2">
-                {laudo.pontosFracos.map((p, i) => (
-                  <li key={i} className="rounded-lg border border-warning/25 bg-warning/5 px-3 py-2">
-                    <p className="text-sm font-medium text-ink">{p.titulo}</p>
-                    <p className="mt-0.5 text-xs leading-snug text-muted">{p.detalhe}</p>
-                  </li>
-                ))}
-              </ul>
+              <p className="mt-0.5 text-xs text-muted">
+                Redação em prosa para apresentar ao cliente — gerada por IA sobre a análise acima.
+              </p>
+            </div>
+            {!laudo.data && (
+              <button
+                onClick={() => setPedirLaudo(true)}
+                disabled={laudo.isFetching}
+                className="no-print inline-flex items-center gap-1.5 rounded-lg bg-ent px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+              >
+                {laudo.isFetching ? (
+                  <>
+                    <Loader2 className="size-3.5 animate-spin" /> Gerando…
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="size-3.5" /> Gerar laudo escrito
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+
+          {laudo.data && (
+            <div className="mt-3">
+              <p className="whitespace-pre-line text-sm leading-relaxed text-ink-2">
+                {laudo.data.texto}
+              </p>
+              <p className="mt-3 flex items-center gap-1.5 text-[11px] text-muted">
+                <CheckCircle2 className="size-3" />
+                Redigido por IA ({laudo.data.meta.modelo}) ·{" "}
+                {num(laudo.data.meta.tokensEntrada + laudo.data.meta.tokensSaida)} tokens. Confira
+                antes de apresentar.
+              </p>
             </div>
           )}
         </div>
 
-        {/* Alertas */}
-        {laudo.alertas.length > 0 && (
-          <div className="mb-6">
-            <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
-              <AlertTriangle className="size-3.5" /> Alertas
-            </h2>
-            <ul className="flex flex-col gap-2">
-              {laudo.alertas.map((a, i) => (
-                <li
-                  key={i}
-                  className={clsx("rounded-lg border px-3 py-2", SEVERIDADE[a.severidade] ?? SEVERIDADE.baixa)}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wide">
-                      {a.severidade}
-                    </span>
-                    <p className="text-sm font-medium text-ink">{a.titulo}</p>
-                  </div>
-                  <p className="mt-0.5 text-xs leading-snug text-ink-2">{a.detalhe}</p>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Recomendações */}
-        {laudo.recomendacoes.length > 0 && (
-          <div className="mb-2">
-            <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-ent">
-              <Lightbulb className="size-3.5" /> Recomendações
-            </h2>
-            <ul className="flex flex-col gap-2">
-              {laudo.recomendacoes.map((r, i) => (
-                <li
-                  key={i}
-                  className="flex items-start gap-3 rounded-lg border border-hairline bg-surface-2/40 px-3 py-2"
-                >
-                  <span
-                    className={clsx(
-                      "mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-                      PRIORIDADE[r.prioridade] ?? PRIORIDADE.baixa
-                    )}
-                  >
-                    {r.prioridade}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-ink">{r.titulo}</p>
-                    <p className="mt-0.5 text-xs leading-snug text-muted">{r.detalhe}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Rodapé: transparência de origem/custo */}
+        {/* Rodapé */}
         <footer className="mt-6 flex items-center gap-1.5 border-t border-hairline pt-3 text-[11px] text-muted">
           <CheckCircle2 className="size-3" />
-          Laudo gerado por IA ({meta.modelo}) sobre os saldos do contábil · {num(custoTokens)}{" "}
-          tokens. Confira antes de apresentar ao cliente.
+          Regras e indicadores calculados diretamente dos saldos do contábil (sem IA).
         </footer>
       </section>
     </>
+  );
+}
+
+function Regras({ analise }: { analise: AnaliseDeterministica }) {
+  const { cobertura: cob } = analise;
+  const coberturaParcial =
+    cob.mesesComMovimento < cob.mesesSolicitados || !cob.temSaldoInicial;
+  const semProblema = analise.inconsistencias.length === 0;
+
+  return (
+    <div className="mb-6 space-y-2">
+      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">
+        Validação contábil (regras)
+      </h2>
+
+      {analise.inconsistencias.map((i, idx) => (
+        <div
+          key={idx}
+          className={clsx("rounded-lg border px-3 py-2", SEVERIDADE[i.severidade])}
+        >
+          <div className="flex items-center gap-2">
+            <span
+              className={clsx(
+                "text-[10px] font-bold uppercase tracking-wide",
+                i.severidade === "alta"
+                  ? "text-critical"
+                  : i.severidade === "media"
+                    ? "text-warn"
+                    : "text-muted"
+              )}
+            >
+              {i.severidade}
+            </span>
+            <p className="text-sm font-medium text-ink">{i.titulo}</p>
+          </div>
+          <p className="mt-0.5 text-xs leading-snug text-ink-2">{i.detalhe}</p>
+        </div>
+      ))}
+
+      {semProblema && (
+        <div className="flex items-center gap-2 rounded-lg border border-good/25 bg-good/5 px-3 py-2 text-sm text-ink">
+          <CheckCircle2 className="size-4 shrink-0 text-good" />
+          Nenhuma inconsistência de regra: o balancete fecha e os saldos respeitam a natureza
+          das contas.
+        </div>
+      )}
+
+      {coberturaParcial && (
+        <p className="text-xs text-muted">
+          Cobertura: {num(cob.mesesComMovimento)} de {num(cob.mesesSolicitados)} meses com
+          movimento
+          {cob.primeiroMesComDado ? ` (a partir de ${cob.primeiroMesComDado})` : ""}.
+          {!cob.temSaldoInicial &&
+            " Sem saldo antes do período — empresa nova no recorte ou início da escrituração."}
+        </p>
+      )}
+    </div>
   );
 }

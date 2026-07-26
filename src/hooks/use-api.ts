@@ -39,6 +39,7 @@ import type {
   BalanceteCulpadosResp,
   ReplicarPreviewResp,
   AnaliseBalanceteResp,
+  LaudoEscritoResp,
 } from "@/lib/types";
 import type {
   FuncionarioDiretorio,
@@ -367,9 +368,8 @@ export const useBalanceteFiscal = (qs: string, enabled = true) =>
   );
 
 /**
- * Análise de Balancete por IA. A chamada é cara (modelo Claude), então o cache
- * é eterno e não refaz em foco: uma vez analisado o período, fica pronto — o
- * usuário roda de novo trocando os filtros (nova query key).
+ * Análise de Balancete — motor DETERMINÍSTICO (sem IA, custo zero). Roda no
+ * Executar. Cache eterno por período; troca de filtro = nova análise.
  */
 export function useAnaliseBalancete(qs: string, enabled = true) {
   const q = useQuery<AnaliseBalanceteResp>({
@@ -385,6 +385,30 @@ export function useAnaliseBalancete(qs: string, enabled = true) {
   useEffect(() => {
     if (q.isError) {
       toast.error(q.error instanceof Error ? q.error.message : "Falha ao gerar a análise");
+    }
+  }, [q.isError, q.error]);
+
+  return q;
+}
+
+/**
+ * Laudo ESCRITO por IA — opcional. Só dispara quando `enabled` liga (o botão
+ * "Gerar laudo escrito"); cache eterno, então clicar de novo não regasta API.
+ */
+export function useLaudoEscrito(qs: string, enabled: boolean) {
+  const q = useQuery<LaudoEscritoResp>({
+    queryKey: ["analise-laudo", qs],
+    queryFn: () => fetchJson<LaudoEscritoResp>(`/api/contabil/analise-balancete/laudo?${qs}`),
+    enabled,
+    staleTime: Infinity,
+    gcTime: 30 * 60_000,
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (q.isError) {
+      toast.error(q.error instanceof Error ? q.error.message : "Falha ao gerar o laudo");
     }
   }, [q.isError, q.error]);
 

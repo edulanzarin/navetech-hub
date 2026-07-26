@@ -796,42 +796,7 @@ export interface FolhaFicha {
   uf: string | null;
 }
 
-// ── Análise de Balancete (laudo gerado por IA) ──────────────────────────────
-
-export interface AnaliseIndicador {
-  nome: string;
-  valor: string;
-  interpretacao: string;
-  tendencia: "melhora" | "estavel" | "piora";
-}
-
-export interface AnalisePonto {
-  titulo: string;
-  detalhe: string;
-}
-
-export interface AnaliseAlerta {
-  severidade: "alta" | "media" | "baixa";
-  titulo: string;
-  detalhe: string;
-}
-
-export interface AnaliseRecomendacao {
-  titulo: string;
-  detalhe: string;
-  prioridade: "alta" | "media" | "baixa";
-}
-
-/** Estrutura do laudo — bate 1:1 com o JSON schema pedido ao Claude. */
-export interface LaudoAnalise {
-  resumoExecutivo: string;
-  saudeGeral: "forte" | "estavel" | "atencao" | "critica";
-  indicadores: AnaliseIndicador[];
-  pontosFortes: AnalisePonto[];
-  pontosFracos: AnalisePonto[];
-  alertas: AnaliseAlerta[];
-  recomendacoes: AnaliseRecomendacao[];
-}
+// ── Análise de Balancete (motor determinístico + laudo opcional por IA) ──────
 
 /** Conta cujo saldo final tem sinal contrário à sua natureza (violação de regra). */
 export interface AnomaliaConta {
@@ -843,7 +808,7 @@ export interface AnomaliaConta {
   saldoFinal: number;
 }
 
-/** Validação contábil DETERMINÍSTICA do balancete (regras, não opinião da IA). */
+/** Validação contábil determinística: fecha, anomalias de sinal e cobertura. */
 export interface ValidacaoBalancete {
   /** O balancete fecha? (Σ saldos devedores = Σ saldos credores, na tolerância.) */
   fecha: boolean;
@@ -851,24 +816,73 @@ export interface ValidacaoBalancete {
   difFechamento: number;
   /** Contas com saldo de sinal atípico (devedora credora, ou credora devedora). */
   anomalias: AnomaliaConta[];
-  /** Cobertura do período — pra IA não ler mês vazio como queda. */
   cobertura: {
     mesesSolicitados: number;
     mesesComMovimento: number;
-    /** 1º mês do período com algum movimento; null se nenhum. */
     primeiroMesComDado: string | null;
-    /** Empresa tinha saldo antes do período (histórico anterior)? */
     temSaldoInicial: boolean;
   };
 }
 
-/** Resposta da rota de análise: laudo + validação + metadados. */
+/** Grupo estrutural do balancete (Ativo Circulante, Passivo, PL, Receita…). */
+export interface GrupoBalancete {
+  chave: string;
+  nome: string;
+  /** Magnitude natural (positiva) no último mês. */
+  saldoFinal: number;
+  /** % da base do grupo (Ativo total, ou Passivo+PL); null quando não se aplica. */
+  pctBase: number | null;
+  /** Magnitude por mês, na ordem de `meses`. */
+  serie: number[];
+}
+
+/** Indicador financeiro calculado — determinístico. */
+export interface IndicadorCalc {
+  chave: string;
+  nome: string;
+  /** Valor no último mês; null quando não calculável com os dados. */
+  valor: number | null;
+  formatado: string;
+  unidade: "indice" | "pct" | "reais";
+  /** Faixa de leitura (cor): boa, atenção, ruim ou neutra. */
+  faixa: "bom" | "atencao" | "ruim" | "neutro";
+  interpretacao: string;
+  tendencia: "melhora" | "estavel" | "piora" | "indef";
+  serie: (number | null)[];
+}
+
+/** Achado do motor: inconsistência ou observação, com severidade. */
+export interface Inconsistencia {
+  severidade: "alta" | "media" | "baixa";
+  tipo: string;
+  titulo: string;
+  detalhe: string;
+  conta?: number;
+  valor?: number;
+}
+
+/** Resultado do MOTOR determinístico — sem IA, roda no Executar (custo zero). */
+export interface AnaliseDeterministica {
+  /** Saúde geral, derivada por regra dos achados (não é opinião de IA). */
+  saudeGeral: "forte" | "estavel" | "atencao" | "critica";
+  fecha: boolean;
+  difFechamento: number;
+  cobertura: ValidacaoBalancete["cobertura"];
+  grupos: GrupoBalancete[];
+  indicadores: IndicadorCalc[];
+  inconsistencias: Inconsistencia[];
+  meses: string[];
+}
+
+/** Resposta da rota principal (motor determinístico). */
 export interface AnaliseBalanceteResp {
-  laudo: LaudoAnalise;
-  /** Validação determinística das regras contábeis (fecha? anomalias? cobertura?). */
-  validacao: ValidacaoBalancete;
+  analise: AnaliseDeterministica;
   empresa: { codigo: number; nome: string; cnpj: string | null };
   periodo: { inicio: string; fim: string; meses: string[] };
-  /** Modelo usado e tokens gastos — transparência de custo. */
+}
+
+/** Resposta do laudo ESCRITO por IA (botão opcional; só aqui gasta API). */
+export interface LaudoEscritoResp {
+  texto: string;
   meta: { modelo: string; tokensEntrada: number; tokensSaida: number };
 }

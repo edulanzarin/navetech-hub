@@ -4,20 +4,18 @@ import { parseFilters, FilterError } from "@/lib/fiscal-filters";
 import { getSessao, empresasPermitidas } from "@/lib/sessao";
 import { coletarBalanceteContabil } from "@/lib/balancete-contabil";
 import { analisarMotor } from "@/lib/analise-motor";
-import type { AnaliseBalanceteResp } from "@/lib/types";
+import { redigirLaudo, AnaliseError } from "@/lib/analise-balancete";
+import type { LaudoEscritoResp } from "@/lib/types";
 
 /**
- * Análise de Balancete — MOTOR determinístico (sem IA). Coleta os saldos do
- * contábil por empresa e roda as regras, indicadores e evolução. Custo zero;
- * roda no Executar. A prosa por IA é uma rota à parte (./laudo), sob demanda.
- *
- * O coletor consulta o Questor direto por empresa (sem `buildWhere`), então o
- * escopo de empresa do usuário é travado aqui.
+ * Laudo ESCRITO por IA — rota opcional (botão "Gerar laudo escrito"). Recalcula
+ * o motor (barato) e manda os achados pra IA redigir a prosa. É o único ponto
+ * que gasta API. Mesmo gate de escopo da rota principal.
  */
 export const GET = apiRoute(async (req) => {
   const f = parseFilters(req.nextUrl.searchParams);
   if (f.empresas.length !== 1) {
-    throw new FilterError("Selecione uma empresa para a análise");
+    throw new FilterError("Selecione uma empresa para o laudo");
   }
   const empresa = f.empresas[0];
 
@@ -33,11 +31,13 @@ export const GET = apiRoute(async (req) => {
       throw new FilterError("Sem movimento contábil no período para analisar.");
     }
     const analise = analisarMotor(bal);
-    return {
-      analise,
-      empresa: bal.empresa,
-      periodo: { inicio: f.inicio, fim: f.fim, meses: bal.mesesLabels },
-    } satisfies AnaliseBalanceteResp;
+    try {
+      const { texto, meta } = await redigirLaudo(bal, analise);
+      return { texto, meta } satisfies LaudoEscritoResp;
+    } catch (err) {
+      if (err instanceof AnaliseError) throw new FilterError(err.message);
+      throw err;
+    }
   } finally {
     client.release();
   }
