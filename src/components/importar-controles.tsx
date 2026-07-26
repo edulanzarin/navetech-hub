@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { RefreshCw } from "lucide-react";
+import { Lock, RefreshCw } from "lucide-react";
 import clsx from "clsx";
 import { ContaDropdown } from "@/components/conta-dropdown";
 import { DropzoneArquivo } from "@/components/dropzone-arquivo";
 import { BotaoExecutar } from "@/components/filters/botao-executar";
+import { Modal } from "@/components/ui/modal";
 import { useEstadoSecao } from "@/hooks/use-estado-secao";
 import { useFiltros } from "@/hooks/use-filters";
 import { resumir, type Ajustes, type Previa } from "@/lib/extrato-previa";
@@ -34,6 +35,30 @@ export function ImportarControles() {
   const [enviando, setEnviando] = useState(false);
   const [atualizando, setAtualizando] = useState(false);
   const [senha, setSenha] = useState("");
+  const [arquivoProtegido, setArquivoProtegido] = useState(false);
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+
+  // Detecta senha no PDF pelo marcador /Encrypt do dicionário de criptografia.
+  async function pdfProtegido(f: File): Promise<boolean> {
+    try {
+      const buf = new Uint8Array(await f.arrayBuffer());
+      return new TextDecoder("latin1").decode(buf).includes("/Encrypt");
+    } catch {
+      return false;
+    }
+  }
+
+  // Escolher o arquivo não processa — só guarda. Se for PDF protegido, abre o
+  // modal de senha na hora (melhor que um campo solto na barra o tempo todo).
+  async function aoEscolherArquivo(f: File) {
+    setArquivo(f);
+    setSenha("");
+    setArquivoProtegido(false);
+    if (f.name.toLowerCase().endsWith(".pdf") && (await pdfProtegido(f))) {
+      setArquivoProtegido(true);
+      setMostrarSenha(true);
+    }
+  }
 
   async function executar() {
     if (conta == null || !arquivo) return;
@@ -51,7 +76,13 @@ export function ImportarControles() {
       setAjustes({});
       toast.success(`${corpo.resumo.total} transações lidas`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Falha ao ler o extrato");
+      const msg = err instanceof Error ? err.message : "Falha ao ler o extrato";
+      toast.error(msg);
+      // Senha errada/faltando: reabre o modal pra corrigir.
+      if (/senha|protegid|password|encrypt/i.test(msg)) {
+        setArquivoProtegido(true);
+        setMostrarSenha(true);
+      }
     } finally {
       setEnviando(false);
     }
@@ -121,46 +152,91 @@ export function ImportarControles() {
 
       <DropzoneArquivo
         aceita={[".ofx", ".qfx", ".pdf"]}
-        onArquivo={setArquivo}
-        desabilitado={conta == null}
+        onArquivo={aoEscolherArquivo}
         carregando={enviando}
-        motivo={conta == null ? "Escolha a conta primeiro" : undefined}
         nomeArquivo={arquivo?.name}
       />
 
-      <input
-        type="password"
-        value={senha}
-        onChange={(e) => setSenha(e.target.value)}
-        placeholder="senha do PDF, se protegido"
-        className="h-9 w-44 rounded-lg border border-hairline bg-surface px-2.5 text-sm text-ink outline-none placeholder:text-muted"
-      />
-
-      <BotaoExecutar
-        onClick={executar}
-        dirty={pendenteDeExecucao}
-        disabled={conta == null || !arquivo}
-        executando={enviando}
-        title={
-          conta == null
-            ? "Escolha a conta de banco"
-            : !arquivo
-              ? "Escolha o extrato"
-              : undefined
-        }
-      />
-
-      {previa && (
+      {/* Chip de senha: só aparece pra PDF protegido; reabre o modal. */}
+      {arquivoProtegido && (
         <button
-          onClick={reaplicar}
-          disabled={atualizando}
-          title="Reaplica as regras cadastradas nas transações já lidas"
-          className="flex h-9 items-center gap-1.5 rounded-lg border border-hairline px-3 text-xs text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-50"
+          onClick={() => setMostrarSenha(true)}
+          title="Este PDF está protegido — informe a senha"
+          className={clsx(
+            "flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs transition-colors",
+            senha
+              ? "border-good/40 bg-good/8 text-good"
+              : "border-warning/40 bg-warning/8 text-warn hover:bg-warning/12"
+          )}
         >
-          <RefreshCw className={clsx("size-3.5", atualizando && "animate-spin")} />
-          Reaplicar regras
+          <Lock className="size-3.5" />
+          {senha ? "senha ok" : "inserir senha"}
         </button>
       )}
+
+      {/* Executar (e Reaplicar) fixos no fim da direita. */}
+      <div className="ml-auto flex items-center gap-2">
+        {previa && (
+          <button
+            onClick={reaplicar}
+            disabled={atualizando}
+            title="Reaplica as regras cadastradas nas transações já lidas"
+            className="flex h-9 items-center gap-1.5 rounded-lg border border-hairline px-3 text-xs text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-50"
+          >
+            <RefreshCw className={clsx("size-3.5", atualizando && "animate-spin")} />
+            Reaplicar regras
+          </button>
+        )}
+        <BotaoExecutar
+          onClick={executar}
+          dirty={pendenteDeExecucao}
+          disabled={conta == null || !arquivo}
+          executando={enviando}
+          title={
+            conta == null
+              ? "Escolha a conta de banco"
+              : !arquivo
+                ? "Escolha o extrato"
+                : undefined
+          }
+        />
+      </div>
+
+      {/* Modal de senha — abre ao escolher um PDF protegido (ou ao errar a senha). */}
+      <Modal
+        aberto={mostrarSenha}
+        onFechar={() => setMostrarSenha(false)}
+        titulo="PDF protegido"
+        subtitulo="Este extrato tem senha. Informe para a leitura."
+        largura="max-w-sm"
+      >
+        <div className="space-y-3 p-5">
+          <input
+            type="password"
+            autoFocus
+            value={senha}
+            onChange={(e) => setSenha(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && senha && setMostrarSenha(false)}
+            placeholder="Senha do PDF"
+            className="h-9 w-full rounded-lg border border-hairline bg-surface px-2.5 text-sm text-ink outline-none placeholder:text-muted"
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => setMostrarSenha(false)}
+              className="h-9 rounded-lg border border-hairline px-3 text-sm text-ink-2 transition-colors hover:bg-surface-2"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={() => setMostrarSenha(false)}
+              disabled={!senha}
+              className="h-9 rounded-lg bg-ent px-3 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              Confirmar
+            </button>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 }
