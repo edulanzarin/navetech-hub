@@ -128,8 +128,9 @@ interface NotaRow {
   uf: string | null;
 }
 
-/** Todas as notas do período, com os valores que alimentam as fórmulas do plano. */
-function sqlNotas(c: LadoCfg): string {
+/** Todas as notas do período, com os valores que alimentam as fórmulas do plano.
+ *  `estabClause` recorta por filial (vazio = todas) — vem no $4 quando há filial. */
+function sqlNotas(c: LadoCfg, estabClause: string): string {
   return `
     select n.${c.chave} chave, n.numeronf numero, n.serienf serie,
            upper(btrim(n.especienf)) especie, n.datalctofis data, n.codigoestab estab,
@@ -142,7 +143,7 @@ function sqlNotas(c: LadoCfg): string {
            p.nomepessoa contraparte, p.inscrfederal doc, p.siglaestado uf
       from ${c.tabela} n
       left join pessoa p on p.codigopessoa = n.codigopessoa
-     where n.codigoempresa = $1 and n.datalctofis between $2 and $3
+     where n.codigoempresa = $1 and n.datalctofis between $2 and $3${estabClause}
      order by n.valorcontabil desc
      limit ${MAX_NOTAS + 1}`;
 }
@@ -175,11 +176,19 @@ async function conferir(
   empresa: number,
   inicio: string,
   fim: string,
+  estabs: number[],
   o: Opcoes
 ): Promise<ConferenciaResp> {
   const c = o.tipo === "ent" ? ENT : SAI;
   const params = [empresa, inicio, fim];
-  const linhas = (await client.query<NotaRow>(sqlNotas(c), params)).rows;
+  // Filial: recorta os scans de FATO (notas e a consolidação MOV). Os scans "por
+  // chave" (lctoctb/itens) seguem as notas já filtradas, então não precisam. O
+  // plano e o cadastro aprendido são por empresa/estab e ficam intactos.
+  const temEstab = estabs.length > 0;
+  const estabNota = temEstab ? ` and n.codigoestab = any($4::int[])` : "";
+  const linhas = (
+    await client.query<NotaRow>(sqlNotas(c, estabNota), temEstab ? [...params, estabs] : params)
+  ).rows;
   const truncado = linhas.length > MAX_NOTAS;
   const notas = truncado ? linhas.slice(0, MAX_NOTAS) : linhas;
 
@@ -289,17 +298,18 @@ async function conferir(
   // e não tem lançamento por chave não está pendente se a receita/contrapartida
   // dela cai numa dessas contas — está dentro do bloco. Chave "natureza:conta"
   // (débito = 1, crédito = -1), igual a `observadas`.
+  const movEstab = temEstab ? ` and codigoestab = any($4::int[])` : "";
   const movRows = await client.query<{ conta: number; nat: number }>(
     `select contactbdeb conta, 1 nat from lctoctb
        where codigoempresa = $1 and codigooriglctoctb = 'FI'
-         and datalctoctb between $2 and $3 and chaveorigem like 'MOV%' and contactbdeb is not null
+         and datalctoctb between $2 and $3 and chaveorigem like 'MOV%' and contactbdeb is not null${movEstab}
       group by contactbdeb
      union
      select contactbcred, -1 from lctoctb
        where codigoempresa = $1 and codigooriglctoctb = 'FI'
-         and datalctoctb between $2 and $3 and chaveorigem like 'MOV%' and contactbcred is not null
+         and datalctoctb between $2 and $3 and chaveorigem like 'MOV%' and contactbcred is not null${movEstab}
       group by contactbcred`,
-    params
+    temEstab ? [...params, estabs] : params
   );
   const contasConsolidadas = new Set<string>();
   const contasConsolidadasNums = new Set<number>();
@@ -318,16 +328,17 @@ async function conferir(
     valor: number;
   }[] = [];
   if (contasConsolidadasNums.size) {
+    const movLctEstab = temEstab ? ` and l.codigoestab = any($5::int[])` : "";
     const det = await client.query<(typeof movLancamentos)[number]>(
       `select coalesce(to_char(l.datalctoctb, 'YYYY-MM-DD'), '') data, l.chaveorigem origem,
               l.contactbdeb deb, l.contactbcred cred, l.valorlctoctb::float valor
          from lctoctb l
         where l.codigoempresa = $1 and l.codigooriglctoctb = 'FI'
           and l.datalctoctb between $2 and $3 and l.chaveorigem like 'MOV%'
-          and (l.contactbdeb = any($4::bigint[]) or l.contactbcred = any($4::bigint[]))
+          and (l.contactbdeb = any($4::bigint[]) or l.contactbcred = any($4::bigint[]))${movLctEstab}
         order by l.valorlctoctb desc
         limit 500`,
-      [...params, [...contasConsolidadasNums]]
+      temEstab ? [...params, [...contasConsolidadasNums], estabs] : [...params, [...contasConsolidadasNums]]
     );
     movLancamentos = det.rows;
   }
@@ -561,7 +572,7 @@ export const GET = apiRoute(async (req) => {
 
   const client = await pool.connect();
   try {
-    return await conferir(client, filters.empresas[0], filters.inicio, filters.fim, opcoes);
+    return await conferir(client, filters.empresas[0], filters.inicio, filters.fim, filters.estabs, opcoes);
   } finally {
     client.release();
   }
