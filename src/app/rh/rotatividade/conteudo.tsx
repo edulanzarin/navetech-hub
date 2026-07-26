@@ -137,8 +137,8 @@ export default function Conteudo() {
 
   return (
     <>
-      {/* Controles: empresa + período */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* Controles: empresa + período, alinhados à esquerda (padrão dos módulos) */}
+      <div className="flex flex-wrap items-center gap-2">
         <div className="inline-flex rounded-lg border border-hairline bg-surface p-0.5">
           {empresaSeg.map((s) => (
             <button
