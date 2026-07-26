@@ -6,6 +6,8 @@ import clsx from "clsx";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { SeloEmpresa } from "@/components/rh-selo-empresa";
+import { BotaoExecutar } from "@/components/filters/botao-executar";
+import { FiltroPendente } from "@/components/filtro-pendente";
 import { useRhExperiencia } from "@/hooks/use-api";
 import { mutar } from "@/hooks/mutar";
 import { EMPRESAS_RH, nomeEmpresaRh } from "@/lib/rh";
@@ -46,9 +48,17 @@ function Kpi({ rotulo, valor, tom }: { rotulo: string; valor: number; tom: strin
 export default function Conteudo() {
   const [empresa, setEmpresa] = useState<FiltroEmpresa>("todas");
   const qs = empresa === "todas" ? "" : `empresa=${empresa}`;
-  const { data, isLoading } = useRhExperiencia(qs);
+  // Nada consulta até o Visualizar (padrão executar-por-botão).
+  const [qsAplicado, setQsAplicado] = useState<string | null>(null);
+  const { data, isLoading } = useRhExperiencia(qsAplicado ?? "", qsAplicado != null);
   const queryClient = useQueryClient();
   const [enviando, setEnviando] = useState<string | null>(null);
+
+  const dirty = qsAplicado !== qs;
+  const executar = () => {
+    setQsAplicado(qs);
+    queryClient.invalidateQueries({ queryKey: ["rh-experiencia"] });
+  };
 
   const itens = useMemo(() => data ?? [], [data]);
 
@@ -111,8 +121,13 @@ export default function Conteudo() {
             </button>
           ))}
         </div>
+        <BotaoExecutar onClick={executar} dirty={dirty} rotulo="Visualizar" />
       </div>
 
+      {qsAplicado == null ? (
+        <FiltroPendente rotulo="Visualizar" />
+      ) : (
+      <>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Kpi rotulo="A vencer" valor={kpis.aVencer} tom="text-ink" />
         <Kpi rotulo="Em atraso" valor={kpis.atraso} tom="text-critical" />
@@ -232,6 +247,8 @@ export default function Conteudo() {
           </table>
         </div>
       </div>
+      </>
+      )}
     </>
   );
 }

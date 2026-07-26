@@ -3,9 +3,12 @@
 import { useMemo, useState } from "react";
 import { Check, Search, UserRound } from "lucide-react";
 import clsx from "clsx";
+import { useQueryClient } from "@tanstack/react-query";
 import { Dropdown, ItemLista } from "@/components/ui/dropdown";
 import { FichaModal, tempoCasa } from "@/components/folha-ficha-modal";
 import { SeloEmpresa } from "@/components/rh-selo-empresa";
+import { BotaoExecutar } from "@/components/filters/botao-executar";
+import { FiltroPendente } from "@/components/filtro-pendente";
 import { useRhFuncionarios } from "@/hooks/use-api";
 import { EMPRESAS_RH, nomeEmpresaRh } from "@/lib/rh";
 import { dataBR } from "@/lib/format";
@@ -25,10 +28,19 @@ function normalizar(s: string): string {
 }
 
 export default function Conteudo() {
-  const { data, isLoading, isFetching } = useRhFuncionarios();
+  // Nada consulta até o Visualizar (padrão executar-por-botão): o fetch da lista
+  // só dispara depois do clique; empresa/setor/busca filtram no cliente.
+  const [aplicado, setAplicado] = useState(false);
+  const { data, isLoading, isFetching } = useRhFuncionarios(aplicado);
+  const queryClient = useQueryClient();
   const [empresa, setEmpresa] = useState<FiltroEmpresa>("todas");
   const [classif, setClassif] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
+
+  const executar = () => {
+    setAplicado(true);
+    queryClient.invalidateQueries({ queryKey: ["rh-funcionarios"] });
+  };
 
   const todos = useMemo(() => data ?? [], [data]);
 
@@ -153,17 +165,24 @@ export default function Conteudo() {
           )}
         </div>
 
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted" />
-          <input
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            placeholder="Buscar por nome ou cargo…"
-            className="h-9 w-64 rounded-lg border border-hairline bg-surface pl-8 pr-3 text-sm outline-none placeholder:text-muted focus:border-ink/30"
-          />
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted" />
+            <input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar por nome ou cargo…"
+              className="h-9 w-64 rounded-lg border border-hairline bg-surface pl-8 pr-3 text-sm outline-none placeholder:text-muted focus:border-ink/30"
+            />
+          </div>
+          <BotaoExecutar onClick={executar} dirty={!aplicado} rotulo="Visualizar" />
         </div>
       </div>
 
+      {!aplicado ? (
+        <FiltroPendente rotulo="Visualizar" />
+      ) : (
+      <>
       {/* Tabela */}
       <div className="card overflow-hidden">
         <div className="flex items-center justify-between border-b border-hairline px-4 py-2.5">
@@ -221,6 +240,8 @@ export default function Conteudo() {
           </table>
         </div>
       </div>
+      </>
+      )}
 
       <FichaModal
         modulo="rh"

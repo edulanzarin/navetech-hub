@@ -447,8 +447,8 @@ export const useReplicarPreview = (origem: number | null, destino: number | null
 // ── RH ───────────────────────────────────────────────────────────────────────
 
 /** Diretório: todos os funcionários ativos das duas empresas (filtra no cliente). */
-export const useRhFuncionarios = () =>
-  useApiQuery<FuncionarioDiretorio[]>(["rh-funcionarios"], `/api/rh/funcionarios`);
+export const useRhFuncionarios = (enabled = true) =>
+  useApiQuery<FuncionarioDiretorio[]>(["rh-funcionarios"], `/api/rh/funcionarios`, enabled);
 
 /** Setores reais (organograma) com funcionários ativos. */
 export const useRhSetores = () => useApiQuery<SetorRh[]>(["rh-setores"], `/api/rh/setores`);
@@ -458,5 +458,9 @@ export const useRhGestores = (qs = "") =>
   useApiQuery<GestorRh[]>(["rh-gestores", qs], `/api/rh/gestores${qs ? `?${qs}` : ""}`);
 
 /** Painel de experiência: marcos de 45/90 dos contratos em curso. */
-export const useRhExperiencia = (qs = "") =>
-  useApiQuery<ExperienciaItem[]>(["rh-experiencia", qs], `/api/rh/experiencia${qs ? `?${qs}` : ""}`);
+export const useRhExperiencia = (qs = "", enabled = true) =>
+  useApiQuery<ExperienciaItem[]>(
+    ["rh-experiencia", qs],
+    `/api/rh/experiencia${qs ? `?${qs}` : ""}`,
+    enabled
+  );

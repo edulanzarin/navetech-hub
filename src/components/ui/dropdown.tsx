@@ -9,7 +9,10 @@ interface DropdownProps {
   rotulo: React.ReactNode;
   icone?: React.ReactNode;
   ativo?: boolean;
+  /** Largura do PAINEL (lista) — classe Tailwind `w-*`. */
   largura?: string;
+  /** Largura FIXA do botão (não cresce com o conteúdo; o rótulo trunca). */
+  larguraBotao?: string;
   children: (fechar: () => void) => React.ReactNode;
 }
 
@@ -23,7 +26,14 @@ const LARGURAS: Record<string, number> = {
   "w-96": 384,
 };
 
-export function Dropdown({ rotulo, icone, ativo, largura = "w-72", children }: DropdownProps) {
+export function Dropdown({
+  rotulo,
+  icone,
+  ativo,
+  largura = "w-72",
+  larguraBotao = "w-52",
+  children,
+}: DropdownProps) {
   const [aberto, setAberto] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0 });
   const ref = useRef<HTMLDivElement>(null);
@@ -86,15 +96,19 @@ export function Dropdown({ rotulo, icone, ativo, largura = "w-72", children }: D
         onClick={() => setAberto((v) => !v)}
         className={clsx(
           "flex h-9 items-center gap-2 rounded-lg border px-3 text-sm transition-colors",
+          larguraBotao,
           ativo
             ? "border-ent/40 bg-ent/10 text-ink"
             : "border-hairline bg-surface text-ink-2 hover:bg-surface-2 hover:text-ink"
         )}
       >
         {icone}
-        <span className="max-w-44 truncate">{rotulo}</span>
+        <span className="flex-1 truncate text-left">{rotulo}</span>
         <ChevronDown
-          className={clsx("size-4 text-muted transition-transform", aberto && "rotate-180")}
+          className={clsx(
+            "size-4 shrink-0 text-muted transition-transform",
+            aberto && "rotate-180"
+          )}
         />
       </button>
 

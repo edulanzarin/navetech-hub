@@ -3,12 +3,15 @@
 import { useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Repeat, UserMinus, UserPlus, Users } from "lucide-react";
 import clsx from "clsx";
+import { useQueryClient } from "@tanstack/react-query";
 import { TurnoverSerieChart } from "@/components/charts/turnover-serie-chart";
 import { RotatividadeQuebra } from "@/components/rotatividade-quebra";
 import { RotatividadeBarras } from "@/components/rotatividade-barras";
 import { FolhaMovimentacoes } from "@/components/folha-movimentacoes";
 import { PessoasModal, type Drill } from "@/components/folha-pessoas-modal";
 import { PeriodoDropdown, type Preset } from "@/components/filters/periodo-dropdown";
+import { BotaoExecutar } from "@/components/filters/botao-executar";
+import { FiltroPendente } from "@/components/filtro-pendente";
 import { useTurnover } from "@/hooks/use-api";
 import { EMPRESAS_RH, nomeEmpresaRh } from "@/lib/rh";
 import { deltaPct, num } from "@/lib/format";
@@ -118,7 +121,12 @@ export default function Conteudo() {
   const empresasParam = empresa === "todas" ? EMPRESAS_RH.join(",") : String(empresa);
   const qs = `inicio=${inicio}&fim=${fim}&empresas=${empresasParam}`;
 
-  const turnover = useTurnover(qs, true, "rh");
+  // Nada consulta até o Visualizar (padrão executar-por-botão): `qs` é o rascunho;
+  // só `executar` comita para `qsAplicado`, que é o que dispara a consulta.
+  const [qsAplicado, setQsAplicado] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  const turnover = useTurnover(qsAplicado ?? "", qsAplicado != null, "rh");
   const d = turnover.data;
   const c = d?.consolidado;
   const carregando = turnover.isLoading;
@@ -134,6 +142,16 @@ export default function Conteudo() {
     { valor: "todas", rotulo: "Ambas" },
     ...EMPRESAS_RH.map((cod) => ({ valor: cod as FiltroEmpresa, rotulo: nomeEmpresaRh(cod) })),
   ];
+
+  const dirty = qsAplicado !== qs;
+  const executar = () => {
+    setQsAplicado(qs);
+    queryClient.invalidateQueries({
+      predicate: (query) =>
+        query.queryKey[1] === "rh" &&
+        ["turnover", "movimentacoes", "folha-pessoas"].includes(query.queryKey[0] as string),
+    });
+  };
 
   return (
     <>
@@ -163,8 +181,16 @@ export default function Conteudo() {
           }}
           presets={periodos}
         />
+
+        <div className="ml-auto">
+          <BotaoExecutar onClick={executar} dirty={dirty} rotulo="Visualizar" />
+        </div>
       </div>
 
+      {qsAplicado == null ? (
+        <FiltroPendente rotulo="Visualizar" />
+      ) : (
+      <>
       {turnover.error && (
         <p className="text-sm text-critical">
           {turnover.error instanceof Error ? turnover.error.message : "Falha ao carregar"}
@@ -231,7 +257,7 @@ export default function Conteudo() {
       )}
 
       {/* Movimentações + ficha (empresa vem da linha) */}
-      <FolhaMovimentacoes qs={qs} modulo="rh" />
+      <FolhaMovimentacoes qs={qsAplicado ?? ""} modulo="rh" />
 
       {/* Desligados */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -342,7 +368,9 @@ export default function Conteudo() {
         qualquer quebra para ver as pessoas.
       </p>
 
-      <PessoasModal qsBase={qs} drill={drill} onFechar={() => setDrill(null)} modulo="rh" />
+      <PessoasModal qsBase={qsAplicado ?? ""} drill={drill} onFechar={() => setDrill(null)} modulo="rh" />
+      </>
+      )}
     </>
   );
 }
