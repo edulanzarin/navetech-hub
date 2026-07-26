@@ -84,6 +84,23 @@ const MAPA: Record<ModuloId, Record<string, string[]>> = {
     pessoas: ["rotatividade"],
     turnover: ["rotatividade"],
   },
+  rh: {
+    // Diretório
+    funcionarios: ["diretorio"],
+    funcionario: ["diretorio", "rotatividade"], // ficha reusada no drill da rotatividade
+    setores: ["diretorio", "gestores"], // lista de setores serve filtro e cadastro
+    // Experiência
+    experiencia: ["experiencia"],
+    "experiencia-reenviar": ["experiencia"],
+    // Gestores
+    gestores: ["gestores"],
+    // Rotatividade (reusa libs da Folha, rotas próprias do módulo)
+    turnover: ["rotatividade"],
+    filtros: ["rotatividade"],
+    movimentacoes: ["rotatividade"],
+    pessoas: ["rotatividade"],
+    // /api/rh/cron/experiencia é público (segredo próprio) — NÃO passa por apiRoute.
+  },
   patrimonio: {},
 };
 

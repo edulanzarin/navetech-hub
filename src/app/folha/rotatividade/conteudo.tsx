@@ -199,7 +199,7 @@ export default function RotatividadePage() {
       )}
 
       {/* Movimentações / efetivo + ficha */}
-      <FolhaMovimentacoes qs={qsCompleto} empresa={empresa} />
+      <FolhaMovimentacoes qs={qsCompleto} />
 
       {/* Sobre os desligados */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -335,12 +335,7 @@ export default function RotatividadePage() {
         o painel; clique em qualquer quebra para ver as pessoas.
       </p>
 
-      <PessoasModal
-        empresa={empresa}
-        qsBase={qsCompleto}
-        drill={drill}
-        onFechar={() => setDrill(null)}
-      />
+      <PessoasModal qsBase={qsCompleto} drill={drill} onFechar={() => setDrill(null)} />
     </>
   );
 }

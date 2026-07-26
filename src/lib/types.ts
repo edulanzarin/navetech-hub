@@ -758,6 +758,7 @@ export interface FolhaFiltros {
 
 /** Uma linha da lista de movimentações (quem foi admitido/desligado no período). */
 export interface FolhaMovimentacao {
+  codigoempresa: number;
   contrato: number;
   nome: string;
   dataadm: string | null;

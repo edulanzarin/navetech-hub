@@ -14,7 +14,7 @@ type Handler = (req: NextRequest) => Promise<unknown>;
  * exige admin.)
  */
 function moduloDaRota(pathname: string): ModuloId | undefined {
-  const m = pathname.match(/^\/api\/(fiscal|contabil|folha)(?:\/|$)/);
+  const m = pathname.match(/^\/api\/(fiscal|contabil|folha|rh)(?:\/|$)/);
   return m ? (m[1] as ModuloId) : undefined;
 }
 

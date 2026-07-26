@@ -18,7 +18,8 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  // Tudo, exceto: rotas de API, assets do Next, o próprio /login e arquivos
+  // Tudo, exceto: rotas de API, assets do Next, o próprio /login, o formulário
+  // PÚBLICO de experiência (respondido sem login, por token) e arquivos
   // estáticos com extensão (logo, ícone, favicon...).
-  matcher: ["/((?!api|_next/static|_next/image|login|.*\\.[\\w]+$).*)"],
+  matcher: ["/((?!api|_next/static|_next/image|login|experiencia|.*\\.[\\w]+$).*)"],
 };

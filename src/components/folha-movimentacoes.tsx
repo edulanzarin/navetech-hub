@@ -8,6 +8,7 @@ import { PessoasTabela } from "@/components/folha-pessoas-tabela";
 import { useMovimentacoes } from "@/hooks/use-api";
 import { baixarCSV } from "@/lib/csv";
 import { dataBR, num } from "@/lib/format";
+import type { FolhaMovimentacao } from "@/lib/types";
 
 type Escopo = "movimentacoes" | "efetivo";
 type Filtro = "todos" | "admitidos" | "desligados";
@@ -15,22 +16,24 @@ type Filtro = "todos" | "admitidos" | "desligados";
 interface Props {
   /** qs com período + filtros avançados. */
   qs: string;
-  empresa: number | null;
+  /** Módulo dono das rotas (Folha padrão; RH usa /api/rh/*). */
+  modulo?: "folha" | "rh";
 }
 
 /**
  * Duas visões da mesma equipe: **Movimentações** (quem entrou/saiu no período) e
  * **Efetivo atual** (todos os ativos no fim do período). Em ambas, clicar numa
- * linha abre a ficha; dá para exportar a lista visível em CSV.
+ * linha abre a ficha; dá para exportar a lista visível em CSV. A empresa da
+ * ficha vem da própria linha (o RH mistura NAVECON e FOUR).
  */
-export function FolhaMovimentacoes({ qs, empresa }: Props) {
+export function FolhaMovimentacoes({ qs, modulo = "folha" }: Props) {
   const [escopo, setEscopo] = useState<Escopo>("movimentacoes");
   const [filtro, setFiltro] = useState<Filtro>("todos");
   const [busca, setBusca] = useState("");
-  const [aberto, setAberto] = useState<number | null>(null);
+  const [aberto, setAberto] = useState<FolhaMovimentacao | null>(null);
 
   const q = escopo === "efetivo" ? `${qs}&escopo=efetivo` : qs;
-  const { data, isLoading, isFetching } = useMovimentacoes(q);
+  const { data, isLoading, isFetching } = useMovimentacoes(q, true, modulo);
 
   const visiveis = useMemo(() => {
     if (!data) return undefined;
@@ -153,7 +156,12 @@ export function FolhaMovimentacoes({ qs, empresa }: Props) {
         />
       )}
 
-      <FichaModal empresa={empresa} contrato={aberto} onFechar={() => setAberto(null)} />
+      <FichaModal
+        modulo={modulo}
+        empresa={aberto?.codigoempresa ?? null}
+        contrato={aberto?.contrato ?? null}
+        onFechar={() => setAberto(null)}
+      />
     </section>
   );
 }

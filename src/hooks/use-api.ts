@@ -39,6 +39,12 @@ import type {
   BalanceteCulpadosResp,
   ReplicarPreviewResp,
 } from "@/lib/types";
+import type {
+  FuncionarioDiretorio,
+  SetorRh,
+  GestorRh,
+  ExperienciaItem,
+} from "@/lib/rh-tipos";
 
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -309,26 +315,39 @@ export const useProdutividadeCalendario = (qs: string, enabled = true) =>
     enabled
   );
 
-export const useTurnover = (qs: string, enabled = true) =>
-  useApiQuery<TurnoverResp>(["turnover", qs], `/api/folha/turnover?${qs}`, enabled);
+export const useTurnover = (qs: string, enabled = true, modulo: "folha" | "rh" = "folha") =>
+  useApiQuery<TurnoverResp>(["turnover", modulo, qs], `/api/${modulo}/turnover?${qs}`, enabled);
 
 /** Opções dos filtros da Folha para a empresa (não muda com a seleção). */
 export const useFolhaFiltros = (qs: string, enabled = true) =>
   useApiQuery<FolhaFiltros>(["folha-filtros", qs], `/api/folha/filtros?${qs}`, enabled);
 
 /** Lista de admitidos/desligados no período (respeita os filtros avançados). */
-export const useMovimentacoes = (qs: string, enabled = true) =>
-  useApiQuery<FolhaMovimentacao[]>(["movimentacoes", qs], `/api/folha/movimentacoes?${qs}`, enabled);
+export const useMovimentacoes = (qs: string, enabled = true, modulo: "folha" | "rh" = "folha") =>
+  useApiQuery<FolhaMovimentacao[]>(
+    ["movimentacoes", modulo, qs],
+    `/api/${modulo}/movimentacoes?${qs}`,
+    enabled
+  );
 
 /** Drill de uma quebra: as pessoas de um grupo (qs já traz dim e valor). */
-export const useFolhaPessoas = (qs: string, enabled = true) =>
-  useApiQuery<FolhaMovimentacao[]>(["folha-pessoas", qs], `/api/folha/pessoas?${qs}`, enabled);
+export const useFolhaPessoas = (qs: string, enabled = true, modulo: "folha" | "rh" = "folha") =>
+  useApiQuery<FolhaMovimentacao[]>(
+    ["folha-pessoas", modulo, qs],
+    `/api/${modulo}/pessoas?${qs}`,
+    enabled
+  );
 
-/** Ficha de um colaborador — carregada quando o modal abre. */
-export const useFicha = (empresa: number | null, contrato: number | null) =>
+/** Ficha de um colaborador — carregada quando o modal abre. A mesma ficha serve
+ *  a Folha e o RH; o módulo escolhe a rota (o gate de empresa é de cada uma). */
+export const useFicha = (
+  empresa: number | null,
+  contrato: number | null,
+  modulo: "folha" | "rh" = "folha"
+) =>
   useApiQuery<FolhaFicha>(
-    ["ficha", empresa, contrato],
-    `/api/folha/funcionario?empresa=${empresa}&contrato=${contrato}`,
+    ["ficha", modulo, empresa, contrato],
+    `/api/${modulo}/funcionario?empresa=${empresa}&contrato=${contrato}`,
     empresa != null && contrato != null
   );
 
@@ -424,3 +443,20 @@ export const useReplicarPreview = (origem: number | null, destino: number | null
     `/api/contabil/plano/replicar?origem=${origem}&destino=${destino}`,
     origem != null && destino != null
   );
+
+// ── RH ───────────────────────────────────────────────────────────────────────
+
+/** Diretório: todos os funcionários ativos das duas empresas (filtra no cliente). */
+export const useRhFuncionarios = () =>
+  useApiQuery<FuncionarioDiretorio[]>(["rh-funcionarios"], `/api/rh/funcionarios`);
+
+/** Setores reais (organograma) com funcionários ativos. */
+export const useRhSetores = () => useApiQuery<SetorRh[]>(["rh-setores"], `/api/rh/setores`);
+
+/** Gestores cadastrados (todos, ou de um setor via qs). */
+export const useRhGestores = (qs = "") =>
+  useApiQuery<GestorRh[]>(["rh-gestores", qs], `/api/rh/gestores${qs ? `?${qs}` : ""}`);
+
+/** Painel de experiência: marcos de 45/90 dos contratos em curso. */
+export const useRhExperiencia = (qs = "") =>
+  useApiQuery<ExperienciaItem[]>(["rh-experiencia", qs], `/api/rh/experiencia${qs ? `?${qs}` : ""}`);

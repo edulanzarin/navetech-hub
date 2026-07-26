@@ -1,34 +1,7 @@
-import { query } from "@/lib/db";
 import { apiRoute } from "@/lib/api-route";
 import { FilterError } from "@/lib/fiscal-filters";
 import { getSessao, podeVerEmpresa } from "@/lib/sessao";
-import { rotuloEscolaridade } from "@/lib/folha-turnover";
-import type { FolhaFicha } from "@/lib/types";
-
-interface Row {
-  contrato: number;
-  nome: string;
-  cpf: string | null;
-  dataadm: string | null;
-  datadem: string | null;
-  tempocasadias: number | null;
-  cargo: string | null;
-  funcao: string | null;
-  setor: string | null;
-  estabelecimento: string | null;
-  categoria: string | null;
-  tipovinculo: string | null;
-  sexo: number | null;
-  nascimento: string | null;
-  idade: number | null;
-  grauinstr: number | null;
-  salario: number | null;
-  tiposalario: number | null;
-  descrsal: string | null;
-  motivo: string | null;
-  cidade: string | null;
-  uf: string | null;
-}
+import { fichaFuncionario } from "@/lib/funcionario-ficha";
 
 /** Ficha completa de um contrato — o detalhe que abre no modal a partir da lista. */
 export const GET = apiRoute(async (req) => {
@@ -44,62 +17,7 @@ export const GET = apiRoute(async (req) => {
     throw new FilterError("Colaborador não encontrado");
   }
 
-  const [r] = await query<Row>(
-    `select f.codigofunccontr as contrato, f.nomefunc as nome, f.cpffunc as cpf,
-            to_char(f.dataadm, 'YYYY-MM-DD') as dataadm,
-            to_char(f.datadem, 'YYYY-MM-DD') as datadem,
-            case when f.datadem is not null and f.dataadm is not null then (f.datadem - f.dataadm) end as tempocasadias,
-            nullif(btrim(ca.descrcargo), '') as cargo,
-            nullif(btrim(fu.descrfuncao), '') as funcao,
-            nullif(btrim(o.descrorgan), '') as setor,
-            coalesce(nullif(btrim(es.apelidoestab), ''), nullif(btrim(es.nomeestab), '')) as estabelecimento,
-            f.categoria, f.tipovinculo,
-            f.sexo, to_char(f.datanasc, 'YYYY-MM-DD') as nascimento,
-            case when f.datanasc is not null then extract(year from age(current_date, f.datanasc))::int end as idade,
-            f.grauinstr, f.valorsal as salario, f.tiposalario, nullif(btrim(f.descrsal), '') as descrsal,
-            cd.descrcausa as motivo,
-            nullif(btrim(mu.nomemunic), '') as cidade, f.siglaestado as uf
-       from funcionario f
-       left join cargo ca on ca.codigocargo = f.codigocargo
-       left join funcao fu on fu.codigofuncao = f.codigofuncao
-       left join organograma o
-         on o.codigoempresa = f.codigoempresa and o.codigoestab = f.codigoestab and o.classiforgan = f.classiforgan
-       left join estab es on es.codigoempresa = f.codigoempresa and es.codigoestab = f.codigoestab
-       left join lateral (
-         select codigocausa from rescisao r
-          where r.codigoempresa = f.codigoempresa and r.codigofunccontr = f.codigofunccontr
-          order by complementar limit 1
-       ) rr on true
-       left join causademissao cd on cd.codigocausa = rr.codigocausa
-       left join municipio mu on mu.siglaestado = f.siglaestado and mu.codigomunic = f.codigomunic
-      where f.codigoempresa = $1 and f.codigofunccontr = $2`,
-    [empresa, contrato]
-  );
-
-  if (!r) throw new FilterError("Colaborador não encontrado");
-
-  const ficha: FolhaFicha = {
-    contrato: r.contrato,
-    nome: r.nome,
-    cpf: r.cpf,
-    dataadm: r.dataadm,
-    datadem: r.datadem,
-    tempoCasaDias: r.tempocasadias,
-    cargo: r.cargo,
-    funcao: r.funcao,
-    setor: r.setor,
-    estabelecimento: r.estabelecimento,
-    categoria: r.categoria,
-    tipoVinculo: r.tipovinculo,
-    sexo: r.sexo === 1 ? "Masculino" : r.sexo === 2 ? "Feminino" : "—",
-    nascimento: r.nascimento,
-    idade: r.idade,
-    escolaridade: rotuloEscolaridade(r.grauinstr),
-    salario: r.salario,
-    tipoSalario: r.descrsal ?? (r.tiposalario === 1 ? "Mensal" : r.tiposalario === 7 ? "Horista" : null),
-    motivoDesligamento: r.motivo,
-    cidade: r.cidade,
-    uf: r.uf,
-  };
+  const ficha = await fichaFuncionario(empresa, contrato);
+  if (!ficha) throw new FilterError("Colaborador não encontrado");
   return ficha;
 });
