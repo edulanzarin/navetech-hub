@@ -40,7 +40,7 @@ async function hashSenha(s) {
 
 const client = new pg.Client({
   connectionString:
-    process.env.APP_DB_URL ?? "postgres://nexo:nexo@localhost:5022/nexo",
+    process.env.APP_DB_URL ?? "postgres://navetechhub:navetechhub@localhost:5022/navetechhub",
 });
 
 await client.connect();

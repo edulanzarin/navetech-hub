@@ -30,7 +30,7 @@ const questor = new pg.Client({
 });
 const app = new pg.Client({
   connectionString:
-    process.env.APP_DB_URL ?? "postgres://nexo:nexo@localhost:5022/nexo",
+    process.env.APP_DB_URL ?? "postgres://navetechhub:navetechhub@localhost:5022/navetechhub",
 });
 
 await questor.connect();
