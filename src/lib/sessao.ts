@@ -138,7 +138,7 @@ export function secoesVisiveis(sessao: Sessao, modulo: ModuloId): Set<string> {
 
 /** Módulos (ids) que a sessão pode abrir — para o launcher. */
 export function modulosAcessiveis(sessao: Sessao): ModuloId[] {
-  return MODULOS.filter((m) => m.ativo && podeAcessarModuloSync(sessao, m.id)).map((m) => m.id);
+  return MODULOS.filter((m) => podeAcessarModuloSync(sessao, m.id)).map((m) => m.id);
 }
 
 /**

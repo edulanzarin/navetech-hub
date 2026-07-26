@@ -13,8 +13,8 @@ const input =
   "h-10 rounded-lg border border-hairline bg-surface px-3 text-sm text-ink outline-none placeholder:text-muted focus:border-ent/50";
 const check = "size-4 accent-[var(--ent)]";
 
-/** Todas as chaves "modulo/secao" dos módulos ativos — para recalcular a matriz. */
-const TODAS_SECOES: string[] = MODULOS.filter((m) => m.ativo).flatMap((m) =>
+/** Todas as chaves "modulo/secao" dos módulos — para recalcular a matriz. */
+const TODAS_SECOES: string[] = MODULOS.flatMap((m) =>
   secoesDoModulo(m.id).map((s) => `${m.id}/${s.id}`)
 );
 

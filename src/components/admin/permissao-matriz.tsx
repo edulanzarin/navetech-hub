@@ -22,7 +22,7 @@ export function PermissaoMatriz({
   onChange: (chave: string, liberado: boolean) => void;
   base?: Set<string>;
 }) {
-  const modulos = MODULOS.filter((m) => m.ativo);
+  const modulos = MODULOS;
 
   return (
     <div className="flex flex-col gap-5">

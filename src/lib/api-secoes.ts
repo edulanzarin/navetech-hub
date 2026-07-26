@@ -103,7 +103,6 @@ const MAPA: Record<ModuloId, Record<string, string[]>> = {
     pessoas: ["rotatividade"],
     // /api/rh/cron/experiencia é público (segredo próprio) — NÃO passa por apiRoute.
   },
-  patrimonio: {},
 };
 
 /**

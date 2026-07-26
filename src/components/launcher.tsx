@@ -1,17 +1,16 @@
-import Link from "next/link";
 import Image from "next/image";
 import { LogOut } from "lucide-react";
 import { MODULOS, type ModuloId } from "@/lib/modulos";
 import { sair } from "@/app/login/actions";
 import { ThemeToggle } from "./theme-toggle";
 import { Avatar } from "./avatar";
+import { ModuloCard } from "./modulo-card";
 
 /**
- * Primeira tela depois do login: escolher o módulo. É também a primeira porta
- * de permissão — só entram na grade os módulos que a sessão libera (`acessiveis`
- * vem do perfil no servidor). Módulo ainda por vir aparece como "em breve", pra
- * sinalizar o roteiro sem prometer o que não abre. Admin ganha um card extra de
- * administração; os demais nem o veem.
+ * Primeira tela depois do login: escolher o módulo. A grade mostra SEMPRE todos
+ * os módulos (mais a Administração) — os que a sessão não libera vêm com cadeado
+ * e avisam a falta de permissão ao clicar, em vez de sumir. `acessiveis`/`admin`
+ * vêm do perfil no servidor e definem o que abre; o bloqueio real fica nas rotas.
  *
  * Card icônico: o ícone grande é o foco, o título vem abaixo. A descrição não
  * ocupa espaço — fica só no tooltip (title), pra tela respirar.
@@ -30,9 +29,6 @@ export function Launcher({
   admin: boolean;
 }) {
   const acesso = new Set(acessiveis);
-  // Ativo e liberado vira card clicável; inativo vira "em breve"; ativo sem
-  // acesso não aparece — o launcher só mostra o que a pessoa pode abrir.
-  const visiveis = MODULOS.filter((m) => !m.ativo || acesso.has(m.id));
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -66,66 +62,23 @@ export function Launcher({
         <h1 className="mt-6 text-2xl font-semibold tracking-tight">Escolha um módulo</h1>
 
         <div className="mt-8 grid grid-cols-3 gap-3">
-          {visiveis.map((m) => {
-            if (!m.ativo) {
-              return (
-                <div
-                  key={m.id}
-                  aria-disabled
-                  className="anim-scale-in flex flex-col items-center gap-3 rounded-2xl px-3 py-6 text-center opacity-55"
-                >
-                  <Image
-                    src={m.icone}
-                    alt=""
-                    width={64}
-                    height={64}
-                    className="size-16 grayscale"
-                  />
-                  <div>
-                    <p className="text-sm font-medium">{m.titulo}</p>
-                    <span className="mt-0.5 block text-[10px] font-medium uppercase tracking-wide text-muted">
-                      em breve
-                    </span>
-                  </div>
-                </div>
-              );
-            }
-
-            return (
-              <Link
-                key={m.id}
-                href={m.home}
-                title={m.descricao}
-                className="anim-scale-in group flex flex-col items-center gap-3 rounded-2xl px-3 py-6 text-center transition-colors hover:bg-surface-2"
-              >
-                <Image
-                  src={m.icone}
-                  alt=""
-                  width={64}
-                  height={64}
-                  className="size-16 transition-transform group-hover:scale-105"
-                />
-                <p className="text-sm font-medium">{m.titulo}</p>
-              </Link>
-            );
-          })}
-
-          {admin && (
-            <Link
-              href="/admin"
-              title="Usuários, permissões e grupos de empresa"
-              className="anim-scale-in group flex flex-col items-center gap-3 rounded-2xl px-3 py-6 text-center transition-colors hover:bg-surface-2"
-            >
-              <Image
-                src="/images/logo.png"
-                alt=""
-                width={64}
-                height={64}
-                className="size-16 transition-transform group-hover:scale-105"
-              />
-              <p className="text-sm font-medium">Administração</p>
-            </Link>
-          )}
+          {MODULOS.map((m) => (
+            <ModuloCard
+              key={m.id}
+              href={m.home}
+              icone={m.icone}
+              titulo={m.titulo}
+              descricao={m.descricao}
+              liberado={acesso.has(m.id)}
+            />
+          ))}
+          <ModuloCard
+            href="/admin"
+            icone="/images/administracao.png"
+            titulo="Administração"
+            descricao="Usuários, permissões e grupos de empresa"
+            liberado={admin}
+          />
         </div>
       </main>
     </div>
