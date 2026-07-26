@@ -6,7 +6,7 @@ import { SECOES_RH } from "./rh-secoes";
 export type ModuloId = "fiscal" | "contabil" | "folha" | "rh" | "patrimonio";
 
 /**
- * Catálogo dos módulos do Navetech Hub. É a fonte única: dirige o launcher, a
+ * Catálogo dos módulos do Nexo. É a fonte única: dirige o launcher, a
  * sidebar de cada módulo e o gate de permissão (o id casa com o nível do perfil
  * em [[sessao]] e com o prefixo /api/<id> das rotas). Módulo novo é uma entrada
  * aqui — não três lugares para editar e um para esquecer.

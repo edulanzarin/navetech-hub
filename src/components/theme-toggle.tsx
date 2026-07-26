@@ -4,7 +4,7 @@ import { useSyncExternalStore } from "react";
 import { Moon, Sun } from "lucide-react";
 import clsx from "clsx";
 
-const CHAVE = "navetech-hub-theme";
+const CHAVE = "nexo-theme";
 type Tema = "light" | "dark";
 
 // O tema mora no <html data-theme> (aplicado pelo script anti-flash do root

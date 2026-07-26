@@ -1,4 +1,4 @@
-# Navetech Hub
+# Nexo
 
 Dashboard de Business Intelligence sobre a base PostgreSQL do Questor (Navecon).
 Next.js 16 + React Query + Recharts + Tailwind v4, lendo o banco **em modo somente leitura**.

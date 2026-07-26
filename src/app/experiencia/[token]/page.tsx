@@ -18,7 +18,7 @@ export default async function Page({ params }: { params: Promise<{ token: string
           <span className="grid size-8 place-items-center rounded-lg bg-ent/12 text-ent">
             <Contact className="size-4" />
           </span>
-          <span className="text-sm font-medium">Navetech Hub · RH</span>
+          <span className="text-sm font-medium">Nexo · RH</span>
         </div>
 
         {!dados ? (
