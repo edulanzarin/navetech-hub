@@ -1,9 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Briefcase, Building2, ChevronLeft, Layers, LogOut, Users } from "lucide-react";
+import { ChevronLeft, LogOut } from "lucide-react";
 import { assertAdmin } from "@/lib/sessao";
 import { sair } from "@/app/login/actions";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { AdminNav } from "@/components/admin/admin-nav";
 
 /**
  * Área administrativa: fora do catálogo de módulos de negócio, só para admin.
@@ -31,24 +32,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           </div>
         </div>
 
-        <nav className="mt-7 flex flex-1 flex-col gap-0.5">
-          <Link href="/admin/usuarios" className={link}>
-            <Users className="size-4 shrink-0" />
-            Usuários
-          </Link>
-          <Link href="/admin/cargos" className={link}>
-            <Briefcase className="size-4 shrink-0" />
-            Cargos
-          </Link>
-          <Link href="/admin/setores" className={link}>
-            <Building2 className="size-4 shrink-0" />
-            Setores
-          </Link>
-          <Link href="/admin/grupos" className={link}>
-            <Layers className="size-4 shrink-0" />
-            Grupos de empresa
-          </Link>
-        </nav>
+        <AdminNav />
 
         <div className="mt-2 flex flex-col gap-0.5 border-t border-hairline pt-2">
           <ThemeToggle />
