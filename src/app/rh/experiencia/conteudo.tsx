@@ -9,6 +9,7 @@ import { SeloEmpresa } from "@/components/rh-selo-empresa";
 import { BotaoExecutar } from "@/components/filters/botao-executar";
 import { FiltroPendente } from "@/components/filtro-pendente";
 import { useRhExperiencia } from "@/hooks/use-api";
+import { useEstadoModulo } from "@/hooks/use-estado-modulo";
 import { mutar } from "@/hooks/mutar";
 import { EMPRESAS_RH, nomeEmpresaRh } from "@/lib/rh";
 import { dataBR } from "@/lib/format";
@@ -46,10 +47,13 @@ function Kpi({ rotulo, valor, tom }: { rotulo: string; valor: number; tom: strin
 }
 
 export default function Conteudo() {
-  const [empresa, setEmpresa] = useState<FiltroEmpresa>("todas");
+  const [empresa, setEmpresa] = useEstadoModulo<FiltroEmpresa>("rh/experiencia:empresa", "todas");
   const qs = empresa === "todas" ? "" : `empresa=${empresa}`;
-  // Nada consulta até o Visualizar (padrão executar-por-botão).
-  const [qsAplicado, setQsAplicado] = useState<string | null>(null);
+  // Nada consulta até o Visualizar (padrão executar-por-botão); persiste no módulo.
+  const [qsAplicado, setQsAplicado] = useEstadoModulo<string | null>(
+    "rh/experiencia:qsAplicado",
+    null
+  );
   const { data, isLoading } = useRhExperiencia(qsAplicado ?? "", qsAplicado != null);
   const queryClient = useQueryClient();
   const [enviando, setEnviando] = useState<string | null>(null);

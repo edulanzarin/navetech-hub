@@ -10,6 +10,7 @@ import { SeloEmpresa } from "@/components/rh-selo-empresa";
 import { BotaoExecutar } from "@/components/filters/botao-executar";
 import { FiltroPendente } from "@/components/filtro-pendente";
 import { useRhFuncionarios } from "@/hooks/use-api";
+import { useEstadoModulo } from "@/hooks/use-estado-modulo";
 import { EMPRESAS_RH, nomeEmpresaRh } from "@/lib/rh";
 import { dataBR } from "@/lib/format";
 import type { FuncionarioDiretorio } from "@/lib/rh-tipos";
@@ -30,12 +31,12 @@ function normalizar(s: string): string {
 export default function Conteudo() {
   // Nada consulta até o Visualizar (padrão executar-por-botão): o fetch da lista
   // só dispara depois do clique; empresa/setor/busca filtram no cliente.
-  const [aplicado, setAplicado] = useState(false);
+  const [aplicado, setAplicado] = useEstadoModulo("rh/diretorio:aplicado", false);
   const { data, isLoading, isFetching } = useRhFuncionarios(aplicado);
   const queryClient = useQueryClient();
-  const [empresa, setEmpresa] = useState<FiltroEmpresa>("todas");
-  const [classif, setClassif] = useState<string | null>(null);
-  const [busca, setBusca] = useState("");
+  const [empresa, setEmpresa] = useEstadoModulo<FiltroEmpresa>("rh/diretorio:empresa", "todas");
+  const [classif, setClassif] = useEstadoModulo<string | null>("rh/diretorio:classif", null);
+  const [busca, setBusca] = useEstadoModulo("rh/diretorio:busca", "");
 
   const executar = () => {
     setAplicado(true);

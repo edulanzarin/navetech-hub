@@ -4,26 +4,22 @@ import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { ModuloHeader } from "@/components/modulo-header";
 import { useIsFetching } from "@tanstack/react-query";
-import { limparEstadoSecao } from "@/lib/estado-secao";
+import { limparEstadoModulo } from "@/hooks/use-estado-modulo";
 import { secaoRhAtual } from "@/lib/rh-secoes";
 
 /**
- * Casca do módulo RH. Ao contrário do Folha/Contábil, não há filtro global de
- * empresa+período no topo: cada seção traz seus próprios controles (o Diretório
- * filtra por empresa; a Rotatividade tem período). O shell só monta o cabeçalho
- * da seção e mantém o padrão de limpar o estado de tela ao sair dela.
+ * Casca do módulo RH. Cada seção traz seus próprios controles (Diretório filtra
+ * por empresa; Rotatividade tem período). O estado das seções PERSISTE enquanto
+ * se está no módulo (voltar a uma seção já executada mostra o resultado) e só é
+ * descartado ao sair do módulo — este shell sobrevive à troca de seção e limpa
+ * o estado do RH no seu unmount (Trocar módulo).
  */
 export function RhShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const secao = secaoRhAtual(pathname);
   const carregando = useIsFetching() > 0;
 
-  const secaoPath = secao?.path;
-  useEffect(() => {
-    return () => {
-      if (secaoPath) limparEstadoSecao(secaoPath);
-    };
-  }, [secaoPath]);
+  useEffect(() => () => limparEstadoModulo("rh/"), []);
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-6">

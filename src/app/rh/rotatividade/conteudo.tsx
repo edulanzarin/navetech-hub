@@ -13,6 +13,7 @@ import { PeriodoDropdown, type Preset } from "@/components/filters/periodo-dropd
 import { BotaoExecutar } from "@/components/filters/botao-executar";
 import { FiltroPendente } from "@/components/filtro-pendente";
 import { useTurnover } from "@/hooks/use-api";
+import { useEstadoModulo } from "@/hooks/use-estado-modulo";
 import { EMPRESAS_RH, nomeEmpresaRh } from "@/lib/rh";
 import { deltaPct, num } from "@/lib/format";
 
@@ -114,16 +115,19 @@ function Stat({ rotulo, valor, cor }: { rotulo: string; valor: string; cor?: str
 
 export default function Conteudo() {
   const periodos = useMemo(presetsTurnover, []);
-  const [empresa, setEmpresa] = useState<FiltroEmpresa>("todas");
-  const [inicio, setInicio] = useState(() => periodos[2].inicio); // 12 meses
-  const [fim, setFim] = useState(() => periodos[2].fim);
+  const [empresa, setEmpresa] = useEstadoModulo<FiltroEmpresa>("rh/rotatividade:empresa", "todas");
+  const [inicio, setInicio] = useEstadoModulo("rh/rotatividade:inicio", periodos[2].inicio); // 12 meses
+  const [fim, setFim] = useEstadoModulo("rh/rotatividade:fim", periodos[2].fim);
 
   const empresasParam = empresa === "todas" ? EMPRESAS_RH.join(",") : String(empresa);
   const qs = `inicio=${inicio}&fim=${fim}&empresas=${empresasParam}`;
 
   // Nada consulta até o Visualizar (padrão executar-por-botão): `qs` é o rascunho;
-  // só `executar` comita para `qsAplicado`, que é o que dispara a consulta.
-  const [qsAplicado, setQsAplicado] = useState<string | null>(null);
+  // só `executar` comita para `qsAplicado`. Persiste no módulo (voltar mantém).
+  const [qsAplicado, setQsAplicado] = useEstadoModulo<string | null>(
+    "rh/rotatividade:qsAplicado",
+    null
+  );
   const queryClient = useQueryClient();
 
   const turnover = useTurnover(qsAplicado ?? "", qsAplicado != null, "rh");
