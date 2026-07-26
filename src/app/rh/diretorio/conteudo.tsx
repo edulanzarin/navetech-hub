@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, UserRound } from "lucide-react";
+import { Check, Search, UserRound } from "lucide-react";
 import clsx from "clsx";
+import { Dropdown, ItemLista } from "@/components/ui/dropdown";
 import { FichaModal, tempoCasa } from "@/components/folha-ficha-modal";
 import { SeloEmpresa } from "@/components/rh-selo-empresa";
 import { useRhFuncionarios } from "@/hooks/use-api";
@@ -82,7 +83,8 @@ export default function Conteudo() {
     <>
       {/* Controles */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex rounded-lg border border-hairline bg-surface p-0.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-lg border border-hairline bg-surface p-0.5">
           {segmentos.map((s) => (
             <button
               key={String(s.valor)}
@@ -99,6 +101,56 @@ export default function Conteudo() {
               <span className="ml-1.5 tabular-nums text-xs text-muted">{s.qtd}</span>
             </button>
           ))}
+          </div>
+
+          {/* Setor: dropdown (não chips — não quebra em tela menor) */}
+          {setores.length > 0 && (
+            <Dropdown
+              rotulo={
+                classif === null
+                  ? "Todos os setores"
+                  : (setores.find((s) => s.classiforgan === classif)?.nome ?? classif)
+              }
+              ativo={classif !== null}
+              largura="w-72"
+            >
+              {(fechar) => (
+                <div className="max-h-72 overflow-y-auto py-1">
+                  <ItemLista
+                    selecionado={classif === null}
+                    onClick={() => {
+                      setClassif(null);
+                      fechar();
+                    }}
+                  >
+                    <span className="grid size-4 place-items-center">
+                      {classif === null && <Check className="size-4 stroke-[3] text-ent" />}
+                    </span>
+                    <span className="flex-1">Todos os setores</span>
+                    <span className="tabular-nums text-xs text-muted">{porEmpresa.length}</span>
+                  </ItemLista>
+                  {setores.map((s) => (
+                    <ItemLista
+                      key={s.classiforgan}
+                      selecionado={classif === s.classiforgan}
+                      onClick={() => {
+                        setClassif(s.classiforgan);
+                        fechar();
+                      }}
+                    >
+                      <span className="grid size-4 place-items-center">
+                        {classif === s.classiforgan && (
+                          <Check className="size-4 stroke-[3] text-ent" />
+                        )}
+                      </span>
+                      <span className="flex-1 truncate">{s.nome}</span>
+                      <span className="tabular-nums text-xs text-muted">{s.qtd}</span>
+                    </ItemLista>
+                  ))}
+                </div>
+              )}
+            </Dropdown>
+          )}
         </div>
 
         <div className="relative">
@@ -111,38 +163,6 @@ export default function Conteudo() {
           />
         </div>
       </div>
-
-      {/* Chips de setor */}
-      {setores.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          <button
-            onClick={() => setClassif(null)}
-            className={clsx(
-              "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-              classif === null
-                ? "border-ink/20 bg-surface-2 text-ink"
-                : "border-hairline text-muted hover:text-ink"
-            )}
-          >
-            Todos os setores
-          </button>
-          {setores.map((s) => (
-            <button
-              key={s.classiforgan}
-              onClick={() => setClassif((c) => (c === s.classiforgan ? null : s.classiforgan))}
-              className={clsx(
-                "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-                classif === s.classiforgan
-                  ? "border-ink/20 bg-surface-2 text-ink"
-                  : "border-hairline text-muted hover:text-ink"
-              )}
-            >
-              {s.nome}
-              <span className="ml-1 tabular-nums text-muted">{s.qtd}</span>
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* Tabela */}
       <div className="card overflow-hidden">
