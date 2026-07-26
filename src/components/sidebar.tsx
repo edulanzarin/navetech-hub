@@ -28,7 +28,12 @@ export function ModuloSidebar({
 }) {
   const pathname = usePathname();
   const sp = useSearchParams();
-  const qs = sp.toString();
+  // Trocar de SEÇÃO carrega os filtros (empresa/período), mas NÃO o marcador de
+  // "já executei" (`ap`): a seção nova só consulta quando o usuário clicar em
+  // Executar. (As abas dentro da seção mantêm o executado — isso é no shell.)
+  const params = new URLSearchParams(sp.toString());
+  params.delete("ap");
+  const qs = params.toString();
   const suffix = qs ? `?${qs}` : "";
 
   const modulo = getModulo(moduloId);
