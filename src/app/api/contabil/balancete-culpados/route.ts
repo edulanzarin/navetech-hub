@@ -31,6 +31,11 @@ export const GET = apiRoute(async (req) => {
   try {
     const contas = await contasDoAlvo(client, empresa, classif, sintetica, conta);
     if (!contas.length) return { culpados: [], total: 0 } satisfies BalanceteCulpadosResp;
+    // Filial: recorta calibração, motor e o real por nota — tudo igual à célula.
+    const temEstab = f.estabs.length > 0;
+    const estabObs = temEstab ? ` and codigoestab = any($4::int[])` : "";
+    const obsParams = temEstab ? [empresa, f.inicio, f.fim, f.estabs] : [empresa, f.inicio, f.fim];
+    const estabReal = temEstab ? ` and l.codigoestab = any($5::int[])` : "";
 
     // Contas (por natureza) que recebem lançamento por nota — calibra o motor.
     // Da empresa INTEIRA (não só o alvo), pra rodar idêntico ao da célula do
@@ -38,14 +43,14 @@ export const GET = apiRoute(async (req) => {
     const obsRows = await client.query<{ conta: number; nat: number; chaveorigem: string }>(
       `select contactbdeb conta, 1 nat, chaveorigem from lctoctb
          where codigoempresa=$1 and codigooriglctoctb='FI' and datalctoctb between $2 and $3
-           and contactbdeb is not null and chaveorigem ~ '^M[ES][0-9]+$'
+           and contactbdeb is not null and chaveorigem ~ '^M[ES][0-9]+$'${estabObs}
         group by contactbdeb, chaveorigem
        union all
        select contactbcred, -1, chaveorigem from lctoctb
          where codigoempresa=$1 and codigooriglctoctb='FI' and datalctoctb between $2 and $3
-           and contactbcred is not null and chaveorigem ~ '^M[ES][0-9]+$'
+           and contactbcred is not null and chaveorigem ~ '^M[ES][0-9]+$'${estabObs}
         group by contactbcred, chaveorigem`,
-      [empresa, f.inicio, f.fim]
+      obsParams
     );
     const NOTA_RE = /^(M[ES])0*(\d+)$/;
     const observadas = new Set<string>();
@@ -72,8 +77,8 @@ export const GET = apiRoute(async (req) => {
     const detSai = mk();
     // Conta que o plano manda por nota — a "certa", mesmo fora do alvo.
     const producao = new Map<string, { conta: number; valor: number }>();
-    await balanceteFiscal(client, empresa, f.inicio, f.fim, "ent", undefined, observadas, detEnt, produzidas, lancadas, producao);
-    await balanceteFiscal(client, empresa, f.inicio, f.fim, "sai", undefined, observadas, detSai, produzidas, lancadas, producao);
+    await balanceteFiscal(client, empresa, f.inicio, f.fim, "ent", undefined, observadas, detEnt, produzidas, lancadas, producao, f.estabs);
+    await balanceteFiscal(client, empresa, f.inicio, f.fim, "sai", undefined, observadas, detSai, produzidas, lancadas, producao, f.estabs);
 
     // Só as contas que o motor de fato REGRA entram na comparação: conta sem
     // regra espelha o real (fiscal = real), então não tem diferença — incluí-la
@@ -93,13 +98,13 @@ export const GET = apiRoute(async (req) => {
                   l.contactbdeb conta, 1 nat, coalesce(l.valorlctoctb,0)::float net
              from lctoctb l
             where l.codigoempresa=$1 and l.codigooriglctoctb='FI' and l.datalctoctb between $2 and $3
-              and l.chaveorigem ~ '^M[ES][0-9]+$' and l.contactbdeb = any($4::bigint[])
+              and l.chaveorigem ~ '^M[ES][0-9]+$' and l.contactbdeb = any($4::bigint[])${estabReal}
            union all
            select substring(l.chaveorigem for 2), substring(l.chaveorigem from 3)::bigint,
                   l.contactbcred, -1, -coalesce(l.valorlctoctb,0)::float
              from lctoctb l
             where l.codigoempresa=$1 and l.codigooriglctoctb='FI' and l.datalctoctb between $2 and $3
-              and l.chaveorigem ~ '^M[ES][0-9]+$' and l.contactbcred = any($4::bigint[])
+              and l.chaveorigem ~ '^M[ES][0-9]+$' and l.contactbcred = any($4::bigint[])${estabReal}
          )
          select r.origem, r.chave, r.conta, r.nat, sum(r.net)::float net,
                 coalesce(e.numeronf, s.numeronf) numero,
@@ -111,7 +116,7 @@ export const GET = apiRoute(async (req) => {
            left join pessoa pe on pe.codigopessoa=e.codigopessoa
            left join pessoa ps on ps.codigopessoa=s.codigopessoa
           group by r.origem, r.chave, r.conta, r.nat, e.numeronf, s.numeronf, e.especienf, s.especienf, pe.nomepessoa, ps.nomepessoa`,
-        [empresa, f.inicio, f.fim, contas]
+        temEstab ? [empresa, f.inicio, f.fim, contas, f.estabs] : [empresa, f.inicio, f.fim, contas]
       )
         ).rows;
 

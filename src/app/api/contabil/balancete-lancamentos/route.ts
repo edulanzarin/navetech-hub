@@ -41,7 +41,7 @@ export const GET = apiRoute(async (req) => {
            from lctoctb l
           where l.codigoempresa=$1 and l.codigooriglctoctb='FI'
             -- toda origem fiscal (notas ME/MS + consolidação MOV + apuração IM + retenção RE)
-            and l.datalctoctb between $2 and $3 and l.${natCol} = any($4::bigint[])
+            and l.datalctoctb between $2 and $3 and l.${natCol} = any($4::bigint[])${f.estabs.length ? ` and l.codigoestab = any($5::int[])` : ""}
        )
        select lc.data, lc.origem, lc.chave, lc.valor, lc.conta,
               coalesce(nullif(lc.hist,''), '') historico,
@@ -55,7 +55,7 @@ export const GET = apiRoute(async (req) => {
          left join pessoa ps on ps.codigopessoa=s.codigopessoa
         order by lc.valor desc
         limit 500`,
-      [empresa, f.inicio, f.fim, contas]
+      f.estabs.length ? [empresa, f.inicio, f.fim, contas, f.estabs] : [empresa, f.inicio, f.fim, contas]
     );
 
     return {

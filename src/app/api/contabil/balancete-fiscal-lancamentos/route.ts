@@ -37,6 +37,11 @@ export const GET = apiRoute(async (req) => {
     }
     const contasSet = new Set(contas);
     const p3 = [empresa, f.inicio, f.fim, contas] as const;
+    // Filial: recorta a calibração (notaContas) E o real da conta, pra o drill
+    // bater com a célula (filial-scoped) do balancete.
+    const temEstab = f.estabs.length > 0;
+    const estabNC = temEstab ? ` and codigoestab = any($4::int[])` : "";
+    const ncParams = temEstab ? [empresa, f.inicio, f.fim, f.estabs] : [empresa, f.inicio, f.fim];
 
     // Contas que RECEBEM lançamento por nota (ME/MS) — calibra o motor: componente
     // cuja conta não aparece aqui vai na apuração, não na nota. Da empresa INTEIRA
@@ -47,14 +52,14 @@ export const GET = apiRoute(async (req) => {
       await client.query<{ conta: number; natureza: number; chaveorigem: string }>(
         `select contactbdeb conta, 1 natureza, chaveorigem from lctoctb
           where codigoempresa=$1 and codigooriglctoctb='FI' and datalctoctb between $2 and $3
-            and contactbdeb is not null and chaveorigem ~ '^M[ES][0-9]+$'
+            and contactbdeb is not null and chaveorigem ~ '^M[ES][0-9]+$'${estabNC}
           group by contactbdeb, chaveorigem
          union all
          select contactbcred, -1, chaveorigem from lctoctb
           where codigoempresa=$1 and codigooriglctoctb='FI' and datalctoctb between $2 and $3
-            and contactbcred is not null and chaveorigem ~ '^M[ES][0-9]+$'
+            and contactbcred is not null and chaveorigem ~ '^M[ES][0-9]+$'${estabNC}
           group by contactbcred, chaveorigem`,
-        [empresa, f.inicio, f.fim]
+        ncParams
       )
     ).rows;
     const NOTA_RE = /^(M[ES])0*(\d+)$/;
@@ -78,7 +83,7 @@ export const GET = apiRoute(async (req) => {
                   l.valorlctoctb::float valor, l.complhist hist, l.${natCol} conta
              from lctoctb l
             where l.codigoempresa=$1 and l.codigooriglctoctb='FI'
-              and l.datalctoctb between $2 and $3 and l.${natCol} = any($4::bigint[])
+              and l.datalctoctb between $2 and $3 and l.${natCol} = any($4::bigint[])${temEstab ? ` and l.codigoestab = any($5::int[])` : ""}
          )
          select lc.data, lc.origem, lc.chave, lc.valor, lc.conta,
                 coalesce(nullif(lc.hist,''), '') historico,
@@ -92,7 +97,7 @@ export const GET = apiRoute(async (req) => {
            left join pessoa ps on ps.codigopessoa=s.codigopessoa
           order by lc.valor desc
           limit 2000`,
-        [...p3]
+        temEstab ? [...p3, f.estabs] : [...p3]
       )
     ).rows;
 
@@ -102,8 +107,8 @@ export const GET = apiRoute(async (req) => {
     const produzidas = new Set<string>();
     const detEnt: DetalheFiscal = { contas: contasSet, natureza, porNota: new Map(), regradas: new Set() };
     const detSai: DetalheFiscal = { contas: contasSet, natureza, porNota: new Map(), regradas: new Set() };
-    await balanceteFiscal(client, empresa, f.inicio, f.fim, "ent", undefined, observadas, detEnt, produzidas, lancadas);
-    await balanceteFiscal(client, empresa, f.inicio, f.fim, "sai", undefined, observadas, detSai, produzidas, lancadas);
+    await balanceteFiscal(client, empresa, f.inicio, f.fim, "ent", undefined, observadas, detEnt, produzidas, lancadas, undefined, f.estabs);
+    await balanceteFiscal(client, empresa, f.inicio, f.fim, "sai", undefined, observadas, detSai, produzidas, lancadas, undefined, f.estabs);
     const regradas = new Set<number>([...detEnt.regradas, ...detSai.regradas]);
 
     const regra: BalanceteLancamento[] = [...detEnt.porNota.values(), ...detSai.porNota.values()].map(

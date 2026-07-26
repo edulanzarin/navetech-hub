@@ -52,26 +52,35 @@ async function pendentesLado(
   empresa: number,
   inicio: string,
   fim: string,
-  lado: keyof typeof LADO
+  lado: keyof typeof LADO,
+  estabs: number[]
 ): Promise<PendenteNfse[]> {
   const c = LADO[lado];
   const hist = lookbackInicio(inicio);
 
   // NFSE do período sem NENHUM lançamento FI da própria nota (não contabilizada).
+  // Recorte de filial só nas notas pendentes; a previsão de conta (abaixo) fica
+  // por empresa — histórico maior prevê melhor, e a nota já é da filial.
+  const notasParams: unknown[] = [empresa, inicio, fim];
+  let filtroEstab = "";
+  if (estabs.length) {
+    notasParams.push(estabs);
+    filtroEstab = `and f.codigoestab = any($${notasParams.length}::int[])`;
+  }
   const notas = (
     await client.query<{ chave: number; numero: number | null; data: string; contraparte: string | null; pes: number | null; valor: number }>(
       `select f.${c.chave} chave, f.numeronf numero, to_char(f.datalctofis,'YYYY-MM-DD') data,
               p.nomepessoa contraparte, f.codigopessoa pes, coalesce(f.valorcontabil,0)::float valor
          from ${c.tabela} f
          left join pessoa p on p.codigopessoa = f.codigopessoa
-        where f.codigoempresa = $1 and f.datalctofis between $2 and $3
+        where f.codigoempresa = $1 and f.datalctofis between $2 and $3 ${filtroEstab}
           and upper(btrim(f.especienf)) = 'NFSE' and f.cancelada <> '1'
           and not exists (
             select 1 from lctoctb l
              where l.codigoempresa = f.codigoempresa and l.codigooriglctoctb = 'FI'
                and l.chaveorigem = '${c.prefixo}' || lpad(f.${c.chave}::text, 10, '0')
           )`,
-      [empresa, inicio, fim]
+      notasParams
     )
   ).rows;
   if (!notas.length) return [];
@@ -139,11 +148,12 @@ export async function pendentesNfse(
   client: PoolClient,
   empresa: number,
   inicio: string,
-  fim: string
+  fim: string,
+  estabs: number[] = []
 ): Promise<PendenteNfse[]> {
   const [ent, sai] = await Promise.all([
-    pendentesLado(client, empresa, inicio, fim, "ent"),
-    pendentesLado(client, empresa, inicio, fim, "sai"),
+    pendentesLado(client, empresa, inicio, fim, "ent", estabs),
+    pendentesLado(client, empresa, inicio, fim, "sai", estabs),
   ]);
   return [...ent, ...sai];
 }

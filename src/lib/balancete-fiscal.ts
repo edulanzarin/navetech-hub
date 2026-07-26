@@ -132,7 +132,10 @@ export async function balanceteFiscal(
    * gate (mesmo quando o motor não a produz). Em multi-CFOP fica a de maior
    * valor. Serve pro detalhe da diferença dizer "deveria estar em X".
    */
-  producao?: Map<string, { conta: number; valor: number }>
+  producao?: Map<string, { conta: number; valor: number }>,
+  /** Filiais (codigoestab) a recortar; vazio = todas. O recorte entra só na
+   *  scan das notas — os demais scans seguem as chaves já filtradas. */
+  estabs: number[] = []
 ): Promise<BalanceteFiscalMov> {
   const c = LADO[tipo];
 
@@ -142,6 +145,11 @@ export async function balanceteFiscal(
   if (chavesFiltro) {
     params.push(chavesFiltro);
     filtroChaves = `and f.${c.chave} = any($${params.length}::bigint[])`;
+  }
+  let filtroEstab = "";
+  if (estabs.length) {
+    params.push(estabs);
+    filtroEstab = `and f.codigoestab = any($${params.length}::int[])`;
   }
   const notas = (
     await client.query<NotaRow>(
@@ -153,7 +161,7 @@ export async function balanceteFiscal(
               ${c.funrural}::float vlrfunrural
          from ${c.tabela} f
          left join pessoa p on p.codigopessoa = f.codigopessoa
-        where f.codigoempresa=$1 and f.datalctofis between $2 and $3 and f.cancelada <> '1' ${filtroChaves}`,
+        where f.codigoempresa=$1 and f.datalctofis between $2 and $3 and f.cancelada <> '1' ${filtroChaves} ${filtroEstab}`,
       params
     )
   ).rows;

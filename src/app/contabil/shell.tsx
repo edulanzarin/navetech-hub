@@ -104,12 +104,11 @@ export function ContabilShell({ children }: { children: React.ReactNode }) {
         </nav>
       )}
 
-      {/* Filial fica desligada no Contábil até as queries próprias (Conferência,
-          Conferência de Contas, Balancete) honrarem `estabs` — senão o dropdown
-          filtraria umas telas e outras não. Entregar o módulo inteiro de uma vez. */}
+      {/* Filial nas telas de dado (junto com o período): Conferência, Notas e
+          Balancete honram `estabs`. A Configuração (cadastro por empresa) fica fora. */}
       <ConfFilterBar
         mostrarPeriodo={usaPeriodo}
-        mostrarFilial={false}
+        mostrarFilial={usaPeriodo}
         execucao={execucao}
         extras={(() => {
           const Controles = aba ? CONTROLES_BARRA[aba.id] : undefined;

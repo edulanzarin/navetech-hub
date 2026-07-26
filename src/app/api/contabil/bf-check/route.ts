@@ -15,11 +15,13 @@ export const GET = apiRoute(async (req) => {
   const client = await pool.connect();
   try {
     const p = [emp, f.inicio, f.fim] as const;
+    const estab = f.estabs.length ? ` and codigoestab = any($4::int[])` : "";
+    const pE = f.estabs.length ? [...p, f.estabs] : [...p];
     const booked = await client.query<{ chave: number }>(
       `select distinct substring(chaveorigem from 3)::bigint chave from lctoctb
         where codigoempresa=$1 and codigooriglctoctb='FI' and chaveorigem like '${prefix}%'
-          and datalctoctb between $2 and $3`,
-      [...p]
+          and datalctoctb between $2 and $3${estab}`,
+      pE
     );
     const chaves = booked.rows.map((r) => r.chave);
 
@@ -27,12 +29,12 @@ export const GET = apiRoute(async (req) => {
     const real = await client.query<{ conta: number; deb: number; cred: number }>(
       `select contactbdeb::bigint conta, sum(valorlctoctb)::float deb, 0::float cred from lctoctb
         where codigoempresa=$1 and codigooriglctoctb='FI' and chaveorigem like '${prefix}%'
-          and datalctoctb between $2 and $3 and contactbdeb is not null group by contactbdeb
+          and datalctoctb between $2 and $3 and contactbdeb is not null${estab} group by contactbdeb
        union all
        select contactbcred::bigint, 0::float, sum(valorlctoctb)::float from lctoctb
         where codigoempresa=$1 and codigooriglctoctb='FI' and chaveorigem like '${prefix}%'
-          and datalctoctb between $2 and $3 and contactbcred is not null group by contactbcred`,
-      [...p]
+          and datalctoctb between $2 and $3 and contactbcred is not null${estab} group by contactbcred`,
+      pE
     );
     const realPorConta = new Map<number, { deb: number; cred: number }>();
     const observadas = new Set<string>();

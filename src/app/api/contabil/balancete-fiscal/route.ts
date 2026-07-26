@@ -24,6 +24,11 @@ export const GET = apiRoute(async (req) => {
   const client = await pool.connect();
   try {
     const p = [empresa, f.inicio, f.fim] as const;
+    // Filial: recorta os DOIS lados do espelho (real e fiscal) igual, senão a
+    // reconciliação desalinha. Vazio = todas (consolidado).
+    const temEstab = f.estabs.length > 0;
+    const estabReal = temEstab ? ` and codigoestab = any($4::int[])` : "";
+    const realParams = temEstab ? [...p, f.estabs] : [...p];
 
     // Movimento REAL de TODA origem fiscal (notas ME/MS + consolidações MOV +
     // apuração IM + retenção RE) — pra o Contábil ficar completo: varejo vende
@@ -32,14 +37,14 @@ export const GET = apiRoute(async (req) => {
     const real = await client.query<{ conta: number; natureza: number; chaveorigem: string; valor: number }>(
       `select contactbdeb conta, 1 natureza, chaveorigem, sum(valorlctoctb)::float valor
          from lctoctb where codigoempresa=$1 and codigooriglctoctb='FI'
-           and datalctoctb between $2 and $3 and contactbdeb is not null
+           and datalctoctb between $2 and $3 and contactbdeb is not null${estabReal}
         group by contactbdeb, chaveorigem
        union all
        select contactbcred, -1, chaveorigem, sum(valorlctoctb)::float
          from lctoctb where codigoempresa=$1 and codigooriglctoctb='FI'
-           and datalctoctb between $2 and $3 and contactbcred is not null
+           and datalctoctb between $2 and $3 and contactbcred is not null${estabReal}
         group by contactbcred, chaveorigem`,
-      [...p]
+      realParams
     );
     const NOTA_RE = /^(M[ES])0*(\d+)$/;
     const realPorConta = new Map<number, { deb: number; cred: number }>();
@@ -64,8 +69,8 @@ export const GET = apiRoute(async (req) => {
     // "origem:chave:natureza" das notas que o motor reproduziu (o espelho as usa).
     const produzidas = new Set<string>();
     const [ent, sai] = await Promise.all([
-      balanceteFiscal(client, empresa, f.inicio, f.fim, "ent", undefined, observadas, undefined, produzidas, lancadas),
-      balanceteFiscal(client, empresa, f.inicio, f.fim, "sai", undefined, observadas, undefined, produzidas, lancadas),
+      balanceteFiscal(client, empresa, f.inicio, f.fim, "ent", undefined, observadas, undefined, produzidas, lancadas, undefined, f.estabs),
+      balanceteFiscal(client, empresa, f.inicio, f.fim, "sai", undefined, observadas, undefined, produzidas, lancadas, undefined, f.estabs),
     ]);
     const fiscalPorConta = new Map<number, { deb: number; cred: number }>();
     for (const mov of [ent, sai]) {
@@ -111,7 +116,7 @@ export const GET = apiRoute(async (req) => {
     // não há real pra espelhar, então ela sumiria. Injeta o valor no esperado na
     // conta prevista pela história do fornecedor — cria a divergência que o real
     // não tem (só onde falta lançamento, então sem falso positivo).
-    const pendentes = await pendentesNfse(client, empresa, f.inicio, f.fim);
+    const pendentes = await pendentesNfse(client, empresa, f.inicio, f.fim, f.estabs);
     for (const pd of pendentes) {
       if (pd.conta == null) continue; // sem histórico: fica só no painel, não na árvore
       const a = fiscalPorConta.get(pd.conta) ?? { deb: 0, cred: 0 };
