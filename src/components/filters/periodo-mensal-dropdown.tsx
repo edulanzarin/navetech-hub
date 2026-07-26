@@ -28,21 +28,37 @@ function qtdMeses(mesIni: string, mesFim: string): number {
   return (af - ai) * 12 + (mf - mi) + 1;
 }
 
-/** Presets mensais para análise de balancete (todos ≤ 12 meses). */
+/**
+ * Presets mensais para análise de balancete (todos ≤ 12 meses).
+ *
+ * Ancorados no ÚLTIMO MÊS FECHADO (o mês anterior ao atual): balancete não se
+ * analisa com mês pela metade — o mês corrente incompleto pareceria uma queda.
+ * Quem quiser incluir o mês corrente escolhe manualmente no "De/Até".
+ */
 export function presetsMensais(): PresetMes[] {
   const hoje = new Date();
   const ym = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  const mesAtras = (n: number) => ym(new Date(hoje.getFullYear(), hoje.getMonth() - n, 1));
-  return [
-    { nome: "Últimos 12 meses", mesIni: mesAtras(11), mesFim: ym(hoje) },
-    { nome: "Últimos 6 meses", mesIni: mesAtras(5), mesFim: ym(hoje) },
-    { nome: "Este ano", mesIni: `${hoje.getFullYear()}-01`, mesFim: ym(hoje) },
-    {
-      nome: "Ano anterior",
-      mesIni: `${hoje.getFullYear() - 1}-01`,
-      mesFim: `${hoje.getFullYear() - 1}-12`,
-    },
+  // 1º dia do mês passado = último mês fechado.
+  const fechado = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+  const mesFimF = ym(fechado);
+  const antes = (n: number) =>
+    ym(new Date(fechado.getFullYear(), fechado.getMonth() - n, 1));
+
+  const lista: PresetMes[] = [
+    { nome: "Últimos 12 meses", mesIni: antes(11), mesFim: mesFimF },
+    { nome: "Últimos 6 meses", mesIni: antes(5), mesFim: mesFimF },
   ];
+  // "Este ano" só faz sentido se já houver algum mês fechado no ano corrente
+  // (ou seja, de fevereiro em diante). Vai de janeiro até o último mês fechado.
+  if (hoje.getMonth() > 0) {
+    lista.push({ nome: "Este ano (até mês fechado)", mesIni: `${hoje.getFullYear()}-01`, mesFim: mesFimF });
+  }
+  lista.push({
+    nome: "Ano anterior",
+    mesIni: `${hoje.getFullYear() - 1}-01`,
+    mesFim: `${hoje.getFullYear() - 1}-12`,
+  });
+  return lista;
 }
 
 /**
