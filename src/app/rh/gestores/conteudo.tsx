@@ -114,7 +114,7 @@ function SetorCard({ setor, gestores }: { setor: SetorRh; gestores: GestorRh[] }
   };
 
   return (
-    <div className="card overflow-hidden">
+    <div className="card break-inside-avoid overflow-hidden">
       <header className="flex items-center justify-between gap-3 border-b border-hairline px-4 py-3">
         <h3 className="font-semibold text-ink">{setor.nome}</h3>
         <span className="text-xs text-muted">{setor.ativos} ativos</span>
@@ -126,34 +126,40 @@ function SetorCard({ setor, gestores }: { setor: SetorRh; gestores: GestorRh[] }
         )}
         {gestores.map((g) =>
           editId === g.id ? (
-            <div key={g.id} className="flex flex-wrap items-center gap-2 px-4 py-2.5">
-              <input
-                value={editNome}
-                onChange={(e) => setEditNome(e.target.value)}
-                className="h-8 min-w-[8rem] flex-1 rounded-lg border border-hairline bg-surface px-2.5 text-sm outline-none focus:border-ink/30"
-                placeholder="Nome"
-              />
-              <input
-                value={editEmail}
-                onChange={(e) => setEditEmail(e.target.value)}
-                className="h-8 min-w-[10rem] flex-1 rounded-lg border border-hairline bg-surface px-2.5 text-sm outline-none focus:border-ink/30"
-                placeholder="E-mail"
-              />
-              <PapelSegmentos valor={editPapel} onMudar={setEditPapel} />
-              <button
-                onClick={salvarEdicao}
-                className="grid size-8 place-items-center rounded-lg text-good transition-colors hover:bg-good/12"
-                aria-label="Salvar"
-              >
-                <Check className="size-4" />
-              </button>
-              <button
-                onClick={() => setEditId(null)}
-                className="grid size-8 place-items-center rounded-lg text-muted transition-colors hover:bg-surface-2 hover:text-ink"
-                aria-label="Cancelar"
-              >
-                <X className="size-4" />
-              </button>
+            <div key={g.id} className="space-y-2 px-4 py-3">
+              <div className="flex gap-2">
+                <input
+                  value={editNome}
+                  onChange={(e) => setEditNome(e.target.value)}
+                  className="h-8 w-1/2 flex-1 rounded-lg border border-hairline bg-surface px-2.5 text-sm outline-none focus:border-ink/30"
+                  placeholder="Nome"
+                />
+                <input
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  className="h-8 w-1/2 flex-1 rounded-lg border border-hairline bg-surface px-2.5 text-sm outline-none focus:border-ink/30"
+                  placeholder="E-mail"
+                />
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <PapelSegmentos valor={editPapel} onMudar={setEditPapel} />
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={salvarEdicao}
+                    className="grid size-8 place-items-center rounded-lg text-good transition-colors hover:bg-good/12"
+                    aria-label="Salvar"
+                  >
+                    <Check className="size-4" />
+                  </button>
+                  <button
+                    onClick={() => setEditId(null)}
+                    className="grid size-8 place-items-center rounded-lg text-muted transition-colors hover:bg-surface-2 hover:text-ink"
+                    aria-label="Cancelar"
+                  >
+                    <X className="size-4" />
+                  </button>
+                </div>
+              </div>
             </div>
           ) : (
             <div key={g.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
@@ -188,28 +194,32 @@ function SetorCard({ setor, gestores }: { setor: SetorRh; gestores: GestorRh[] }
       </div>
 
       {/* Adicionar */}
-      <div className="flex flex-wrap items-center gap-2 border-t border-hairline bg-surface-2/40 px-4 py-3">
-        <input
-          value={addNome}
-          onChange={(e) => setAddNome(e.target.value)}
-          className="h-8 min-w-[8rem] flex-1 rounded-lg border border-hairline bg-surface px-2.5 text-sm outline-none placeholder:text-muted focus:border-ink/30"
-          placeholder="Nome do gestor"
-        />
-        <input
-          value={addEmail}
-          onChange={(e) => setAddEmail(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && adicionar()}
-          className="h-8 min-w-[10rem] flex-1 rounded-lg border border-hairline bg-surface px-2.5 text-sm outline-none placeholder:text-muted focus:border-ink/30"
-          placeholder="e-mail@navecon.com.br"
-        />
-        <PapelSegmentos valor={addPapel} onMudar={setAddPapel} />
-        <button
-          onClick={adicionar}
-          disabled={salvando}
-          className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3 text-xs font-medium text-surface transition-opacity hover:opacity-90 disabled:opacity-50"
-        >
-          <Plus className="size-3.5" /> Adicionar
-        </button>
+      <div className="space-y-2 border-t border-hairline bg-surface-2/40 px-4 py-3">
+        <div className="flex gap-2">
+          <input
+            value={addNome}
+            onChange={(e) => setAddNome(e.target.value)}
+            className="h-8 w-1/2 flex-1 rounded-lg border border-hairline bg-surface px-2.5 text-sm outline-none placeholder:text-muted focus:border-ink/30"
+            placeholder="Nome do gestor"
+          />
+          <input
+            value={addEmail}
+            onChange={(e) => setAddEmail(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && adicionar()}
+            className="h-8 w-1/2 flex-1 rounded-lg border border-hairline bg-surface px-2.5 text-sm outline-none placeholder:text-muted focus:border-ink/30"
+            placeholder="e-mail@navecon.com.br"
+          />
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <PapelSegmentos valor={addPapel} onMudar={setAddPapel} />
+          <button
+            onClick={adicionar}
+            disabled={salvando}
+            className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3 text-xs font-medium text-surface transition-opacity hover:opacity-90 disabled:opacity-50"
+          >
+            <Plus className="size-3.5" /> Adicionar
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -252,7 +262,9 @@ export default function Conteudo() {
           <p>Nenhum departamento com funcionários ativos.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        // Masonry (colunas): cada carta ocupa só a sua altura, sem esticar para
+        // igualar a vizinha (o vazião do Societário sumiu).
+        <div className="columns-1 gap-4 [&>*]:mb-4 lg:columns-2">
           {(setores ?? []).map((s) => (
             <SetorCard key={s.classiforgan} setor={s} gestores={porSetor.get(s.classiforgan) ?? []} />
           ))}
