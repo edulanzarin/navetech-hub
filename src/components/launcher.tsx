@@ -38,7 +38,7 @@ export function Launcher({
     <div className="flex min-h-screen flex-col">
       <header className="flex items-center justify-between px-6 py-5">
         <div className="flex items-center gap-2.5">
-          <Image src="/logo.png" alt="Navetech Hub" width={36} height={36} className="size-9" />
+          <Image src="/images/logo.png" alt="Navetech Hub" width={36} height={36} className="size-9" />
           <p className="text-sm font-semibold tracking-tight">Navetech Hub</p>
         </div>
         <div className="flex items-center gap-1.5">
@@ -76,7 +76,7 @@ export function Launcher({
                   className="card anim-scale-in flex flex-col items-center gap-4 px-6 py-8 text-center opacity-55"
                 >
                   <Image
-                    src="/logo.png"
+                    src="/images/logo.png"
                     alt=""
                     width={64}
                     height={64}
@@ -100,10 +100,11 @@ export function Launcher({
                 className="card anim-scale-in group flex flex-col items-center gap-4 px-6 py-8 text-center transition-colors hover:border-ent/40 hover:bg-surface-2"
               >
                 <Image
-                  src="/logo.png"
+                  src={m.icone}
                   alt=""
                   width={64}
                   height={64}
+                  unoptimized
                   className="size-16 transition-transform group-hover:scale-105"
                 />
                 <p className="text-base font-semibold">{m.titulo}</p>

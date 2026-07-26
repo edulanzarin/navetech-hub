@@ -12,7 +12,7 @@ export default async function LoginPage() {
     <div className="flex min-h-screen flex-col">
       <header className="flex items-center justify-between px-6 py-5">
         <div className="flex items-center gap-2.5">
-          <Image src="/logo.png" alt="Navetech Hub" width={36} height={36} className="size-9" />
+          <Image src="/images/logo.png" alt="Navetech Hub" width={36} height={36} className="size-9" />
           <p className="text-sm font-semibold tracking-tight">Navetech Hub</p>
         </div>
         <ThemeToggle label={false} />

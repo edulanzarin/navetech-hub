@@ -1,4 +1,3 @@
-import { BookOpen, Contact, Landmark, Receipt, Users, type LucideIcon } from "lucide-react";
 import { SECOES_FISCAL, type SecaoFiscal } from "./fiscal-secoes";
 import { SECOES_CONTABIL } from "./contabil-secoes";
 import { SECOES_FOLHA } from "./folha-secoes";
@@ -16,7 +15,8 @@ export interface Modulo {
   id: ModuloId;
   titulo: string;
   descricao: string;
-  icone: LucideIcon;
+  /** Caminho do ícone do módulo em /public/images (ex.: "/images/fiscal.ico"). */
+  icone: string;
   /** Falso enquanto o módulo ainda não existe — aparece como "em breve". */
   ativo: boolean;
   /** Primeira tela ao entrar no módulo pelo launcher. */
@@ -28,7 +28,7 @@ export const MODULOS: Modulo[] = [
     id: "fiscal",
     titulo: "Fiscal",
     descricao: "Painéis, análises e tributos sobre as notas",
-    icone: Receipt,
+    icone: "/images/fiscal.ico",
     ativo: true,
     home: "/fiscal/painel",
   },
@@ -36,7 +36,7 @@ export const MODULOS: Modulo[] = [
     id: "contabil",
     titulo: "Contábil",
     descricao: "Conferência fiscal e conciliação bancária",
-    icone: BookOpen,
+    icone: "/images/contabil.ico",
     ativo: true,
     home: "/contabil/conferencia",
   },
@@ -44,7 +44,7 @@ export const MODULOS: Modulo[] = [
     id: "folha",
     titulo: "Folha",
     descricao: "Rotatividade de pessoal (turnover)",
-    icone: Users,
+    icone: "/images/folha.ico",
     ativo: true,
     home: "/folha/rotatividade",
   },
@@ -52,7 +52,7 @@ export const MODULOS: Modulo[] = [
     id: "rh",
     titulo: "RH",
     descricao: "Pessoal da Navecon: diretório e experiência",
-    icone: Contact,
+    icone: "/images/rh.ico",
     ativo: true,
     home: "/rh/diretorio",
   },
@@ -60,7 +60,7 @@ export const MODULOS: Modulo[] = [
     id: "patrimonio",
     titulo: "Patrimônio",
     descricao: "Em breve",
-    icone: Landmark,
+    icone: "/images/logo.png",
     ativo: false,
     home: "#",
   },
