@@ -14,10 +14,6 @@ export function FiltroPendente({ rotulo = "Executar" }: { rotulo?: string }) {
       <p className="text-sm font-medium text-ink">
         Ajuste os filtros e clique em {rotulo}
       </p>
-      <p className="max-w-md text-xs text-muted">
-        Nada é consultado até você clicar — escolher empresa ou período não
-        dispara consulta sozinho.
-      </p>
     </section>
   );
 }
