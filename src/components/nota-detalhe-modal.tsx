@@ -120,7 +120,7 @@ export function NotaDetalheModal({
                     <div className="flex items-baseline justify-between gap-3">
                       <span className="text-xs text-ink-2">
                         {dataBR(l.data)} ·{" "}
-                        <span className="font-mono text-[11px] text-muted">{l.origem}</span>
+                        <span className="text-[11px] text-muted">{l.origem}</span>
                       </span>
                       <span className="text-sm font-semibold tabular-nums text-ink">
                         {brl(l.valor)}

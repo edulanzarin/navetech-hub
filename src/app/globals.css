@@ -68,7 +68,6 @@
   --color-critical: var(--critical);
   --color-warning: var(--warning);
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
 html,

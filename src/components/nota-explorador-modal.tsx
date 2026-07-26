@@ -91,7 +91,7 @@ export function NotaExploradorModal({
             <p className="text-[10px] font-medium uppercase tracking-wide text-muted">
               Chave de acesso
             </p>
-            <p className="mt-0.5 break-all font-mono text-xs text-ink-2 select-all">
+            <p className="mt-0.5 break-all text-xs text-ink-2 tabular-nums select-all">
               {nota.chaveNfe}
             </p>
           </div>
