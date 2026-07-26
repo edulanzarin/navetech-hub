@@ -5,23 +5,16 @@ import { Plus, Trash2, Users, X, Check, Pencil } from "lucide-react";
 import clsx from "clsx";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { SeloEmpresa } from "@/components/rh-selo-empresa";
 import { useRhSetores, useRhGestores } from "@/hooks/use-api";
 import { mutar } from "@/hooks/mutar";
-import { EMPRESAS_RH, nomeEmpresaRh } from "@/lib/rh";
 import type { GestorRh, SetorRh } from "@/lib/rh-tipos";
 
-type FiltroEmpresa = "todas" | number;
 const PAPEIS: GestorRh["papel"][] = ["supervisor", "coordenador", "outro"];
 const PAPEL_ROTULO: Record<GestorRh["papel"], string> = {
   supervisor: "Supervisor",
   coordenador: "Coordenador",
   outro: "Outro",
 };
-
-function chaveSetor(s: { codigoempresa: number; codigoestab: number; classiforgan: string }): string {
-  return `${s.codigoempresa}|${s.codigoestab}|${s.classiforgan}`;
-}
 
 function PapelSegmentos({
   valor,
@@ -70,8 +63,6 @@ function SetorCard({ setor, gestores }: { setor: SetorRh; gestores: GestorRh[] }
     setSalvando(true);
     try {
       await mutar("/api/rh/gestores", "POST", {
-        codigoempresa: setor.codigoempresa,
-        codigoestab: setor.codigoestab,
         classiforgan: setor.classiforgan,
         nome: addNome,
         email: addEmail,
@@ -125,16 +116,13 @@ function SetorCard({ setor, gestores }: { setor: SetorRh; gestores: GestorRh[] }
   return (
     <div className="card overflow-hidden">
       <header className="flex items-center justify-between gap-3 border-b border-hairline px-4 py-3">
-        <div className="flex items-center gap-2">
-          <SeloEmpresa codigo={setor.codigoempresa} />
-          <h3 className="font-semibold text-ink">{setor.nome}</h3>
-        </div>
+        <h3 className="font-semibold text-ink">{setor.nome}</h3>
         <span className="text-xs text-muted">{setor.ativos} ativos</span>
       </header>
 
       <div className="divide-y divide-hairline/60">
         {gestores.length === 0 && (
-          <p className="px-4 py-3 text-sm text-muted">Nenhum gestor cadastrado neste setor.</p>
+          <p className="px-4 py-3 text-sm text-muted">Nenhum gestor cadastrado neste departamento.</p>
         )}
         {gestores.map((g) =>
           editId === g.id ? (
@@ -230,52 +218,27 @@ function SetorCard({ setor, gestores }: { setor: SetorRh; gestores: GestorRh[] }
 export default function Conteudo() {
   const { data: setores, isLoading } = useRhSetores();
   const { data: gestores } = useRhGestores();
-  const [empresa, setEmpresa] = useState<FiltroEmpresa>("todas");
 
+  // Gestores por departamento (classiforgan). NAVECON e FOUR compartilham os
+  // departamentos, então é um cadastro só por departamento.
   const porSetor = useMemo(() => {
     const mapa = new Map<string, GestorRh[]>();
     for (const g of gestores ?? []) {
-      const k = chaveSetor(g);
-      const arr = mapa.get(k);
+      const arr = mapa.get(g.classiforgan);
       if (arr) arr.push(g);
-      else mapa.set(k, [g]);
+      else mapa.set(g.classiforgan, [g]);
     }
     return mapa;
   }, [gestores]);
 
-  const setoresFiltrados = useMemo(
-    () =>
-      (setores ?? []).filter((s) => empresa === "todas" || s.codigoempresa === empresa),
-    [setores, empresa]
-  );
-
-  const segmentos: { valor: FiltroEmpresa; rotulo: string }[] = [
-    { valor: "todas", rotulo: "Ambas" },
-    ...EMPRESAS_RH.map((cod) => ({ valor: cod as FiltroEmpresa, rotulo: nomeEmpresaRh(cod) })),
-  ];
-
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="max-w-2xl text-sm text-muted">
-          Cadastre os supervisores e coordenadores de cada setor. Eles recebem por e-mail o
-          formulário de avaliação de experiência dos funcionários do setor.
-        </p>
-        <div className="inline-flex rounded-lg border border-hairline bg-surface p-0.5">
-          {segmentos.map((s) => (
-            <button
-              key={String(s.valor)}
-              onClick={() => setEmpresa(s.valor)}
-              className={clsx(
-                "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                empresa === s.valor ? "bg-surface-2 text-ink" : "text-muted hover:text-ink"
-              )}
-            >
-              {s.rotulo}
-            </button>
-          ))}
-        </div>
-      </div>
+      <p className="max-w-3xl text-sm text-muted">
+        Cadastre os supervisores e coordenadores de cada departamento. Eles recebem por e-mail
+        o formulário de avaliação de experiência dos funcionários do setor. NAVECON e FOUR são a
+        mesma empresa (CNPJs distintos), então cada departamento tem um cadastro só, valendo para
+        os funcionários das duas.
+      </p>
 
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -283,15 +246,15 @@ export default function Conteudo() {
             <div key={i} className="skeleton h-40" />
           ))}
         </div>
-      ) : setoresFiltrados.length === 0 ? (
+      ) : (setores ?? []).length === 0 ? (
         <div className="card grid place-items-center gap-2 py-16 text-center text-muted">
           <Users className="size-8 opacity-40" />
-          <p>Nenhum setor com funcionários ativos.</p>
+          <p>Nenhum departamento com funcionários ativos.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {setoresFiltrados.map((s) => (
-            <SetorCard key={chaveSetor(s)} setor={s} gestores={porSetor.get(chaveSetor(s)) ?? []} />
+          {(setores ?? []).map((s) => (
+            <SetorCard key={s.classiforgan} setor={s} gestores={porSetor.get(s.classiforgan) ?? []} />
           ))}
         </div>
       )}

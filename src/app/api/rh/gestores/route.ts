@@ -1,65 +1,55 @@
 import { apiRoute } from "@/lib/api-route";
 import { FilterError } from "@/lib/fiscal-filters";
 import { appQuery } from "@/lib/app-db";
-import { ehEmpresaRh } from "@/lib/rh";
 import type { GestorRh } from "@/lib/rh-tipos";
 
 const PAPEIS = ["supervisor", "coordenador", "outro"] as const;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Gestores de setor (recebem o formulário de experiência). CRUD no banco do app. */
+/** Gestores por DEPARTAMENTO (classiforgan) — recebem o formulário de experiência.
+ *  NAVECON e FOUR compartilham os departamentos, então o gestor não tem empresa. */
 export const GET = apiRoute(async (req) => {
-  const sp = req.nextUrl.searchParams;
-  const empresa = sp.get("empresa");
+  const classiforgan = req.nextUrl.searchParams.get("classiforgan");
   const conds: string[] = ["ativo"];
   const params: unknown[] = [];
-  if (empresa && ehEmpresaRh(Number(empresa))) {
-    params.push(Number(empresa));
-    conds.push(`codigoempresa = $${params.length}`);
-  }
-  const classiforgan = sp.get("classiforgan");
   if (classiforgan) {
     params.push(classiforgan);
     conds.push(`classiforgan = $${params.length}`);
   }
   return appQuery<GestorRh>(
-    `select id, codigoempresa, codigoestab, classiforgan, nome, email, papel, ativo
+    `select id, classiforgan, nome, email, papel, ativo
        from rh_setor_gestor
       where ${conds.join(" and ")}
-      order by codigoempresa, classiforgan, papel, nome`,
+      order by classiforgan, papel, nome`,
     params
   );
 });
 
 function validar(body: Record<string, unknown>) {
-  const codigoempresa = Number(body.codigoempresa);
-  const codigoestab = Number(body.codigoestab);
   const classiforgan = String(body.classiforgan ?? "").trim();
   const nome = String(body.nome ?? "").trim();
   const email = String(body.email ?? "").trim().toLowerCase();
   const papel = String(body.papel ?? "supervisor");
-  if (!ehEmpresaRh(codigoempresa)) throw new FilterError("Empresa inválida para o RH");
-  if (!Number.isInteger(codigoestab) || !classiforgan) throw new FilterError("Setor inválido");
+  if (!classiforgan) throw new FilterError("Setor inválido");
   if (!nome) throw new FilterError("Informe o nome do gestor");
   if (!EMAIL_RE.test(email)) throw new FilterError("E-mail inválido");
   if (!(PAPEIS as readonly string[]).includes(papel)) throw new FilterError("Papel inválido");
-  return { codigoempresa, codigoestab, classiforgan, nome, email, papel };
+  return { classiforgan, nome, email, papel };
 }
 
 export const POST = apiRoute(async (req) => {
   const g = validar(await req.json());
   try {
     const [row] = await appQuery<GestorRh>(
-      `insert into rh_setor_gestor (codigoempresa, codigoestab, classiforgan, nome, email, papel)
-       values ($1, $2, $3, $4, $5, $6)
-       returning id, codigoempresa, codigoestab, classiforgan, nome, email, papel, ativo`,
-      [g.codigoempresa, g.codigoestab, g.classiforgan, g.nome, g.email, g.papel]
+      `insert into rh_setor_gestor (classiforgan, nome, email, papel)
+       values ($1, $2, $3, $4)
+       returning id, classiforgan, nome, email, papel, ativo`,
+      [g.classiforgan, g.nome, g.email, g.papel]
     );
     return row;
   } catch (err) {
-    // unique(empresa, estab, classiforgan, email)
     if (err instanceof Error && /duplicate key/.test(err.message)) {
-      throw new FilterError("Esse e-mail já está cadastrado neste setor");
+      throw new FilterError("Esse e-mail já está cadastrado neste departamento");
     }
     throw err;
   }
@@ -78,7 +68,7 @@ export const PATCH = apiRoute(async (req) => {
   const [row] = await appQuery<GestorRh>(
     `update rh_setor_gestor set nome = $2, email = $3, papel = $4
       where id = $1
-      returning id, codigoempresa, codigoestab, classiforgan, nome, email, papel, ativo`,
+      returning id, classiforgan, nome, email, papel, ativo`,
     [id, nome, email, papel]
   );
   if (!row) throw new FilterError("Gestor não encontrado");

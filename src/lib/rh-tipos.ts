@@ -15,20 +15,20 @@ export interface FuncionarioDiretorio {
   dataadm: string; // YYYY-MM-DD
 }
 
-/** Setor do organograma com funcionários ativos (filtro + cadastro de gestores). */
+/**
+ * Departamento (classiforgan do organograma) com funcionários ativos. NAVECON e
+ * FOUR são a mesma empresa (CNPJs distintos) com os mesmos departamentos, então
+ * o setor é identificado só por `classiforgan` e a contagem soma as duas.
+ */
 export interface SetorRh {
-  codigoempresa: number;
-  codigoestab: number;
   classiforgan: string;
-  nome: string; // descrorgan
+  nome: string; // descrorgan (representativo)
   ativos: number;
 }
 
-/** Gestor cadastrado num setor (recebe o formulário de experiência). */
+/** Gestor cadastrado num departamento (recebe o formulário de experiência). */
 export interface GestorRh {
   id: number;
-  codigoempresa: number;
-  codigoestab: number;
   classiforgan: string;
   nome: string;
   email: string;

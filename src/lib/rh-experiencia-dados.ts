@@ -256,22 +256,15 @@ interface LinhaExperiencia {
   ultimo_lembrete: string | null;
 }
 
-/** Contagem de gestores ativos por setor (chave empresa|estab|classiforgan). */
-async function contagemGestores(empresas: number[]): Promise<Map<string, number>> {
-  const rows = await appQuery<{
-    codigoempresa: number;
-    codigoestab: number;
-    classiforgan: string;
-    n: number;
-  }>(
-    `select codigoempresa, codigoestab, classiforgan, count(*)::int as n
-       from rh_setor_gestor
-      where ativo and codigoempresa = any($1::int[])
-      group by codigoempresa, codigoestab, classiforgan`,
-    [empresas]
+/** Contagem de gestores ativos por DEPARTAMENTO (chave = classiforgan). */
+async function contagemGestores(): Promise<Map<string, number>> {
+  const rows = await appQuery<{ classiforgan: string; n: number }>(
+    `select classiforgan, count(*)::int as n
+       from rh_setor_gestor where ativo
+      group by classiforgan`
   );
   const m = new Map<string, number>();
-  for (const r of rows) m.set(`${r.codigoempresa}|${r.codigoestab}|${r.classiforgan}`, r.n);
+  for (const r of rows) m.set(r.classiforgan, r.n);
   return m;
 }
 
@@ -286,7 +279,7 @@ export async function montarPainelExperiencia(
 ): Promise<ExperienciaItem[]> {
   const [contratos, gestores] = await Promise.all([
     buscarContratosExperiencia(empresas, 120),
-    contagemGestores(empresas),
+    contagemGestores(),
   ]);
 
   const linhas = await appQuery<LinhaExperiencia>(
@@ -343,7 +336,7 @@ export async function montarPainelExperiencia(
         vencimento,
         status,
         diasParaVencer,
-        gestores: gestores.get(`${c.codigoempresa}|${c.codigoestab}|${c.classiforgan}`) ?? 0,
+        gestores: gestores.get(c.classiforgan ?? "") ?? 0,
         ultimoLembrete: linha?.ultimo_lembrete ?? null,
         resposta:
           respondido && linha
@@ -421,16 +414,11 @@ export async function rodarCronExperiencia(
   return resumo;
 }
 
-/** E-mails dos gestores ativos de um setor. */
-export async function gestoresDoSetor(
-  codigoempresa: number,
-  codigoestab: number,
-  classiforgan: string
-): Promise<string[]> {
+/** E-mails dos gestores ativos de um departamento (classiforgan). */
+export async function gestoresDoSetor(classiforgan: string): Promise<string[]> {
   const rows = await appQuery<{ email: string }>(
-    `select email from rh_setor_gestor
-      where ativo and codigoempresa = $1 and codigoestab = $2 and classiforgan = $3`,
-    [codigoempresa, codigoestab, classiforgan]
+    `select email from rh_setor_gestor where ativo and classiforgan = $1`,
+    [classiforgan]
   );
   return rows.map((r) => r.email);
 }
@@ -503,7 +491,7 @@ export async function enviarFormularioExperiencia(opts: {
     if (ja) return { enviado: false, jaEnviado: true, destinatarios: [] };
   }
 
-  const destinatarios = await gestoresDoSetor(c.codigoempresa, c.codigoestab, c.classiforgan ?? "");
+  const destinatarios = await gestoresDoSetor(c.classiforgan ?? "");
   if (destinatarios.length === 0) {
     return { enviado: false, semGestores: true, destinatarios: [] };
   }
