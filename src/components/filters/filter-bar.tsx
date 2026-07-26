@@ -1,9 +1,8 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Building2,
-  CalendarRange,
   Check,
   Hash,
   CircleDollarSign,
@@ -14,15 +13,15 @@ import {
   X,
 } from "lucide-react";
 import clsx from "clsx";
-import { toast } from "sonner";
 import { Dropdown, ItemLista } from "@/components/ui/dropdown";
 import { FilialDropdown } from "@/components/filters/filial-dropdown";
+import { PeriodoDropdown } from "@/components/filters/periodo-dropdown";
 import { BotaoExecutar } from "@/components/filters/botao-executar";
 import { GruposModal } from "@/components/grupos-modal";
 import { useEmpresas } from "@/hooks/use-api";
 import { useGruposLocais } from "@/hooks/use-grupos-locais";
 import { useRascunhoFiltros } from "@/hooks/use-filters";
-import { dataBR, hojeISO, inicioDoMesISO } from "@/lib/format";
+import { hojeISO, inicioDoMesISO } from "@/lib/format";
 import type { GrupoLocal } from "@/lib/types";
 
 const ESPECIES = ["NFE", "CTE", "NFSE", "NFCE", "NF", "OUTRAS"];
@@ -63,14 +62,9 @@ export function FilterBar({ mostrarMetrica = true }: { mostrarMetrica?: boolean 
   const { grupos } = useGruposLocais();
   const [buscaEmpresa, setBuscaEmpresa] = useState("");
   const [buscaGrupo, setBuscaGrupo] = useState("");
-  const iniRef = useRef<HTMLInputElement>(null);
-  const fimRef = useRef<HTMLInputElement>(null);
   const [modalGrupos, setModalGrupos] = useState(false);
 
   const listaPresets = useMemo(() => presets(), []);
-  const presetAtivo = listaPresets.find(
-    (p) => p.inicio === rascunho.inicio && p.fim === rascunho.fim
-  );
 
   const empresasFiltradas = useMemo(() => {
     if (!empresas) return [];
@@ -204,92 +198,13 @@ export function FilterBar({ mostrarMetrica = true }: { mostrarMetrica?: boolean 
         onChange={(estabs) => editar({ estabs })}
       />
 
-      {/* Período — logo após a empresa */}
-      <Dropdown
-        icone={<CalendarRange className="size-4" />}
-        rotulo={
-          presetAtivo
-            ? presetAtivo.nome
-            : `${dataBR(rascunho.inicio)} – ${dataBR(rascunho.fim)}`
-        }
-        ativo
-        largura="w-64"
-      >
-        {(fechar) => (
-          <div>
-            <div className="py-1">
-              {listaPresets.map((p) => (
-                <ItemLista
-                  key={p.nome}
-                  selecionado={presetAtivo?.nome === p.nome}
-                  onClick={() => {
-                    editar({ inicio: p.inicio, fim: p.fim });
-                    fechar();
-                  }}
-                >
-                  <span className="grid size-4 place-items-center">
-                    {presetAtivo?.nome === p.nome && (
-                      <Check className="size-4 stroke-[3] text-ent" />
-                    )}
-                  </span>
-                  {p.nome}
-                </ItemLista>
-              ))}
-            </div>
-            <div className="border-t border-hairline p-3">
-              <p className="mb-2 text-xs text-muted">Período personalizado (máx. 1 ano)</p>
-              {/* Campos não-controlados (defaultValue + ref) e commit só no
-                  "Definir": nada muda o rascunho enquanto digita, então dá pra
-                  escrever o ano de 4 dígitos sem sobrescrever. O `key` remonta
-                  os campos quando um preset muda as datas por fora. */}
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-xs text-muted">
-                  <span className="w-8 shrink-0">De</span>
-                  <input
-                    key={`ini-${rascunho.inicio}`}
-                    ref={iniRef}
-                    type="date"
-                    defaultValue={rascunho.inicio}
-                    className="h-8 w-full rounded-md border border-hairline bg-surface-2 px-2 text-xs text-ink"
-                  />
-                </label>
-                <label className="flex items-center gap-2 text-xs text-muted">
-                  <span className="w-8 shrink-0">Até</span>
-                  <input
-                    key={`fim-${rascunho.fim}`}
-                    ref={fimRef}
-                    type="date"
-                    defaultValue={rascunho.fim}
-                    className="h-8 w-full rounded-md border border-hairline bg-surface-2 px-2 text-xs text-ink"
-                  />
-                </label>
-                <button
-                  onClick={() => {
-                    const v1 = iniRef.current?.value;
-                    const v2 = fimRef.current?.value;
-                    if (!v1 || !v2 || v1 < "2000-01-01" || v2 < "2000-01-01") return;
-                    const [ini, fimOrig] = v1 <= v2 ? [v1, v2] : [v2, v1];
-                    let fim = fimOrig;
-                    // Teto de 1 ano: se passar, limita o fim e avisa.
-                    const MAX = 365 * 86_400_000;
-                    if (Date.parse(fim) - Date.parse(ini) > MAX) {
-                      const d = new Date(ini + "T00:00:00Z");
-                      d.setUTCDate(d.getUTCDate() + 365);
-                      fim = d.toISOString().slice(0, 10);
-                      toast.info("Período limitado a 1 ano");
-                    }
-                    editar({ inicio: ini, fim });
-                    fechar();
-                  }}
-                  className="h-8 w-full rounded-md bg-ent text-xs font-medium text-white transition-opacity hover:opacity-90"
-                >
-                  Definir período
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </Dropdown>
+      {/* Período — primitivo compartilhado (presets estendidos do Fiscal) */}
+      <PeriodoDropdown
+        inicio={rascunho.inicio}
+        fim={rascunho.fim}
+        onChange={(inicio, fim) => editar({ inicio, fim })}
+        presets={listaPresets}
+      />
 
       <Dropdown
         icone={<FolderKanban className="size-4" />}

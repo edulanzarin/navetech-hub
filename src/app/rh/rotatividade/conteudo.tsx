@@ -8,6 +8,7 @@ import { RotatividadeQuebra } from "@/components/rotatividade-quebra";
 import { RotatividadeBarras } from "@/components/rotatividade-barras";
 import { FolhaMovimentacoes } from "@/components/folha-movimentacoes";
 import { PessoasModal, type Drill } from "@/components/folha-pessoas-modal";
+import { PeriodoDropdown, type Preset } from "@/components/filters/periodo-dropdown";
 import { useTurnover } from "@/hooks/use-api";
 import { EMPRESAS_RH, nomeEmpresaRh } from "@/lib/rh";
 import { deltaPct, num } from "@/lib/format";
@@ -18,14 +19,27 @@ const pct = (v: number) => `${v.toLocaleString("pt-BR", { maximumFractionDigits:
 const anos = (dias: number | null) =>
   dias == null ? "—" : `${(dias / 365).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} anos`;
 
-/** ISO de hoje e de N meses atrás (para o período). */
-function isoHoje(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-function isoMesesAtras(n: number): string {
-  const d = new Date();
-  d.setMonth(d.getMonth() - n);
-  return d.toISOString().slice(0, 10);
+/** Presets de período do turnover (janelas maiores) para o PeriodoDropdown. */
+function presetsTurnover(): Preset[] {
+  const hoje = new Date();
+  const iso = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const mesesAtras = (n: number) => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - n);
+    return iso(d);
+  };
+  return [
+    { nome: "3 meses", inicio: mesesAtras(3), fim: iso(hoje) },
+    { nome: "6 meses", inicio: mesesAtras(6), fim: iso(hoje) },
+    { nome: "12 meses", inicio: mesesAtras(12), fim: iso(hoje) },
+    { nome: "Este ano", inicio: `${hoje.getFullYear()}-01-01`, fim: iso(hoje) },
+    {
+      nome: "Ano anterior",
+      inicio: `${hoje.getFullYear() - 1}-01-01`,
+      fim: `${hoje.getFullYear() - 1}-12-31`,
+    },
+  ];
 }
 
 function Delta({
@@ -95,17 +109,11 @@ function Stat({ rotulo, valor, cor }: { rotulo: string; valor: string; cor?: str
   );
 }
 
-const PRESETS: { rotulo: string; meses: number }[] = [
-  { rotulo: "3 meses", meses: 3 },
-  { rotulo: "6 meses", meses: 6 },
-  { rotulo: "12 meses", meses: 12 },
-];
-
 export default function Conteudo() {
+  const periodos = useMemo(presetsTurnover, []);
   const [empresa, setEmpresa] = useState<FiltroEmpresa>("todas");
-  const [inicio, setInicio] = useState(() => isoMesesAtras(12));
-  const [fim, setFim] = useState(() => isoHoje());
-  const [presetAtivo, setPresetAtivo] = useState(12);
+  const [inicio, setInicio] = useState(() => periodos[2].inicio); // 12 meses
+  const [fim, setFim] = useState(() => periodos[2].fim);
 
   const empresasParam = empresa === "todas" ? EMPRESAS_RH.join(",") : String(empresa);
   const qs = `inicio=${inicio}&fim=${fim}&empresas=${empresasParam}`;
@@ -121,12 +129,6 @@ export default function Conteudo() {
 
   const [drill, setDrill] = useState<Drill | null>(null);
   const abrirDrill = (dim: string, valor: string, rotulo: string) => setDrill({ dim, valor, rotulo });
-
-  const aplicarPreset = (meses: number) => {
-    setPresetAtivo(meses);
-    setInicio(isoMesesAtras(meses));
-    setFim(isoHoje());
-  };
 
   const empresaSeg: { valor: FiltroEmpresa; rotulo: string }[] = [
     { valor: "todas", rotulo: "Ambas" },
@@ -152,44 +154,15 @@ export default function Conteudo() {
           ))}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-lg border border-hairline bg-surface p-0.5">
-            {PRESETS.map((p) => (
-              <button
-                key={p.meses}
-                onClick={() => aplicarPreset(p.meses)}
-                className={clsx(
-                  "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                  presetAtivo === p.meses ? "bg-surface-2 text-ink" : "text-muted hover:text-ink"
-                )}
-              >
-                {p.rotulo}
-              </button>
-            ))}
-          </div>
-          <input
-            type="date"
-            value={inicio}
-            max={fim}
-            onChange={(e) => {
-              setInicio(e.target.value);
-              setPresetAtivo(0);
-            }}
-            className="h-8 rounded-lg border border-hairline bg-surface px-2 text-xs text-ink-2 outline-none focus:border-ink/30"
-          />
-          <span className="text-xs text-muted">até</span>
-          <input
-            type="date"
-            value={fim}
-            min={inicio}
-            max={isoHoje()}
-            onChange={(e) => {
-              setFim(e.target.value);
-              setPresetAtivo(0);
-            }}
-            className="h-8 rounded-lg border border-hairline bg-surface px-2 text-xs text-ink-2 outline-none focus:border-ink/30"
-          />
-        </div>
+        <PeriodoDropdown
+          inicio={inicio}
+          fim={fim}
+          onChange={(i, f) => {
+            setInicio(i);
+            setFim(f);
+          }}
+          presets={periodos}
+        />
       </div>
 
       {turnover.error && (
