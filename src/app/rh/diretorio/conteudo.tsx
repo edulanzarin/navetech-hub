@@ -9,7 +9,7 @@ import { FichaModal, tempoCasa } from "@/components/folha-ficha-modal";
 import { SeloEmpresa } from "@/components/rh-selo-empresa";
 import { BotaoExecutar } from "@/components/filters/botao-executar";
 import { FiltroPendente } from "@/components/filtro-pendente";
-import { useRhFuncionarios } from "@/hooks/use-api";
+import { useRhFuncionarios, useRhSetores } from "@/hooks/use-api";
 import { useEstadoModulo } from "@/hooks/use-estado-modulo";
 import { EMPRESAS_RH, nomeEmpresaRh } from "@/lib/rh";
 import { dataBR } from "@/lib/format";
@@ -33,6 +33,10 @@ export default function Conteudo() {
   // só dispara depois do clique; empresa/setor/busca filtram no cliente.
   const [aplicado, setAplicado] = useEstadoModulo("rh/diretorio:aplicado", false);
   const { data, isLoading, isFetching } = useRhFuncionarios(aplicado);
+  // Lista de setores é METADADO de filtro (lookup leve): carrega sempre, sem o
+  // gatilho — assim o dropdown de setor aparece de cara. A contagem por setor
+  // depende dos funcionários e só entra depois do Visualizar.
+  const { data: setoresLookup } = useRhSetores();
   const queryClient = useQueryClient();
   const [empresa, setEmpresa] = useEstadoModulo<FiltroEmpresa>("rh/diretorio:empresa", "todas");
   const [classif, setClassif] = useEstadoModulo<string | null>("rh/diretorio:classif", null);
@@ -51,18 +55,14 @@ export default function Conteudo() {
     [todos, empresa]
   );
 
-  // Setores da seleção de empresa atual (chip = classiforgan), com contagem.
-  const setores = useMemo(() => {
-    const mapa = new Map<string, { nome: string; qtd: number }>();
+  // Contagem por setor na empresa atual — só faz sentido com os dados carregados.
+  const contagemSetor = useMemo(() => {
+    const m = new Map<string, number>();
     for (const f of porEmpresa) {
-      const chave = f.classiforgan ?? "—";
-      const atual = mapa.get(chave);
-      if (atual) atual.qtd++;
-      else mapa.set(chave, { nome: f.setor ?? "(sem setor)", qtd: 1 });
+      const k = f.classiforgan ?? "—";
+      m.set(k, (m.get(k) ?? 0) + 1);
     }
-    return [...mapa.entries()]
-      .map(([classiforgan, v]) => ({ classiforgan, ...v }))
-      .sort((a, b) => b.qtd - a.qtd);
+    return m;
   }, [porEmpresa]);
 
   const filtrados = useMemo(() => {
@@ -111,18 +111,21 @@ export default function Conteudo() {
               )}
             >
               {s.rotulo}
-              <span className="ml-1.5 tabular-nums text-xs text-muted">{s.qtd}</span>
+              {data && (
+                <span className="ml-1.5 tabular-nums text-xs text-muted">{s.qtd}</span>
+              )}
             </button>
           ))}
           </div>
 
-          {/* Setor: dropdown (não chips — não quebra em tela menor) */}
-          {setores.length > 0 && (
+          {/* Setor: dropdown a partir do lookup (aparece de cara, sem esperar o
+              Visualizar); a contagem por setor só entra depois de carregar. */}
+          {(setoresLookup?.length ?? 0) > 0 && (
             <Dropdown
               rotulo={
                 classif === null
                   ? "Todos os setores"
-                  : (setores.find((s) => s.classiforgan === classif)?.nome ?? classif)
+                  : (setoresLookup?.find((s) => s.classiforgan === classif)?.nome ?? classif)
               }
               ativo={classif !== null}
               largura="w-72"
@@ -140,26 +143,33 @@ export default function Conteudo() {
                       {classif === null && <Check className="size-4 stroke-[3] text-ent" />}
                     </span>
                     <span className="flex-1">Todos os setores</span>
-                    <span className="tabular-nums text-xs text-muted">{porEmpresa.length}</span>
+                    {data && (
+                      <span className="tabular-nums text-xs text-muted">{porEmpresa.length}</span>
+                    )}
                   </ItemLista>
-                  {setores.map((s) => (
-                    <ItemLista
-                      key={s.classiforgan}
-                      selecionado={classif === s.classiforgan}
-                      onClick={() => {
-                        setClassif(s.classiforgan);
-                        fechar();
-                      }}
-                    >
-                      <span className="grid size-4 place-items-center">
-                        {classif === s.classiforgan && (
-                          <Check className="size-4 stroke-[3] text-ent" />
+                  {setoresLookup!.map((s) => {
+                    const n = contagemSetor.get(s.classiforgan);
+                    return (
+                      <ItemLista
+                        key={s.classiforgan}
+                        selecionado={classif === s.classiforgan}
+                        onClick={() => {
+                          setClassif(s.classiforgan);
+                          fechar();
+                        }}
+                      >
+                        <span className="grid size-4 place-items-center">
+                          {classif === s.classiforgan && (
+                            <Check className="size-4 stroke-[3] text-ent" />
+                          )}
+                        </span>
+                        <span className="flex-1 truncate">{s.nome}</span>
+                        {data && n != null && (
+                          <span className="tabular-nums text-xs text-muted">{n}</span>
                         )}
-                      </span>
-                      <span className="flex-1 truncate">{s.nome}</span>
-                      <span className="tabular-nums text-xs text-muted">{s.qtd}</span>
-                    </ItemLista>
-                  ))}
+                      </ItemLista>
+                    );
+                  })}
                 </div>
               )}
             </Dropdown>
