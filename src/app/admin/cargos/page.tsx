@@ -1,31 +1,31 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { listarUsuarios } from "../dados";
-import { UsuariosTabela } from "./tabela";
+import { listarCargos } from "../dados";
+import { CargosTabela } from "./tabela";
 
-export default async function UsuariosPage() {
-  const usuarios = await listarUsuarios();
+export default async function CargosPage() {
+  const cargos = await listarCargos();
 
   return (
     <div>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Usuários</h1>
+          <h1 className="text-xl font-semibold tracking-tight">Cargos</h1>
           <p className="mt-1 text-sm text-muted">
-            {usuarios.length} {usuarios.length === 1 ? "pessoa" : "pessoas"} · acesso, cargo e empresas
+            Grupos de permissão reutilizáveis — cada usuário herda um cargo
           </p>
         </div>
         <Link
-          href="/admin/usuarios/novo"
+          href="/admin/cargos/novo"
           className="flex h-9 items-center gap-1.5 rounded-lg bg-ent px-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
         >
           <Plus className="size-4" />
-          Novo usuário
+          Novo cargo
         </Link>
       </div>
 
       <div className="mt-6">
-        <UsuariosTabela usuarios={usuarios} />
+        <CargosTabela cargos={cargos} />
       </div>
     </div>
   );

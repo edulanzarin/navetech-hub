@@ -1,29 +1,29 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { listarGrupos } from "../dados";
-import { GruposTabela } from "./tabela";
+import { listarSetores } from "../dados";
+import { SetoresTabela } from "./tabela";
 
-export default async function GruposPage() {
-  const grupos = await listarGrupos();
+export default async function SetoresPage() {
+  const setores = await listarSetores();
 
   return (
     <div>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Grupos de empresa</h1>
-          <p className="mt-1 text-sm text-muted">Carteiras reutilizáveis para atribuir a cargos e usuários</p>
+          <h1 className="text-xl font-semibold tracking-tight">Setores</h1>
+          <p className="mt-1 text-sm text-muted">Agrupam os cargos (Contábil, Fiscal, RH…)</p>
         </div>
         <Link
-          href="/admin/grupos/novo"
+          href="/admin/setores/novo"
           className="flex h-9 items-center gap-1.5 rounded-lg bg-ent px-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
         >
           <Plus className="size-4" />
-          Novo grupo
+          Novo setor
         </Link>
       </div>
 
       <div className="mt-6">
-        <GruposTabela grupos={grupos} />
+        <SetoresTabela setores={setores} />
       </div>
     </div>
   );

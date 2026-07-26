@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
-import { carregarUsuario, listarGrupos, listarTodasEmpresas } from "../../dados";
+import { carregarUsuario, listarCargosParaForm, listarGrupos, listarTodasEmpresas } from "../../dados";
 import { UsuarioForm } from "../usuario-form";
 
 export default async function EditarUsuario({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [usuario, grupos, empresas] = await Promise.all([
+  const [usuario, cargos, grupos, empresas] = await Promise.all([
     carregarUsuario(id),
+    listarCargosParaForm(),
     listarGrupos(),
     listarTodasEmpresas(),
   ]);
@@ -22,7 +23,7 @@ export default async function EditarUsuario({ params }: { params: Promise<{ id: 
         <ChevronLeft className="size-3.5" /> Usuários
       </Link>
       <h1 className="mt-2 mb-6 text-xl font-semibold tracking-tight">{usuario.nome}</h1>
-      <UsuarioForm usuario={usuario} grupos={grupos} empresas={empresas} />
+      <UsuarioForm usuario={usuario} cargos={cargos} grupos={grupos} empresas={empresas} />
     </div>
   );
 }

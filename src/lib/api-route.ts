@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { FilterError } from "./fiscal-filters";
 import { AppDbError } from "./app-db";
-import { getSessaoOpcional, nivelSecao, satisfaz, podeAcessarModuloSync } from "./sessao";
+import { getSessaoOpcional, podeSecao, podeAcessarModuloSync } from "./sessao";
 import { secoesDoEndpoint } from "./api-secoes";
 import type { ModuloId } from "./modulos";
 
@@ -36,17 +36,16 @@ export function apiRoute(handler: Handler) {
         }
       }
 
-      // 3) Autorização por SEÇÃO. Ler exige view; escrever exige edit. A seção
-      //    vem do registro único (endpoint -> seções donas); libera se ALGUMA
-      //    seção dona satisfaz. Endpoint não mapeado cai no gate de módulo.
+      // 3) Autorização por SEÇÃO (binária: acessa ou não). A seção vem do
+      //    registro único (endpoint -> seções donas); libera se acessa ALGUMA
+      //    seção dona. Endpoint não mapeado cai no gate de módulo.
       const modulo = moduloDaRota(pathname);
       if (modulo) {
-        const nivel = req.method === "GET" ? "view" : "edit";
         const resto = pathname.slice(`/api/${modulo}/`.length);
         const secoes = secoesDoEndpoint(modulo, resto);
         const ok = secoes
-          ? secoes.some((s) => satisfaz(nivelSecao(sessao, modulo, s), nivel))
-          : podeAcessarModuloSync(sessao, modulo, nivel);
+          ? secoes.some((s) => podeSecao(sessao, modulo, s))
+          : podeAcessarModuloSync(sessao, modulo);
         if (!ok) {
           return NextResponse.json(
             { error: "Você não tem acesso a esta função" },

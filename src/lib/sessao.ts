@@ -16,16 +16,17 @@ import { MODULOS, secoesDoModulo, type ModuloId } from "./modulos";
  * empresa recorta o dado.
  *
  * `getSessao` lê o cookie opaco -> a linha `sessao` (não expirada) -> `usuario`
- * + `usuario_secao` + empresas permitidas. `cache` memoiza por render, então
+ * + seções acessíveis + empresas permitidas. `cache` memoiza por render, então
  * várias checagens na mesma requisição compartilham um resultado só.
+ *
+ * Permissão é BINÁRIA: a seção é acessível ou não (sem view/edit). Restringir o
+ * que pode ser feito numa tela = separar em outra seção e não concedê-la.
  */
-
-export type Nivel = "view" | "edit";
 
 export interface Sessao {
   usuario: { id: string; nome: string; email: string; admin: boolean; temAvatar: boolean };
-  /** Nível por seção. Chave "modulo/secao". Ausente = sem acesso. */
-  secoes: Record<string, Nivel>;
+  /** Seções acessíveis. Chave "modulo/secao". Ausente = sem acesso. */
+  secoes: Set<string>;
   /**
    * Escopo de empresa. `todas` ignora a lista (admin/power user); senão só
    * `permitidas` (união dos grupos + extras). `todas=false` e lista vazia =
@@ -49,9 +50,10 @@ export const getSessaoOpcional = cache(async (): Promise<Sessao | null> => {
     email: string;
     admin: boolean;
     todas_empresas: boolean;
+    cargo_id: number | null;
     tem_avatar: boolean;
   }>(
-    `select u.id, u.nome, u.email, u.admin, u.todas_empresas,
+    `select u.id, u.nome, u.email, u.admin, u.todas_empresas, u.cargo_id,
             exists (select 1 from usuario_avatar a where a.usuario_id = u.id) as tem_avatar
        from sessao s
        join usuario u on u.id = s.usuario_id
@@ -60,13 +62,27 @@ export const getSessaoOpcional = cache(async (): Promise<Sessao | null> => {
   );
   if (!u) return null;
 
-  const secoesRows = await appQuery<{ modulo: string; secao: string; nivel: Nivel }>(
-    `select modulo, secao, nivel from usuario_secao where usuario_id = $1`,
+  // Seções: base herdada do cargo, com o override individual por cima —
+  // permitido=false BLOQUEIA uma seção que o cargo concede; true LIBERA extra.
+  const secoes = new Set<string>();
+  if (u.cargo_id != null) {
+    const base = await appQuery<{ modulo: string; secao: string }>(
+      `select modulo, secao from cargo_secao where cargo_id = $1`,
+      [u.cargo_id]
+    );
+    for (const r of base) secoes.add(chaveSecao(r.modulo, r.secao));
+  }
+  const override = await appQuery<{ modulo: string; secao: string; permitido: boolean }>(
+    `select modulo, secao, permitido from usuario_secao where usuario_id = $1`,
     [u.id]
   );
-  const secoes: Record<string, Nivel> = {};
-  for (const r of secoesRows) secoes[chaveSecao(r.modulo, r.secao)] = r.nivel;
+  for (const r of override) {
+    const k = chaveSecao(r.modulo, r.secao);
+    if (r.permitido) secoes.add(k);
+    else secoes.delete(k);
+  }
 
+  // Empresas: união do grupo do cargo + grupos do usuário + empresas avulsas.
   let permitidas: number[] = [];
   if (!u.todas_empresas) {
     const emp = await appQuery<{ codigoempresa: number }>(
@@ -75,8 +91,13 @@ export const getSessaoOpcional = cache(async (): Promise<Sessao | null> => {
        select i.codigoempresa
          from usuario_grupo g
          join empresa_grupo_item i on i.grupo_id = g.grupo_id
-        where g.usuario_id = $1`,
-      [u.id]
+        where g.usuario_id = $1
+       union
+       select i.codigoempresa
+         from cargo_grupo cg
+         join empresa_grupo_item i on i.grupo_id = cg.grupo_id
+        where cg.cargo_id = $2`,
+      [u.id, u.cargo_id]
     );
     permitidas = emp.map((e) => e.codigoempresa);
   }
@@ -95,29 +116,22 @@ export async function getSessao(): Promise<Sessao> {
   return sessao;
 }
 
-/** `view` é satisfeito por view ou edit; `edit` só por edit. */
-export function satisfaz(nivel: Nivel | undefined, minimo: Nivel): boolean {
-  if (!nivel) return false;
-  return minimo === "view" ? true : nivel === "edit";
+/** A sessão pode acessar esta seção? Admin acessa tudo. */
+export function podeSecao(sessao: Sessao, modulo: string, secao: string): boolean {
+  if (sessao.usuario.admin) return true;
+  return sessao.secoes.has(chaveSecao(modulo, secao));
 }
 
-export function nivelSecao(sessao: Sessao, modulo: string, secao: string): Nivel | undefined {
-  // Admin tem acesso total (a todo módulo/seção); o escopo de empresa dele já é
-  // "todas" pelo todas_empresas. Assim não é preciso marcar seções para o admin.
-  if (sessao.usuario.admin) return "edit";
-  return sessao.secoes[chaveSecao(modulo, secao)];
+/** Módulo é acessível se a sessão acessa alguma de suas seções. */
+export function podeAcessarModuloSync(sessao: Sessao, modulo: ModuloId): boolean {
+  return secoesDoModulo(modulo).some((s) => podeSecao(sessao, modulo, s.id));
 }
 
-/** Módulo é acessível se alguma de suas seções satisfaz o nível pedido. */
-export function podeAcessarModuloSync(sessao: Sessao, modulo: ModuloId, minimo: Nivel = "view"): boolean {
-  return secoesDoModulo(modulo).some((s) => satisfaz(nivelSecao(sessao, modulo, s.id), minimo));
-}
-
-/** Ids das seções do módulo que a sessão pode ao menos ver — para a sidebar. */
+/** Ids das seções do módulo que a sessão pode ver — para a sidebar. */
 export function secoesVisiveis(sessao: Sessao, modulo: ModuloId): Set<string> {
   return new Set(
     secoesDoModulo(modulo)
-      .filter((s) => satisfaz(nivelSecao(sessao, modulo, s.id), "view"))
+      .filter((s) => podeSecao(sessao, modulo, s.id))
       .map((s) => s.id)
   );
 }
@@ -137,18 +151,14 @@ export function primeiraSecaoPath(sessao: Sessao, modulo: ModuloId): string | un
   return secoesDoModulo(modulo).find((s) => vis.has(s.id))?.path;
 }
 
-export async function podeAcessarSecao(
-  modulo: string,
-  secao: string,
-  minimo: Nivel = "view"
-): Promise<boolean> {
+export async function podeAcessarSecao(modulo: string, secao: string): Promise<boolean> {
   const sessao = await getSessaoOpcional();
-  return !!sessao && satisfaz(nivelSecao(sessao, modulo, secao), minimo);
+  return !!sessao && podeSecao(sessao, modulo, secao);
 }
 
-export async function podeAcessarModulo(modulo: ModuloId, minimo: Nivel = "view"): Promise<boolean> {
+export async function podeAcessarModulo(modulo: ModuloId): Promise<boolean> {
   const sessao = await getSessaoOpcional();
-  return !!sessao && podeAcessarModuloSync(sessao, modulo, minimo);
+  return !!sessao && podeAcessarModuloSync(sessao, modulo);
 }
 
 /**
@@ -157,20 +167,16 @@ export async function podeAcessarModulo(modulo: ModuloId, minimo: Nivel = "view"
  * navegação client-side; quem barra de fato é o `apiRoute` (por seção) e o
  * `assertSecao` das páginas.
  */
-export async function assertAcesso(modulo: ModuloId, minimo: Nivel = "view"): Promise<Sessao> {
+export async function assertAcesso(modulo: ModuloId): Promise<Sessao> {
   const sessao = await getSessao();
-  if (!podeAcessarModuloSync(sessao, modulo, minimo)) redirect("/");
+  if (!podeAcessarModuloSync(sessao, modulo)) redirect("/");
   return sessao;
 }
 
 /** Gate de página de seção: nega redirecionando para a home do módulo. */
-export async function assertSecao(
-  modulo: ModuloId,
-  secao: string,
-  minimo: Nivel = "view"
-): Promise<Sessao> {
+export async function assertSecao(modulo: ModuloId, secao: string): Promise<Sessao> {
   const sessao = await getSessao();
-  if (!satisfaz(nivelSecao(sessao, modulo, secao), minimo)) redirect("/");
+  if (!podeSecao(sessao, modulo, secao)) redirect("/");
   return sessao;
 }
 
