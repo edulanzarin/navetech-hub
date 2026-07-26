@@ -2,8 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
-import Image from "next/image";
-import { Loader2 } from "lucide-react";
+import { ModuloHeader } from "@/components/modulo-header";
 import { useIsFetching } from "@tanstack/react-query";
 import { limparEstadoSecao } from "@/lib/estado-secao";
 import { secaoRhAtual } from "@/lib/rh-secoes";
@@ -28,22 +27,7 @@ export function RhShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-6">
-      <header className="mb-4 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Image src="/images/rh.ico" alt="" width={40} height={40} unoptimized className="size-10" />
-          <div>
-            <p className="text-[11px] font-medium uppercase tracking-wide text-muted">RH</p>
-            <h1 className="text-xl font-semibold tracking-tight">{secao?.rotulo ?? "RH"}</h1>
-            {secao && <p className="text-xs text-muted">{secao.descricao}</p>}
-          </div>
-        </div>
-        {carregando && (
-          <span className="anim-fade-in flex items-center gap-2 text-xs text-muted">
-            <Loader2 className="size-4 animate-spin" />
-            Atualizando…
-          </span>
-        )}
-      </header>
+      <ModuloHeader titulo={secao?.rotulo ?? "RH"} carregando={carregando} />
 
       <div className="mt-5 space-y-4">{children}</div>
     </div>

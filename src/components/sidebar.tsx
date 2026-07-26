@@ -47,29 +47,24 @@ export function ModuloSidebar({
       </Link>
 
       <div className="mt-3 flex items-center gap-2.5 px-2">
-        <Image src="/images/logo.png" alt="" width={36} height={36} className="size-9" />
-        <div className="leading-tight">
-          <p className="text-sm font-semibold tracking-tight">{modulo.titulo}</p>
-          <p className="text-[11px] text-muted">Navetech Hub</p>
-        </div>
+        <Image src={modulo.icone} alt="" width={48} height={48} unoptimized className="size-12" />
+        <p className="text-lg font-semibold tracking-tight">{modulo.titulo}</p>
       </div>
 
       <nav className="mt-7 flex flex-1 flex-col gap-0.5 overflow-y-auto">
         {secoes.map((s) => {
-          const Ico = s.icone;
           const ativa = pathname === s.path || pathname.startsWith(s.path + "/");
           return (
             <Link
               key={s.id}
               href={`${s.path}${suffix}`}
               className={clsx(
-                "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors",
+                "rounded-lg px-3 py-2 text-sm transition-colors",
                 ativa
                   ? "bg-ent/12 font-medium text-ent"
                   : "text-ink-2 hover:bg-surface-2 hover:text-ink"
               )}
             >
-              <Ico className="size-4 shrink-0" />
               {s.rotulo}
             </Link>
           );
