@@ -17,11 +17,12 @@ import {
 import clsx from "clsx";
 import { useFiltros } from "@/hooks/use-filters";
 import { useAnaliseBalancete } from "@/hooks/use-api";
-import { dataBR, num } from "@/lib/format";
+import { brl, dataBR, num } from "@/lib/format";
 import type {
   AnaliseBalanceteResp,
   AnaliseIndicador,
   LaudoAnalise,
+  ValidacaoBalancete,
 } from "@/lib/types";
 
 const SAUDE: Record<
@@ -108,8 +109,78 @@ export default function AnaliseBalancetePage() {
   return <Laudo dados={dados} />;
 }
 
+function ValidacaoPainel({ val }: { val: ValidacaoBalancete }) {
+  const { cobertura: cob } = val;
+  const coberturaParcial =
+    cob.mesesComMovimento < cob.mesesSolicitados || !cob.temSaldoInicial;
+  const tudoOk = val.fecha && val.anomalias.length === 0;
+
+  return (
+    <div className="mb-6 space-y-2">
+      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">
+        Validação contábil (regras)
+      </h2>
+
+      {!val.fecha && (
+        <div className="flex items-start gap-2 rounded-lg border border-critical/40 bg-critical/8 px-3 py-2 text-sm text-ink">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-critical" />
+          <span>
+            <strong className="text-critical">Balancete não fecha</strong> — diferença de{" "}
+            {brl(Math.abs(val.difFechamento))} entre débitos e créditos. Há erro de dado;
+            revise antes de confiar nos números.
+          </span>
+        </div>
+      )}
+
+      {val.anomalias.length > 0 && (
+        <div className="rounded-lg border border-warning/40 bg-warning/8 px-3 py-2">
+          <div className="flex items-center gap-2 text-sm font-medium text-ink">
+            <AlertTriangle className="size-4 shrink-0 text-warn" />
+            {num(val.anomalias.length)}{" "}
+            {val.anomalias.length === 1 ? "conta" : "contas"} com saldo de sinal atípico
+            (viola a natureza)
+          </div>
+          <ul className="mt-1.5 flex flex-col gap-1">
+            {val.anomalias.slice(0, 8).map((a) => (
+              <li key={a.conta} className="flex items-center justify-between gap-3 text-xs">
+                <span className="min-w-0 truncate text-ink-2">
+                  {a.conta} {a.descricao}
+                </span>
+                <span className="flex shrink-0 items-center gap-2 text-muted">
+                  <span>{a.natureza === "D" ? "devedora c/ saldo credor" : "credora c/ saldo devedor"}</span>
+                  <span className="tabular-nums text-ink">{brl(a.saldoFinal)}</span>
+                </span>
+              </li>
+            ))}
+            {val.anomalias.length > 8 && (
+              <li className="text-xs text-muted">+ {num(val.anomalias.length - 8)} outras</li>
+            )}
+          </ul>
+        </div>
+      )}
+
+      {coberturaParcial && (
+        <p className="text-xs text-muted">
+          Cobertura: {num(cob.mesesComMovimento)} de {num(cob.mesesSolicitados)} meses com
+          movimento
+          {cob.primeiroMesComDado ? ` (a partir de ${cob.primeiroMesComDado})` : ""}.
+          {!cob.temSaldoInicial && " Sem saldo antes do período — empresa nova no recorte ou início da escrituração."}{" "}
+          A análise considera isso.
+        </p>
+      )}
+
+      {tudoOk && (
+        <div className="flex items-center gap-2 rounded-lg border border-good/25 bg-good/5 px-3 py-2 text-sm text-ink">
+          <CheckCircle2 className="size-4 shrink-0 text-good" />
+          Regras básicas ok: o balancete fecha e nenhuma conta tem saldo com sinal atípico.
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Laudo({ dados }: { dados: AnaliseBalanceteResp }) {
-  const { laudo, empresa, periodo, meta } = dados;
+  const { laudo, validacao, empresa, periodo, meta } = dados;
   const saude = SAUDE[laudo.saudeGeral] ?? SAUDE.estavel;
   const custoTokens = meta.tokensEntrada + meta.tokensSaida;
 
@@ -161,6 +232,9 @@ function Laudo({ dados }: { dados: AnaliseBalanceteResp }) {
             </button>
           </div>
         </header>
+
+        {/* Validação determinística (regras) — fato, não opinião da IA */}
+        <ValidacaoPainel val={validacao} />
 
         {/* Resumo executivo */}
         <div className="mb-6">

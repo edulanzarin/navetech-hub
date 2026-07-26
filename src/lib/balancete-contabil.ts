@@ -110,7 +110,11 @@ export async function coletarBalanceteContabil(
   for (const r of saldoIniRows.rows) saldoInicial.set(r.conta, r.saldo);
 
   // ── Movimento por conta e por mês dentro do período ──
-  const ultimoDia = `${meses[meses.length - 1]}-31`; // date < próximo mês; 31 cobre o mês todo
+  // Limite superior EXCLUSIVO = 1º dia do mês seguinte ao último (evita datas
+  // inválidas tipo "2026-06-31" e cobre o mês inteiro em qualquer mês).
+  const [uy, um] = meses[meses.length - 1].split("-").map(Number);
+  const fimExclusivo =
+    um === 12 ? `${uy + 1}-01-01` : `${uy}-${String(um + 1).padStart(2, "0")}-01`;
   const estabMovDeb = temEstab ? " and codigoestab = any($5::int[])" : "";
   const movParams = temEstab ? [estabs] : [];
   const movRows = await client.query<{
@@ -124,16 +128,16 @@ export async function coletarBalanceteContabil(
                sum(valorlctoctb) debito, 0 credito
           from lctoctb
          where codigoempresa = $1 and tipolancamento = $2
-           and datalctoctb between $3 and $4 and contactbdeb is not null${estabMovDeb}
+           and datalctoctb >= $3 and datalctoctb < $4 and contactbdeb is not null${estabMovDeb}
          group by contactbdeb, to_char(datalctoctb, 'YYYY-MM')
         union all
         select contactbcred, to_char(datalctoctb, 'YYYY-MM'), 0, sum(valorlctoctb)
           from lctoctb
          where codigoempresa = $1 and tipolancamento = $2
-           and datalctoctb between $3 and $4 and contactbcred is not null${estabMovDeb}
+           and datalctoctb >= $3 and datalctoctb < $4 and contactbcred is not null${estabMovDeb}
          group by contactbcred, to_char(datalctoctb, 'YYYY-MM')
      ) t group by conta, mes`,
-    [empresa, TIPO_LANCAMENTO, primeiroDia, ultimoDia, ...movParams]
+    [empresa, TIPO_LANCAMENTO, primeiroDia, fimExclusivo, ...movParams]
   );
   // conta -> mes -> {deb, cred}
   const movPorConta = new Map<number, Map<string, { deb: number; cred: number }>>();

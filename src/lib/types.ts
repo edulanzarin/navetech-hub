@@ -833,9 +833,40 @@ export interface LaudoAnalise {
   recomendacoes: AnaliseRecomendacao[];
 }
 
-/** Resposta da rota de análise: laudo + metadados para o cabeçalho e a auditoria. */
+/** Conta cujo saldo final tem sinal contrário à sua natureza (violação de regra). */
+export interface AnomaliaConta {
+  conta: number;
+  classif: string;
+  descricao: string;
+  natureza: "D" | "C";
+  /** Saldo final (deb − cred): devedor positivo, credor negativo. */
+  saldoFinal: number;
+}
+
+/** Validação contábil DETERMINÍSTICA do balancete (regras, não opinião da IA). */
+export interface ValidacaoBalancete {
+  /** O balancete fecha? (Σ saldos devedores = Σ saldos credores, na tolerância.) */
+  fecha: boolean;
+  /** Quanto não fecha (Σ dos saldos das analíticas; 0 = fecha). */
+  difFechamento: number;
+  /** Contas com saldo de sinal atípico (devedora credora, ou credora devedora). */
+  anomalias: AnomaliaConta[];
+  /** Cobertura do período — pra IA não ler mês vazio como queda. */
+  cobertura: {
+    mesesSolicitados: number;
+    mesesComMovimento: number;
+    /** 1º mês do período com algum movimento; null se nenhum. */
+    primeiroMesComDado: string | null;
+    /** Empresa tinha saldo antes do período (histórico anterior)? */
+    temSaldoInicial: boolean;
+  };
+}
+
+/** Resposta da rota de análise: laudo + validação + metadados. */
 export interface AnaliseBalanceteResp {
   laudo: LaudoAnalise;
+  /** Validação determinística das regras contábeis (fecha? anomalias? cobertura?). */
+  validacao: ValidacaoBalancete;
   empresa: { codigo: number; nome: string; cnpj: string | null };
   periodo: { inicio: string; fim: string; meses: string[] };
   /** Modelo usado e tokens gastos — transparência de custo. */

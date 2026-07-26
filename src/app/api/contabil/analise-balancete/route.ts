@@ -3,6 +3,7 @@ import { apiRoute } from "@/lib/api-route";
 import { parseFilters, FilterError } from "@/lib/fiscal-filters";
 import { getSessao, empresasPermitidas } from "@/lib/sessao";
 import { coletarBalanceteContabil } from "@/lib/balancete-contabil";
+import { validarBalancete } from "@/lib/validacao-balancete";
 import { analisarBalancete, AnaliseError } from "@/lib/analise-balancete";
 import type { AnaliseBalanceteResp } from "@/lib/types";
 
@@ -30,9 +31,13 @@ export const GET = apiRoute(async (req) => {
   const client = await pool.connect();
   try {
     const bal = await coletarBalanceteContabil(client, empresa, f.inicio, f.fim, f.estabs);
+    // Validação DETERMINÍSTICA das regras (fecha? sinal vs natureza? cobertura?).
+    // Vai tanto pro prompt (a IA prioriza) quanto pra resposta (a UI mostra como fato).
+    const validacao = validarBalancete(bal);
+
     let resultado;
     try {
-      resultado = await analisarBalancete(bal);
+      resultado = await analisarBalancete(bal, validacao);
     } catch (err) {
       // Erro da análise (chave ausente, recusa, JSON inválido) tem causa própria:
       // repassa a mensagem real ao usuário em vez do genérico "falha no Questor".
@@ -42,6 +47,7 @@ export const GET = apiRoute(async (req) => {
 
     return {
       laudo: resultado.laudo,
+      validacao,
       empresa: bal.empresa,
       periodo: { inicio: f.inicio, fim: f.fim, meses: bal.mesesLabels },
       meta: resultado.meta,
