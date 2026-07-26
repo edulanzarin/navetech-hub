@@ -6,6 +6,7 @@ import { Building2, Check, Search } from "lucide-react";
 import { Dropdown, ItemLista } from "@/components/ui/dropdown";
 import { FilialDropdown } from "@/components/filters/filial-dropdown";
 import { PeriodoDropdown } from "@/components/filters/periodo-dropdown";
+import { PeriodoMensalDropdown } from "@/components/filters/periodo-mensal-dropdown";
 import { BotaoExecutar } from "@/components/filters/botao-executar";
 import { useEmpresas } from "@/hooks/use-api";
 import { useFiltros, useRascunhoFiltros } from "@/hooks/use-filters";
@@ -22,11 +23,14 @@ import { useFiltros, useRascunhoFiltros } from "@/hooks/use-filters";
  */
 export function ConfFilterBar({
   mostrarPeriodo = true,
+  periodoMensal = false,
   mostrarFilial = true,
   execucao = { imediata: false, rotulo: "Executar" },
   extras,
 }: {
   mostrarPeriodo?: boolean;
+  /** Período por mês (balancete) em vez de por dia. */
+  periodoMensal?: boolean;
   /** Seletor de filial (só telas de dado; a Folha tem o seu próprio, e o
    *  cadastro do plano é por empresa). Depende do buildWhere honrar `estabs`. */
   mostrarFilial?: boolean;
@@ -128,14 +132,21 @@ export function ConfFilterBar({
         />
       )}
 
-      {/* Período (teto de 1 ano) — primitivo compartilhado */}
-      {mostrarPeriodo && (
-        <PeriodoDropdown
-          inicio={rascunho.inicio}
-          fim={rascunho.fim}
-          onChange={(inicio, fim) => editar({ inicio, fim })}
-        />
-      )}
+      {/* Período (teto de 1 ano) — primitivo compartilhado. Mensal no balancete. */}
+      {mostrarPeriodo &&
+        (periodoMensal ? (
+          <PeriodoMensalDropdown
+            inicio={rascunho.inicio}
+            fim={rascunho.fim}
+            onChange={(inicio, fim) => editar({ inicio, fim })}
+          />
+        ) : (
+          <PeriodoDropdown
+            inicio={rascunho.inicio}
+            fim={rascunho.fim}
+            onChange={(inicio, fim) => editar({ inicio, fim })}
+          />
+        ))}
 
       {extras}
 

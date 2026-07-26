@@ -38,6 +38,7 @@ import type {
   BalanceteLancamentosResp,
   BalanceteCulpadosResp,
   ReplicarPreviewResp,
+  AnaliseBalanceteResp,
 } from "@/lib/types";
 import type {
   FuncionarioDiretorio,
@@ -364,6 +365,31 @@ export const useBalanceteFiscal = (qs: string, enabled = true) =>
     `/api/contabil/balancete-fiscal?${qs}`,
     enabled
   );
+
+/**
+ * Análise de Balancete por IA. A chamada é cara (modelo Claude), então o cache
+ * é eterno e não refaz em foco: uma vez analisado o período, fica pronto — o
+ * usuário roda de novo trocando os filtros (nova query key).
+ */
+export function useAnaliseBalancete(qs: string, enabled = true) {
+  const q = useQuery<AnaliseBalanceteResp>({
+    queryKey: ["analise-balancete", qs],
+    queryFn: () => fetchJson<AnaliseBalanceteResp>(`/api/contabil/analise-balancete?${qs}`),
+    enabled,
+    staleTime: Infinity,
+    gcTime: 30 * 60_000,
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (q.isError) {
+      toast.error(q.error instanceof Error ? q.error.message : "Falha ao gerar a análise");
+    }
+  }, [q.isError, q.error]);
+
+  return q;
+}
 
 export const useBalanceteLancamentos = (
   qs: string,

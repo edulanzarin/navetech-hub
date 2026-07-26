@@ -15,6 +15,7 @@ import {
   abaContabilAtual,
   abasDaSecao,
   abaUsaPeriodo,
+  abaUsaPeriodoMensal,
   execucaoDaAba,
   secaoContabilAtual,
 } from "@/lib/contabil-secoes";
@@ -47,6 +48,7 @@ export function ContabilShell({ children }: { children: React.ReactNode }) {
     };
   }, [secaoPath]);
   const usaPeriodo = abaUsaPeriodo(pathname);
+  const periodoMensal = abaUsaPeriodoMensal(pathname);
   const execucao = execucaoDaAba(pathname);
 
   // Os filtros seguem na URL ao trocar de aba.
@@ -94,6 +96,7 @@ export function ContabilShell({ children }: { children: React.ReactNode }) {
           Balancete honram `estabs`. A Configuração (cadastro por empresa) fica fora. */}
       <ConfFilterBar
         mostrarPeriodo={usaPeriodo}
+        periodoMensal={periodoMensal}
         mostrarFilial={usaPeriodo}
         execucao={execucao}
         extras={(() => {

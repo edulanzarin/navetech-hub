@@ -1,4 +1,4 @@
-import { ClipboardCheck, Landmark, Scale, Table2 } from "lucide-react";
+import { ClipboardCheck, Landmark, Scale, Sparkles, Table2 } from "lucide-react";
 import type { SecaoFiscal } from "./fiscal-secoes";
 
 /**
@@ -12,6 +12,8 @@ export interface AbaContabil {
   descricao: string;
   /** Cadastro fixo por empresa: sem recorte de tempo. */
   semPeriodo?: boolean;
+  /** Período por MÊS em vez de por dia (o balancete é mensal). */
+  periodoMensal?: boolean;
   /**
    * Como a tela dispara sua consulta ([[executar-com-botao]]):
    * - ausente → botão "Executar" (consulta que computa algo);
@@ -32,22 +34,34 @@ export interface SecaoContabil extends SecaoFiscal {
  * caminho da seção (a Configuração do plano de contabilização, por exemplo).
  */
 export const SECOES_CONTABIL: SecaoContabil[] = [
-  // Notas primeiro: é a consulta de apoio — o dado bruto que se abre o tempo
-  // todo enquanto se trabalha nas outras telas.
+  // Conciliação primeiro: é o trabalho do dia a dia e a home do módulo.
   {
-    id: "notas",
-    rotulo: "Notas",
-    icone: Table2,
-    path: "/contabil/notas",
+    id: "conciliacao",
+    rotulo: "Conciliação",
+    icone: Landmark,
+    path: "/contabil/conciliacao",
     metrica: false,
-    descricao: "Explorador de notas fiscais",
-    // Uma tela só: seção própria na sidebar (como o Dados do Fiscal), sem abas.
+    descricao: "Extrato bancário → lançamentos",
+    // Importar primeiro: é o que se faz no dia a dia. As regras são cadastro,
+    // mexidas de vez em quando — por isso a raiz da seção é a importação.
     abas: [
       {
-        id: "notas",
-        rotulo: "Notas",
-        path: "/contabil/notas",
-        descricao: "Todas as notas do período, com itens e produtos",
+        id: "importar",
+        rotulo: "Importar",
+        path: "/contabil/conciliacao",
+        descricao: "Ler OFX ou PDF e gerar os lançamentos",
+        semPeriodo: true,
+        // Quem executa aqui é o envio do extrato; a empresa é só contexto.
+        execucao: null,
+      },
+      {
+        id: "regras",
+        rotulo: "Regras",
+        path: "/contabil/conciliacao/regras",
+        descricao: "Contrapartida de cada descrição do extrato",
+        semPeriodo: true,
+        // Cadastro leve: escolher a conta já é o gesto, sem botão.
+        execucao: null,
       },
     ],
   },
@@ -77,6 +91,23 @@ export const SECOES_CONTABIL: SecaoContabil[] = [
     ],
   },
   {
+    id: "notas",
+    rotulo: "Notas",
+    icone: Table2,
+    path: "/contabil/notas",
+    metrica: false,
+    descricao: "Explorador de notas fiscais",
+    // Uma tela só: seção própria na sidebar (como o Dados do Fiscal), sem abas.
+    abas: [
+      {
+        id: "notas",
+        rotulo: "Notas",
+        path: "/contabil/notas",
+        descricao: "Todas as notas do período, com itens e produtos",
+      },
+    ],
+  },
+  {
     id: "balancete",
     rotulo: "Balancete Fiscal",
     icone: Scale,
@@ -96,32 +127,23 @@ export const SECOES_CONTABIL: SecaoContabil[] = [
     ],
   },
   {
-    id: "conciliacao",
-    rotulo: "Conciliação",
-    icone: Landmark,
-    path: "/contabil/conciliacao",
+    id: "analise",
+    rotulo: "Análise de Balancete",
+    icone: Sparkles,
+    path: "/contabil/analise",
     metrica: false,
-    descricao: "Extrato bancário → lançamentos",
-    // Importar primeiro: é o que se faz no dia a dia. As regras são cadastro,
-    // mexidas de vez em quando — por isso a raiz da seção é a importação.
+    descricao: "Laudo do balancete gerado por IA",
+    // Uma tela só. A análise é cara (chamada de IA), então nunca roda sozinha:
+    // o usuário escolhe empresa e período e dispara pelo botão "Analisar".
     abas: [
       {
-        id: "importar",
-        rotulo: "Importar",
-        path: "/contabil/conciliacao",
-        descricao: "Ler OFX ou PDF e gerar os lançamentos",
-        semPeriodo: true,
-        // Quem executa aqui é o envio do extrato; a empresa é só contexto.
-        execucao: null,
-      },
-      {
-        id: "regras",
-        rotulo: "Regras",
-        path: "/contabil/conciliacao/regras",
-        descricao: "Contrapartida de cada descrição do extrato",
-        semPeriodo: true,
-        // Cadastro leve: escolher a conta já é o gesto, sem botão.
-        execucao: null,
+        id: "analise",
+        rotulo: "Análise de Balancete",
+        path: "/contabil/analise",
+        descricao: "Pontos fortes, fracos, alertas e recomendações sobre o balancete",
+        // Balancete é mensal: o período é escolhido por mês, não por dia.
+        periodoMensal: true,
+        execucao: "Analisar",
       },
     ],
   },
@@ -158,6 +180,11 @@ export function abasDaSecao(pathname: string): AbaContabil[] {
  */
 export function abaUsaPeriodo(pathname: string): boolean {
   return !casar(pathname)?.aba.semPeriodo;
+}
+
+/** A aba escolhe período por mês (balancete), não por dia? */
+export function abaUsaPeriodoMensal(pathname: string): boolean {
+  return !!casar(pathname)?.aba.periodoMensal;
 }
 
 /** Como a aba executa: com botão (e qual rótulo) ou aplicação imediata. */

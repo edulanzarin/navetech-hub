@@ -795,3 +795,49 @@ export interface FolhaFicha {
   cidade: string | null;
   uf: string | null;
 }
+
+// ── Análise de Balancete (laudo gerado por IA) ──────────────────────────────
+
+export interface AnaliseIndicador {
+  nome: string;
+  valor: string;
+  interpretacao: string;
+  tendencia: "melhora" | "estavel" | "piora";
+}
+
+export interface AnalisePonto {
+  titulo: string;
+  detalhe: string;
+}
+
+export interface AnaliseAlerta {
+  severidade: "alta" | "media" | "baixa";
+  titulo: string;
+  detalhe: string;
+}
+
+export interface AnaliseRecomendacao {
+  titulo: string;
+  detalhe: string;
+  prioridade: "alta" | "media" | "baixa";
+}
+
+/** Estrutura do laudo — bate 1:1 com o JSON schema pedido ao Claude. */
+export interface LaudoAnalise {
+  resumoExecutivo: string;
+  saudeGeral: "forte" | "estavel" | "atencao" | "critica";
+  indicadores: AnaliseIndicador[];
+  pontosFortes: AnalisePonto[];
+  pontosFracos: AnalisePonto[];
+  alertas: AnaliseAlerta[];
+  recomendacoes: AnaliseRecomendacao[];
+}
+
+/** Resposta da rota de análise: laudo + metadados para o cabeçalho e a auditoria. */
+export interface AnaliseBalanceteResp {
+  laudo: LaudoAnalise;
+  empresa: { codigo: number; nome: string; cnpj: string | null };
+  periodo: { inicio: string; fim: string; meses: string[] };
+  /** Modelo usado e tokens gastos — transparência de custo. */
+  meta: { modelo: string; tokensEntrada: number; tokensSaida: number };
+}
