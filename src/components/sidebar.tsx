@@ -47,8 +47,8 @@ export function ModuloSidebar({
       </Link>
 
       <div className="mt-3 flex items-center gap-2.5 px-2">
-        <Image src={modulo.icone} alt="" width={40} height={40} unoptimized className="size-10" />
-        <p className="text-lg font-semibold tracking-tight">{modulo.titulo}</p>
+        <Image src={modulo.icone} alt="" width={32} height={32} className="size-8" />
+        <p className="text-base font-semibold tracking-tight">{modulo.titulo}</p>
       </div>
 
       <nav className="mt-7 flex flex-1 flex-col gap-0.5 overflow-y-auto">

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { LogOut, ShieldCheck } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { MODULOS, type ModuloId } from "@/lib/modulos";
 import { sair } from "@/app/login/actions";
 import { ThemeToggle } from "./theme-toggle";
@@ -55,7 +55,7 @@ export function Launcher({
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-6 pb-16">
+      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-6 pb-16">
         <div className="flex items-center gap-3">
           <Avatar id={usuarioId} nome={usuario} temFoto={usuarioTemFoto} size={44} />
           <div>
@@ -65,26 +65,25 @@ export function Launcher({
         </div>
         <h1 className="mt-6 text-2xl font-semibold tracking-tight">Escolha um módulo</h1>
 
-        <div className="mt-8 grid gap-5 sm:grid-cols-2">
+        <div className="mt-8 grid grid-cols-3 gap-3">
           {visiveis.map((m) => {
             if (!m.ativo) {
               return (
                 <div
                   key={m.id}
-                  title={m.descricao}
                   aria-disabled
-                  className="card anim-scale-in flex flex-col items-center gap-4 px-6 py-8 text-center opacity-55"
+                  className="anim-scale-in flex flex-col items-center gap-3 rounded-2xl px-3 py-6 text-center opacity-55"
                 >
                   <Image
-                    src="/images/logo.png"
+                    src={m.icone}
                     alt=""
                     width={64}
                     height={64}
-                    className="size-16 opacity-60 grayscale"
+                    className="size-16 grayscale"
                   />
                   <div>
-                    <p className="text-base font-semibold">{m.titulo}</p>
-                    <span className="mt-1 inline-block text-[10px] font-medium uppercase tracking-wide text-muted">
+                    <p className="text-sm font-medium">{m.titulo}</p>
+                    <span className="mt-0.5 block text-[10px] font-medium uppercase tracking-wide text-muted">
                       em breve
                     </span>
                   </div>
@@ -97,17 +96,16 @@ export function Launcher({
                 key={m.id}
                 href={m.home}
                 title={m.descricao}
-                className="card anim-scale-in group flex flex-col items-center gap-4 px-6 py-8 text-center transition-colors hover:border-ent/40 hover:bg-surface-2"
+                className="anim-scale-in group flex flex-col items-center gap-3 rounded-2xl px-3 py-6 text-center transition-colors hover:bg-surface-2"
               >
                 <Image
                   src={m.icone}
                   alt=""
                   width={64}
                   height={64}
-                  unoptimized
                   className="size-16 transition-transform group-hover:scale-105"
                 />
-                <p className="text-base font-semibold">{m.titulo}</p>
+                <p className="text-sm font-medium">{m.titulo}</p>
               </Link>
             );
           })}
@@ -116,10 +114,16 @@ export function Launcher({
             <Link
               href="/admin"
               title="Usuários, permissões e grupos de empresa"
-              className="card anim-scale-in group flex flex-col items-center gap-4 px-6 py-8 text-center transition-colors hover:border-ent/40 hover:bg-surface-2"
+              className="anim-scale-in group flex flex-col items-center gap-3 rounded-2xl px-3 py-6 text-center transition-colors hover:bg-surface-2"
             >
-              <ShieldCheck className="size-16 text-muted transition-colors group-hover:text-ent" strokeWidth={1.25} />
-              <p className="text-base font-semibold">Administração</p>
+              <Image
+                src="/images/logo.png"
+                alt=""
+                width={64}
+                height={64}
+                className="size-16 transition-transform group-hover:scale-105"
+              />
+              <p className="text-sm font-medium">Administração</p>
             </Link>
           )}
         </div>

@@ -15,7 +15,10 @@ export interface Modulo {
   id: ModuloId;
   titulo: string;
   descricao: string;
-  /** Caminho do ícone do módulo em /public/images (ex.: "/images/fiscal.ico"). */
+  /**
+   * Ícone do módulo em /public/images. PNG próprio do módulo quando existe; o logo
+   * do Nexo serve de placeholder para os que ainda não têm arte.
+   */
   icone: string;
   /** Falso enquanto o módulo ainda não existe — aparece como "em breve". */
   ativo: boolean;
@@ -28,7 +31,7 @@ export const MODULOS: Modulo[] = [
     id: "fiscal",
     titulo: "Fiscal",
     descricao: "Painéis, análises e tributos sobre as notas",
-    icone: "/images/fiscal.ico",
+    icone: "/images/fiscal.png",
     ativo: true,
     home: "/fiscal/painel",
   },
@@ -36,7 +39,7 @@ export const MODULOS: Modulo[] = [
     id: "contabil",
     titulo: "Contábil",
     descricao: "Conferência fiscal e conciliação bancária",
-    icone: "/images/contabil.ico",
+    icone: "/images/contabil.png",
     ativo: true,
     home: "/contabil/conferencia",
   },
@@ -44,7 +47,7 @@ export const MODULOS: Modulo[] = [
     id: "folha",
     titulo: "Folha",
     descricao: "Rotatividade de pessoal (turnover)",
-    icone: "/images/folha.ico",
+    icone: "/images/folha.png",
     ativo: true,
     home: "/folha/rotatividade",
   },
@@ -52,14 +55,14 @@ export const MODULOS: Modulo[] = [
     id: "rh",
     titulo: "RH",
     descricao: "Pessoal da Navecon: diretório e experiência",
-    icone: "/images/rh.ico",
+    icone: "/images/logo.png",
     ativo: true,
     home: "/rh/diretorio",
   },
   {
     id: "patrimonio",
     titulo: "Patrimônio",
-    descricao: "Em breve",
+    descricao: "Controle de bens e depreciação",
     icone: "/images/logo.png",
     ativo: false,
     home: "#",
