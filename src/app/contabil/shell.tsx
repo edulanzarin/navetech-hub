@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { BookOpen, Loader2 } from "lucide-react";
+import Image from "next/image";
+import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { useIsFetching } from "@tanstack/react-query";
 import clsx from "clsx";
@@ -57,9 +58,7 @@ export function ContabilShell({ children }: { children: React.ReactNode }) {
     <div className="mx-auto max-w-7xl px-6 py-6">
       <header className="mb-4 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-xl bg-ent/12 text-ent">
-            <BookOpen className="size-5" />
-          </span>
+          <Image src="/images/contabil.ico" alt="" width={40} height={40} unoptimized className="size-10" />
           <div>
             <p className="text-[11px] font-medium uppercase tracking-wide text-muted">Contábil</p>
             <h1 className="text-xl font-semibold tracking-tight">{secao?.rotulo ?? "Contábil"}</h1>

@@ -2,7 +2,8 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
-import { Loader2, Users } from "lucide-react";
+import Image from "next/image";
+import { Loader2 } from "lucide-react";
 import { useIsFetching } from "@tanstack/react-query";
 import { ConfFilterBar } from "@/components/filters/conf-filter-bar";
 import { FiltroPendente } from "@/components/filtro-pendente";
@@ -29,9 +30,7 @@ export function FolhaShell({ children }: { children: React.ReactNode }) {
     <div className="mx-auto max-w-7xl px-6 py-6">
       <header className="mb-4 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-xl bg-ent/12 text-ent">
-            <Users className="size-5" />
-          </span>
+          <Image src="/images/folha.ico" alt="" width={40} height={40} unoptimized className="size-10" />
           <div>
             <p className="text-[11px] font-medium uppercase tracking-wide text-muted">Folha</p>
             <h1 className="text-xl font-semibold tracking-tight">{secao?.rotulo ?? "Folha"}</h1>

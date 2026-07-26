@@ -47,7 +47,7 @@ export function ModuloSidebar({
       </Link>
 
       <div className="mt-3 flex items-center gap-2.5 px-2">
-        <Image src={modulo.icone} alt="" width={36} height={36} unoptimized className="size-9" />
+        <Image src="/images/logo.png" alt="" width={36} height={36} className="size-9" />
         <div className="leading-tight">
           <p className="text-sm font-semibold tracking-tight">{modulo.titulo}</p>
           <p className="text-[11px] text-muted">Navetech Hub</p>
