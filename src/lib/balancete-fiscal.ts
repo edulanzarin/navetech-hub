@@ -268,9 +268,37 @@ export async function balanceteFiscal(
         vlrIPI: vc?.ipi ?? (umCfop ? n.vlripi : 0),
         vlrFunRural: umCfop ? n.vlrfunrural : 0,
       } as ValoresNota;
+
+      // Contas FIXAS que o componente PRINCIPAL (valor contábil) já posta nesta
+      // nota+CFOP. No Questor, quando a tabela do valor contábil é a entrada
+      // COMPLETA (mercadoria líquida + fornecedor + os tributos: ICMS a
+      // recuperar, PIS/COFINS a recuperar, IPI…), as tabelas por-tributo
+      // (ICMS/IPI/PIS/COFINS…) são redundantes e o ERP NÃO as aplica. O motor
+      // aplicava as duas e dobrava o tributo (ex.: conta 382 "ICMS a Recuperar"
+      // vinha 2×). Regra: componente de tributo cuja conta o principal já posta
+      // é ignorado inteiro. Validado na nota 14228 (bate 1× com o real).
+      const contasPrincipais = new Set<number>();
+      const principal = p.componentes.find((comp) => comp.id === "vlrcontabil");
+      if (principal) {
+        for (const linha of principal.linhas) {
+          if (linha.contaVariavel || linha.conta == null) continue;
+          const v = avaliarRegra(linha.regraValor, valores);
+          if (v != null && Math.abs(v) >= 0.005) contasPrincipais.add(linha.conta);
+        }
+      }
+
       for (const comp of p.componentes) {
         // ST só gera lançamento se a nota realmente tem ST — senão dobra a mercadoria.
         if (comp.id === "st" && !temSt.has(`${n.chave}:${cf}`)) continue;
+        // Tributo já embutido no valor contábil: não somar de novo (ver acima).
+        if (
+          comp.id !== "vlrcontabil" &&
+          comp.linhas.some(
+            (l) => l.conta != null && !l.contaVariavel && contasPrincipais.has(l.conta)
+          )
+        ) {
+          continue;
+        }
         for (const linha of comp.linhas) {
           const valor = avaliarRegra(linha.regraValor, valores);
           if (valor == null) {
