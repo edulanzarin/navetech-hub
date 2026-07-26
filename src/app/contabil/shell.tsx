@@ -106,6 +106,7 @@ export function ContabilShell({ children }: { children: React.ReactNode }) {
 
       <ConfFilterBar
         mostrarPeriodo={usaPeriodo}
+        mostrarFilial={usaPeriodo}
         execucao={execucao}
         extras={(() => {
           const Controles = aba ? CONTROLES_BARRA[aba.id] : undefined;

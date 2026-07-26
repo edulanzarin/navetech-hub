@@ -5,6 +5,7 @@ import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type {
   Empresa,
+  Filial,
   Metrica,
   Overview,
   Timeseries,
@@ -71,6 +72,14 @@ function useApiQuery<T>(chave: unknown[], url: string, enabled = true) {
 
 export const useEmpresas = () =>
   useApiQuery<Empresa[]>(["empresas"], "/api/empresas");
+
+/** Filiais de uma empresa — para o seletor de filial (só quando há 1 empresa). */
+export const useFiliais = (empresa: number | null) =>
+  useApiQuery<Filial[]>(
+    ["filiais", empresa],
+    `/api/empresas/estabs?empresa=${empresa}`,
+    empresa != null
+  );
 
 export const useOverview = (qs: string, enabled = true) =>
   useApiQuery<Overview>(["overview", qs], `/api/fiscal/overview?${qs}`, enabled);

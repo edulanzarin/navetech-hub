@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Building2, CalendarRange, Check, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Dropdown, ItemLista } from "@/components/ui/dropdown";
+import { FilialDropdown } from "@/components/filters/filial-dropdown";
 import { BotaoExecutar } from "@/components/filters/botao-executar";
 import { useEmpresas } from "@/hooks/use-api";
 import { useFiltros, useRascunhoFiltros } from "@/hooks/use-filters";
@@ -40,10 +41,14 @@ function presets() {
  */
 export function ConfFilterBar({
   mostrarPeriodo = true,
+  mostrarFilial = true,
   execucao = { imediata: false, rotulo: "Executar" },
   extras,
 }: {
   mostrarPeriodo?: boolean;
+  /** Seletor de filial (só telas de dado; a Folha tem o seu próprio, e o
+   *  cadastro do plano é por empresa). Depende do buildWhere honrar `estabs`. */
+  mostrarFilial?: boolean;
   execucao?: { imediata: boolean; rotulo: string };
   /** Controles que a aba põe NA LINHA da barra, ao lado da empresa (ex.: conta
    *  e extrato na Conciliação). Compartilham estado com a página via seção. */
@@ -118,7 +123,8 @@ export function ConfFilterBar({
                   key={e.codigo}
                   selecionado={e.codigo === empresaSel}
                   onClick={() => {
-                    editar({ empresas: [e.codigo] });
+                    // Troca de empresa zera as filiais (são de outra empresa).
+                    editar({ empresas: [e.codigo], estabs: [] });
                     fechar();
                   }}
                 >
@@ -138,6 +144,15 @@ export function ConfFilterBar({
           </div>
         )}
       </Dropdown>
+
+      {/* Filial (só quando a empresa tem mais de uma) */}
+      {mostrarFilial && (
+        <FilialDropdown
+          empresa={empresaSel ?? null}
+          estabs={rascunho.estabs}
+          onChange={(estabs) => editar({ estabs })}
+        />
+      )}
 
       {/* Período (teto de 1 ano) */}
       {mostrarPeriodo && (

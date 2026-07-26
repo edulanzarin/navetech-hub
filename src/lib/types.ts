@@ -3,6 +3,12 @@ export interface Empresa {
   nome: string;
 }
 
+/** Filial (estabelecimento) de uma empresa. */
+export interface Filial {
+  codigoestab: number;
+  nome: string;
+}
+
 /** Grupo de empresas criado pelo usuário, salvo no navegador. */
 export interface GrupoLocal {
   id: string;

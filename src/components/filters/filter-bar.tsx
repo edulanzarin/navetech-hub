@@ -16,6 +16,7 @@ import {
 import clsx from "clsx";
 import { toast } from "sonner";
 import { Dropdown, ItemLista } from "@/components/ui/dropdown";
+import { FilialDropdown } from "@/components/filters/filial-dropdown";
 import { BotaoExecutar } from "@/components/filters/botao-executar";
 import { GruposModal } from "@/components/grupos-modal";
 import { useEmpresas } from "@/hooks/use-api";
@@ -107,7 +108,7 @@ export function FilterBar({ mostrarMetrica = true }: { mostrarMetrica?: boolean 
     const set = new Set(rascunho.empresas);
     if (set.has(codigo)) set.delete(codigo);
     else set.add(codigo);
-    editar({ empresas: [...set] });
+    editar({ empresas: [...set], estabs: [] });
   };
 
   // Marca/desmarca um grupo: adiciona suas empresas à seleção, ou remove se já estão todas
@@ -118,14 +119,14 @@ export function FilterBar({ mostrarMetrica = true }: { mostrarMetrica?: boolean 
     } else {
       g.empresas.forEach((c) => set.add(c));
     }
-    editar({ empresas: [...set] });
+    editar({ empresas: [...set], estabs: [] });
   };
 
   // Vindo do modal de gerenciar: aplica o grupo somando à seleção
   const aplicarGrupo = (g: GrupoLocal) => {
     const set = new Set(rascunho.empresas);
     g.empresas.forEach((c) => set.add(c));
-    editar({ empresas: [...set] });
+    editar({ empresas: [...set], estabs: [] });
   };
 
   return (
@@ -150,7 +151,7 @@ export function FilterBar({ mostrarMetrica = true }: { mostrarMetrica?: boolean 
               />
               {rascunho.empresas.length > 0 && (
                 <button
-                  onClick={() => editar({ empresas: [] })}
+                  onClick={() => editar({ empresas: [], estabs: [] })}
                   className="shrink-0 text-xs text-ent hover:underline"
                 >
                   Limpar
@@ -194,6 +195,14 @@ export function FilterBar({ mostrarMetrica = true }: { mostrarMetrica?: boolean 
           </div>
         )}
       </Dropdown>
+
+      {/* Filial: só faz sentido com UMA empresa selecionada (codigoestab não é
+          comparável entre empresas). Com várias, some. */}
+      <FilialDropdown
+        empresa={rascunho.empresas.length === 1 ? rascunho.empresas[0] : null}
+        estabs={rascunho.estabs}
+        onChange={(estabs) => editar({ estabs })}
+      />
 
       {/* Período — logo após a empresa */}
       <Dropdown
@@ -310,7 +319,7 @@ export function FilterBar({ mostrarMetrica = true }: { mostrarMetrica?: boolean 
                   onClick={() => {
                     const set = new Set(rascunho.empresas);
                     gruposAtivos.forEach((g) => g.empresas.forEach((c) => set.delete(c)));
-                    editar({ empresas: [...set] });
+                    editar({ empresas: [...set], estabs: [] });
                   }}
                   className="shrink-0 text-xs text-ent hover:underline"
                 >
