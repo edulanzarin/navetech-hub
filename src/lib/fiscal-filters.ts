@@ -11,6 +11,13 @@ export interface FiscalFilters {
   inicio: string;
   fim: string;
   empresas: number[];
+  /**
+   * Filiais (codigoestab) a filtrar DENTRO da empresa. Vazio = todas as filiais
+   * (o consolidado da empresa). Só faz sentido com UMA empresa em escopo —
+   * codigoestab não é comparável entre empresas —, e a interface só o preenche
+   * nesse caso.
+   */
+  estabs: number[];
   especies: string[];
 }
 
@@ -35,12 +42,21 @@ export function parseFilters(searchParams: URLSearchParams): FiscalFilters {
       return n;
     });
 
+  const estabs = (searchParams.get("estabs") ?? "")
+    .split(",")
+    .filter(Boolean)
+    .map((v) => {
+      const n = Number(v);
+      if (!Number.isInteger(n) || n < 0) throw new FilterError(`Filial inválida: ${v}`);
+      return n;
+    });
+
   const especies = (searchParams.get("especies") ?? "")
     .split(",")
     .filter(Boolean)
     .map((e) => e.toUpperCase().slice(0, 10));
 
-  return { inicio, fim, empresas, especies };
+  return { inicio, fim, empresas, estabs, especies };
 }
 
 /**
@@ -74,6 +90,14 @@ export async function buildWhere(
     const efetivas = f.empresas.length > 0 ? f.empresas.filter((e) => escopo.includes(e)) : escopo;
     params.push(efetivas);
     conds.push(`${a}codigoempresa = any($${params.length}::int[])`);
+  }
+
+  // Filial: recorta DENTRO da empresa. Toda tabela do funil (nota, item e o
+  // contábil lctoctb) tem codigoestab, então a condição vale em qualquer
+  // consulta. Vazio = todas as filiais (consolidado). Ver [[filial-por-estab]].
+  if (f.estabs.length > 0) {
+    params.push(f.estabs);
+    conds.push(`${a}codigoestab = any($${params.length}::int[])`);
   }
 
   if (f.especies.length > 0) {
