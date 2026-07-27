@@ -185,19 +185,28 @@ export function UsuarioForm({
                 )}
                 {grupos.map((g) => {
                   const noCargo = cargo?.grupos.includes(g.id) ?? false;
+                  // Grupo é aditivo (não há bloquear grupo do cargo por usuário).
+                  // O que vem do cargo já está concedido: aparece marcado e travado.
+                  // Desabilitado não é enviado, então não vira grupo individual
+                  // redundante. `key` inclui noCargo pra reprocessar ao trocar de cargo.
+                  const marcado = noCargo || (usuario?.grupos.includes(g.id) ?? false);
                   return (
-                    <label key={g.id} className="flex items-center gap-2.5 px-4 py-2.5 text-sm">
+                    <label
+                      key={`${g.id}-${noCargo}`}
+                      className={`flex items-center gap-2.5 px-4 py-2.5 text-sm${noCargo ? " opacity-70" : ""}`}
+                    >
                       <input
                         type="checkbox"
                         name="grupos"
                         value={g.id}
-                        defaultChecked={usuario?.grupos.includes(g.id) ?? false}
+                        defaultChecked={marcado}
+                        disabled={noCargo}
                         className={check}
                       />
                       <span className="min-w-0 truncate">{g.nome}</span>
                       {noCargo && (
                         <span className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 text-[10px] text-muted">
-                          no cargo
+                          do cargo
                         </span>
                       )}
                       <span className="ml-auto shrink-0 text-xs text-muted">{g.empresas} empresas</span>
