@@ -62,7 +62,6 @@ export default function ImportarPage() {
           <Building2 className="size-6" />
         </span>
         <p className="text-sm font-medium text-ink">Selecione uma empresa</p>
-        <p className="max-w-md text-xs text-muted">Escolha a empresa no filtro acima.</p>
       </section>
     );
   }
@@ -76,9 +75,6 @@ export default function ImportarPage() {
           <FileUp className="size-6" />
         </span>
         <p className="text-sm font-medium text-ink">Nenhum extrato processado</p>
-        <p className="max-w-md text-xs text-muted">
-          Escolha a conta de banco e o arquivo na barra acima, e clique em Executar.
-        </p>
       </section>
     );
   }

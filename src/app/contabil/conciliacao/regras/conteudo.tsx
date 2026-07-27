@@ -73,7 +73,6 @@ export default function RegrasPage() {
           <Building2 className="size-6" />
         </span>
         <p className="text-sm font-medium text-ink">Selecione uma empresa</p>
-        <p className="max-w-md text-xs text-muted">Escolha a empresa no filtro acima.</p>
       </section>
     );
   }
@@ -107,9 +106,6 @@ export default function RegrasPage() {
             <Landmark className="size-6" />
           </span>
           <p className="text-sm font-medium text-ink">Escolha uma conta de banco</p>
-          <p className="max-w-md text-xs text-muted">
-            Escolha a conta na barra acima para ver e cadastrar as regras dela.
-          </p>
         </section>
       ) : isLoading || !atual ? (
         <div className="skeleton h-64 w-full" />

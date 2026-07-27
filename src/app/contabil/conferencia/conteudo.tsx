@@ -155,9 +155,6 @@ export default function ConferenciaPage() {
           <Building2 className="size-6" />
         </span>
         <p className="text-sm font-medium text-ink">Selecione uma empresa</p>
-        <p className="max-w-md text-xs text-muted">
-          Escolha a empresa e o período no filtro acima.
-        </p>
       </section>
     );
   }

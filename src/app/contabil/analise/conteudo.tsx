@@ -63,10 +63,6 @@ export default function AnaliseBalancetePage() {
           <Building2 className="size-6" />
         </span>
         <p className="text-sm font-medium text-ink">Selecione uma empresa</p>
-        <p className="max-w-md text-xs text-muted">
-          Escolha uma empresa e os meses no filtro acima e clique em Analisar. A análise
-          usa os saldos do contábil no período.
-        </p>
       </section>
     );
   }
