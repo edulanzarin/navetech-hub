@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { LogOut } from "lucide-react";
 import { MODULOS, type ModuloId } from "@/lib/modulos";
 import { sair } from "@/app/login/actions";
@@ -52,13 +53,17 @@ export function Launcher({
       </header>
 
       <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-6 pb-16">
-        <div className="flex items-center gap-3">
+        <Link
+          href="/perfil"
+          title="Meu perfil"
+          className="flex w-fit items-center gap-3 rounded-lg -mx-2 px-2 py-1.5 transition-colors hover:bg-surface-2"
+        >
           <Avatar id={usuarioId} nome={usuario} temFoto={usuarioTemFoto} size={44} />
           <div>
             <p className="text-sm text-muted">Bem-vindo,</p>
             <p className="text-sm font-semibold">{usuario}</p>
           </div>
-        </div>
+        </Link>
         <h1 className="mt-6 text-2xl font-semibold tracking-tight">Escolha um módulo</h1>
 
         <div className="mt-8 grid grid-cols-3 gap-3">
@@ -78,6 +83,13 @@ export function Launcher({
             titulo="Administração"
             descricao="Usuários, permissões e grupos de empresa"
             liberado={admin}
+          />
+          <ModuloCard
+            href="/perfil"
+            icone="/images/perfil.png"
+            titulo="Perfil"
+            descricao="Sua foto e sua senha"
+            liberado
           />
         </div>
       </main>
