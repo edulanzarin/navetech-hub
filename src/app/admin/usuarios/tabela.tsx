@@ -36,24 +36,21 @@ function facetar(valores: (string | null)[]): Faceta[] {
 export function UsuariosTabela({ usuarios }: { usuarios: UsuarioLista[] }) {
   const router = useRouter();
   const [busca, setBusca] = useState("");
-  const [setores, setSetores] = useState<string[]>([]);
   const [cargos, setCargos] = useState<string[]>([]);
   const [status, setStatus] = useState<Status>("todos");
 
-  const facSetor = useMemo(() => facetar(usuarios.map((u) => u.setorNome)), [usuarios]);
-  const facCargo = useMemo(() => facetar(usuarios.map((u) => u.cargoNome)), [usuarios]);
+  const facCargo = useMemo(() => facetar(usuarios.flatMap((u) => u.cargos)), [usuarios]);
 
   const filtrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
     return usuarios.filter((u) => {
       if (q && !u.nome.toLowerCase().includes(q) && !u.email.toLowerCase().includes(q)) return false;
-      if (setores.length && !(u.setorNome && setores.includes(u.setorNome))) return false;
-      if (cargos.length && !(u.cargoNome && cargos.includes(u.cargoNome))) return false;
+      if (cargos.length && !u.cargos.some((c) => cargos.includes(c))) return false;
       if (status === "ativos" && !u.ativo) return false;
       if (status === "inativos" && u.ativo) return false;
       return true;
     });
-  }, [usuarios, busca, setores, cargos, status]);
+  }, [usuarios, busca, cargos, status]);
 
   const statusBtn = (v: Status, rotulo: string) => (
     <button
@@ -80,13 +77,6 @@ export function UsuariosTabela({ usuarios }: { usuarios: UsuarioLista[] }) {
           />
         </div>
         <FacetaDropdown
-          rotulo="Setor"
-          icone={<Building2 className="size-4" />}
-          opcoes={facSetor}
-          selecionados={setores}
-          onMudar={setSetores}
-        />
-        <FacetaDropdown
           rotulo="Cargo"
           icone={<Briefcase className="size-4" />}
           opcoes={facCargo}
@@ -107,8 +97,7 @@ export function UsuariosTabela({ usuarios }: { usuarios: UsuarioLista[] }) {
             <thead>
               <tr className="border-b border-hairline text-left text-xs text-muted">
                 <th className="px-4 py-2.5 font-medium">Nome</th>
-                <th className="px-4 py-2.5 font-medium">Cargo</th>
-                <th className="px-4 py-2.5 font-medium">Setor</th>
+                <th className="px-4 py-2.5 font-medium">Cargos</th>
                 <th className="px-4 py-2.5 font-medium">Empresas</th>
                 <th className="px-4 py-2.5 font-medium">Último acesso</th>
               </tr>
@@ -116,7 +105,7 @@ export function UsuariosTabela({ usuarios }: { usuarios: UsuarioLista[] }) {
             <tbody>
               {filtrados.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-muted">
+                  <td colSpan={4} className="px-4 py-8 text-center text-muted">
                     Nenhum usuário com esses filtros.
                   </td>
                 </tr>
@@ -155,12 +144,13 @@ export function UsuariosTabela({ usuarios }: { usuarios: UsuarioLista[] }) {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-2.5 text-ink-2">{u.cargoNome ?? <span className="text-muted">—</span>}</td>
-                  <td className="px-4 py-2.5 text-ink-2">{u.setorNome ?? <span className="text-muted">—</span>}</td>
+                  <td className="px-4 py-2.5 text-ink-2">
+                    {u.cargos.length ? u.cargos.join(", ") : <span className="text-muted">—</span>}
+                  </td>
                   <td className="px-4 py-2.5 text-ink-2">
                     <span className="flex items-center gap-1.5">
                       <Building2 className="size-3.5 text-muted" />
-                      {u.admin || u.todas_empresas ? "todas" : "restritas"}
+                      {u.admin || u.todasEmpresas ? "todas" : "restritas"}
                     </span>
                   </td>
                   <td className="px-4 py-2.5 text-xs text-muted">{acessoLegivel(u.ultimo_acesso)}</td>

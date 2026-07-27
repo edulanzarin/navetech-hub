@@ -26,6 +26,7 @@ export function CargoForm({
   const [escolha, setEscolha] = useState<Record<string, boolean>>(() =>
     Object.fromEntries((cargo?.secoes ?? []).map((k) => [k, true]))
   );
+  const [admin, setAdmin] = useState(cargo?.admin ?? false);
 
   return (
     <form action={salvarCargo} className="flex flex-col gap-6">
@@ -51,40 +52,71 @@ export function CargoForm({
         </label>
       </section>
 
-      <section>
-        <h2 className="text-sm font-semibold">Permissões por seção</h2>
-        <p className="mt-0.5 text-xs text-muted">
-          O que este cargo concede. Quem tiver o cargo herda estas seções (com ajustes por pessoa,
-          se preciso).
-        </p>
-        <div className="mt-3">
-          <PermissaoMatriz
-            valor={escolha}
-            onChange={(chave, nivel) => setEscolha((p) => ({ ...p, [chave]: nivel }))}
+      <section className="flex flex-wrap gap-5">
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="admin"
+            checked={admin}
+            onChange={(e) => setAdmin(e.target.checked)}
+            className={check}
           />
-        </div>
+          Acesso total (administrador)
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="todas_empresas"
+            defaultChecked={cargo?.todas_empresas ?? false}
+            disabled={admin}
+            className={check}
+          />
+          Vê todas as empresas
+        </label>
       </section>
 
-      <section>
-        <h2 className="text-sm font-semibold">Grupos de empresa</h2>
-        <p className="mt-0.5 text-xs text-muted">Escopo de empresa que o cargo traz para o usuário.</p>
-        <div className="card mt-3 max-h-56 max-w-md divide-y divide-hairline overflow-auto">
-          {grupos.length === 0 && <p className="px-4 py-3 text-xs text-muted">Nenhum grupo criado.</p>}
-          {grupos.map((g) => (
-            <label key={g.id} className="flex items-center gap-2.5 px-4 py-2.5 text-sm">
-              <input
-                type="checkbox"
-                name="grupos"
-                value={g.id}
-                defaultChecked={cargo?.grupos.includes(g.id) ?? false}
-                className={check}
+      {admin ? (
+        <p className="card px-4 py-3 text-sm text-muted">
+          Acesso total — este cargo concede todas as seções e todas as empresas. As seções e grupos
+          abaixo são ignorados para ele.
+        </p>
+      ) : (
+        <>
+          <section>
+            <h2 className="text-sm font-semibold">Permissões por seção</h2>
+            <p className="mt-0.5 text-xs text-muted">
+              O que este cargo concede. Quem tiver o cargo herda estas seções.
+            </p>
+            <div className="mt-3">
+              <PermissaoMatriz
+                valor={escolha}
+                onChange={(chave, nivel) => setEscolha((p) => ({ ...p, [chave]: nivel }))}
               />
-              <span className="min-w-0 truncate">{g.nome}</span>
-              <span className="ml-auto shrink-0 text-xs text-muted">{g.empresas} empresas</span>
-            </label>
-          ))}
-        </div>
-      </section>
+            </div>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-semibold">Grupos de empresa</h2>
+            <p className="mt-0.5 text-xs text-muted">Escopo de empresa que o cargo traz para o usuário.</p>
+            <div className="card mt-3 max-h-56 max-w-md divide-y divide-hairline overflow-auto">
+              {grupos.length === 0 && <p className="px-4 py-3 text-xs text-muted">Nenhum grupo criado.</p>}
+              {grupos.map((g) => (
+                <label key={g.id} className="flex items-center gap-2.5 px-4 py-2.5 text-sm">
+                  <input
+                    type="checkbox"
+                    name="grupos"
+                    value={g.id}
+                    defaultChecked={cargo?.grupos.includes(g.id) ?? false}
+                    className={check}
+                  />
+                  <span className="min-w-0 truncate">{g.nome}</span>
+                  <span className="ml-auto shrink-0 text-xs text-muted">{g.empresas} empresas</span>
+                </label>
+              ))}
+            </div>
+          </section>
+        </>
+      )}
 
       <div className="flex items-center justify-between border-t border-hairline pt-4">
         {cargo ? (

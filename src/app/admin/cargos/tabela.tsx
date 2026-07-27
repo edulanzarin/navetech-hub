@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Building2 } from "lucide-react";
+import { Search, Building2, ShieldCheck } from "lucide-react";
 import { FacetaDropdown } from "@/components/filters/faceta-dropdown";
 import type { Faceta } from "@/lib/types";
 import type { CargoResumo } from "../dados";
@@ -79,7 +79,16 @@ export function CargosTabela({ cargos }: { cargos: CargoResumo[] }) {
                   onClick={() => router.push(`/admin/cargos/${c.id}`)}
                   className="cursor-pointer border-b border-hairline last:border-0 transition-colors hover:bg-surface-2"
                 >
-                  <td className="px-4 py-2.5 font-medium">{c.nome}</td>
+                  <td className="px-4 py-2.5 font-medium">
+                    <span className="flex items-center gap-2">
+                      {c.nome}
+                      {c.admin && (
+                        <span className="flex shrink-0 items-center gap-1 rounded-md bg-ent/12 px-1.5 py-0.5 text-[10px] font-medium text-ent">
+                          <ShieldCheck className="size-3" /> acesso total
+                        </span>
+                      )}
+                    </span>
+                  </td>
                   <td className="px-4 py-2.5 text-ink-2">{c.setorNome ?? <span className="text-muted">—</span>}</td>
                   <td className="tnum px-4 py-2.5 text-right text-ink-2">{c.secoes}</td>
                   <td className="tnum px-4 py-2.5 text-right text-ink-2">{c.grupos}</td>

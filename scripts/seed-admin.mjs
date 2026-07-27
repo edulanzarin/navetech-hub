@@ -1,6 +1,7 @@
 // Semeia (ou reseta) o usuário admin a partir de ADMIN_EMAIL / ADMIN_PASSWORD.
-// Idempotente: rode quantas vezes quiser — cria se não existe, atualiza a senha
-// e garante admin/todas_empresas se já existe. Uso: node scripts/seed-admin.mjs
+// Idempotente: rode quantas vezes quiser — cria o usuário se não existe, atualiza
+// a senha, garante o cargo "Administrador" (acesso total) e o vínculo entre os
+// dois. Toda a permissão vem do cargo. Uso: node scripts/seed-admin.mjs
 //
 // Migration é SQL puro e não hasheia senha; por isso o seed é um script JS. O
 // formato do hash espelha src/lib/auth.ts (scrypt$N$salt_hex$hash_hex).
@@ -47,14 +48,28 @@ await client.connect();
 try {
   const senhaHash = await hashSenha(senha);
   const { rows } = await client.query(
-    `insert into usuario (nome, email, senha_hash, ativo, admin, todas_empresas)
-       values ('Administrador', $1, $2, true, true, true)
+    `insert into usuario (nome, email, senha_hash, ativo)
+       values ('Administrador', $1, $2, true)
      on conflict (email) do update
-       set senha_hash = excluded.senha_hash,
-           ativo = true, admin = true, todas_empresas = true
-     returning (xmax = 0) as criado`,
+       set senha_hash = excluded.senha_hash, ativo = true
+     returning id, (xmax = 0) as criado`,
     [email, senhaHash]
   );
+  const usuarioId = rows[0].id;
+
+  // Cargo "Administrador" (acesso total) e o vínculo — a permissão vem daqui.
+  const { rows: cargoRows } = await client.query(
+    `insert into cargo (nome, admin, todas_empresas, descricao)
+       values ('Administrador', true, true, 'Acesso total ao sistema')
+     on conflict (nome) do update set admin = true, todas_empresas = true
+     returning id`
+  );
+  await client.query(
+    `insert into usuario_cargo (usuario_id, cargo_id) values ($1, $2)
+     on conflict do nothing`,
+    [usuarioId, cargoRows[0].id]
+  );
+
   console.log(rows[0].criado ? `Admin criado: ${email}` : `Admin atualizado: ${email}`);
 } catch (err) {
   console.error(`FALHOU: ${err.message}`);

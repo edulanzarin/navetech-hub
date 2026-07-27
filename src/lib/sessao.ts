@@ -48,12 +48,9 @@ export const getSessaoOpcional = cache(async (): Promise<Sessao | null> => {
     id: string;
     nome: string;
     email: string;
-    admin: boolean;
-    todas_empresas: boolean;
-    cargo_id: number | null;
     tem_avatar: boolean;
   }>(
-    `select u.id, u.nome, u.email, u.admin, u.todas_empresas, u.cargo_id,
+    `select u.id, u.nome, u.email,
             exists (select 1 from usuario_avatar a where a.usuario_id = u.id) as tem_avatar
        from sessao s
        join usuario u on u.id = s.usuario_id
@@ -62,50 +59,46 @@ export const getSessaoOpcional = cache(async (): Promise<Sessao | null> => {
   );
   if (!u) return null;
 
-  // Seções: base herdada do cargo, com o override individual por cima —
-  // permitido=false BLOQUEIA uma seção que o cargo concede; true LIBERA extra.
-  const secoes = new Set<string>();
-  if (u.cargo_id != null) {
-    const base = await appQuery<{ modulo: string; secao: string }>(
-      `select modulo, secao from cargo_secao where cargo_id = $1`,
-      [u.cargo_id]
-    );
-    for (const r of base) secoes.add(chaveSecao(r.modulo, r.secao));
-  }
-  const override = await appQuery<{ modulo: string; secao: string; permitido: boolean }>(
-    `select modulo, secao, permitido from usuario_secao where usuario_id = $1`,
+  // Toda a permissão vem dos CARGOS da pessoa (união) — não há mais ajuste por
+  // usuário. Admin e "vê todas as empresas" são propriedades do cargo.
+  const cargos = await appQuery<{ id: number; admin: boolean; todas_empresas: boolean }>(
+    `select c.id, c.admin, c.todas_empresas
+       from usuario_cargo uc
+       join cargo c on c.id = uc.cargo_id
+      where uc.usuario_id = $1`,
     [u.id]
   );
-  for (const r of override) {
-    const k = chaveSecao(r.modulo, r.secao);
-    if (r.permitido) secoes.add(k);
-    else secoes.delete(k);
+  const cargoIds = cargos.map((c) => c.id);
+  const admin = cargos.some((c) => c.admin);
+  const todasEmpresas = admin || cargos.some((c) => c.todas_empresas);
+
+  // Seções: união do que todos os cargos concedem.
+  const secoes = new Set<string>();
+  if (cargoIds.length) {
+    const rows = await appQuery<{ modulo: string; secao: string }>(
+      `select distinct modulo, secao from cargo_secao where cargo_id = any($1)`,
+      [cargoIds]
+    );
+    for (const r of rows) secoes.add(chaveSecao(r.modulo, r.secao));
   }
 
-  // Empresas: união do grupo do cargo + grupos do usuário + empresas avulsas.
+  // Empresas: união dos grupos de todos os cargos (a menos que veja todas).
   let permitidas: number[] = [];
-  if (!u.todas_empresas) {
+  if (!todasEmpresas && cargoIds.length) {
     const emp = await appQuery<{ codigoempresa: number }>(
-      `select codigoempresa from usuario_empresa where usuario_id = $1
-       union
-       select i.codigoempresa
-         from usuario_grupo g
-         join empresa_grupo_item i on i.grupo_id = g.grupo_id
-        where g.usuario_id = $1
-       union
-       select i.codigoempresa
+      `select distinct i.codigoempresa
          from cargo_grupo cg
          join empresa_grupo_item i on i.grupo_id = cg.grupo_id
-        where cg.cargo_id = $2`,
-      [u.id, u.cargo_id]
+        where cg.cargo_id = any($1)`,
+      [cargoIds]
     );
     permitidas = emp.map((e) => e.codigoempresa);
   }
 
   return {
-    usuario: { id: u.id, nome: u.nome, email: u.email, admin: u.admin, temAvatar: u.tem_avatar },
+    usuario: { id: u.id, nome: u.nome, email: u.email, admin, temAvatar: u.tem_avatar },
     secoes,
-    empresas: { todas: u.todas_empresas, permitidas },
+    empresas: { todas: todasEmpresas, permitidas },
   };
 });
 

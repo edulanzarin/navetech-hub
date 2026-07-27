@@ -7,10 +7,9 @@ import { query } from "@/lib/db";
  * empresas vem do Questor (read-only) — o admin monta o escopo escolhendo entre
  * TODAS as empresas, independente do escopo dele.
  *
- * Modelo: o CARGO é o molde (seções + grupos de empresa). O usuário herda um
- * cargo e ajusta por cima — seção via override binário (`usuario_secao.permitido`)
- * e empresa somando (`usuario_grupo`/`usuario_empresa`). Permissão é binária:
- * a seção é acessível ou não.
+ * Modelo: o CARGO concentra toda a permissão (seções + grupos de empresa + os
+ * flags admin e "vê todas as empresas"). A pessoa recebe UM OU MAIS cargos
+ * (usuario_cargo) e o acesso é a UNIÃO deles — não há ajuste por usuário.
  */
 
 export interface UsuarioDetalhe {
@@ -19,17 +18,10 @@ export interface UsuarioDetalhe {
   email: string;
   telefone: string | null;
   ativo: boolean;
-  admin: boolean;
-  todas_empresas: boolean;
-  cargo_id: number | null;
-  cargoNome: string | null;
-  setorNome: string | null;
   /** Timestamp da foto (ms), para cache-buster no <img>; null = sem foto. */
   avatarVersao: number | null;
-  /** Overrides de seção ("modulo/secao" -> liberado?), por cima do cargo. */
-  overrides: Record<string, boolean>;
-  grupos: number[];
-  empresas: number[];
+  /** Cargos atribuídos (ids). Toda a permissão vem deles. */
+  cargos: number[];
 }
 
 export async function carregarUsuario(id: string): Promise<UsuarioDetalhe | null> {
@@ -39,39 +31,21 @@ export async function carregarUsuario(id: string): Promise<UsuarioDetalhe | null
     email: string;
     telefone: string | null;
     ativo: boolean;
-    admin: boolean;
-    todas_empresas: boolean;
-    cargo_id: number | null;
-    cargo_nome: string | null;
-    setor_nome: string | null;
     avatar_versao: string | null;
   }>(
-    `select u.id, u.nome, u.email, u.telefone, u.ativo, u.admin, u.todas_empresas,
-            u.cargo_id, c.nome as cargo_nome, st.nome as setor_nome,
+    `select u.id, u.nome, u.email, u.telefone, u.ativo,
             extract(epoch from a.atualizado_em) * 1000 as avatar_versao
        from usuario u
-       left join cargo c on c.id = u.cargo_id
-       left join setor st on st.id = c.setor_id
        left join usuario_avatar a on a.usuario_id = u.id
       where u.id = $1`,
     [id]
   );
   if (!u) return null;
 
-  const [overrides, grupos, empresas] = await Promise.all([
-    appQuery<{ modulo: string; secao: string; permitido: boolean }>(
-      `select modulo, secao, permitido from usuario_secao where usuario_id = $1`,
-      [id]
-    ),
-    appQuery<{ grupo_id: number }>(`select grupo_id from usuario_grupo where usuario_id = $1`, [id]),
-    appQuery<{ codigoempresa: number }>(
-      `select codigoempresa from usuario_empresa where usuario_id = $1`,
-      [id]
-    ),
-  ]);
-
-  const overMap: Record<string, boolean> = {};
-  for (const s of overrides) overMap[`${s.modulo}/${s.secao}`] = s.permitido;
+  const cargos = await appQuery<{ cargo_id: number }>(
+    `select cargo_id from usuario_cargo where usuario_id = $1`,
+    [id]
+  );
 
   return {
     id: u.id,
@@ -79,15 +53,8 @@ export async function carregarUsuario(id: string): Promise<UsuarioDetalhe | null
     email: u.email,
     telefone: u.telefone,
     ativo: u.ativo,
-    admin: u.admin,
-    todas_empresas: u.todas_empresas,
-    cargo_id: u.cargo_id,
-    cargoNome: u.cargo_nome,
-    setorNome: u.setor_nome,
     avatarVersao: u.avatar_versao != null ? Math.round(Number(u.avatar_versao)) : null,
-    overrides: overMap,
-    grupos: grupos.map((g) => g.grupo_id),
-    empresas: empresas.map((e) => e.codigoempresa),
+    cargos: cargos.map((c) => c.cargo_id),
   };
 }
 
@@ -95,11 +62,11 @@ export interface UsuarioLista {
   id: string;
   nome: string;
   email: string;
-  cargoNome: string | null;
-  setorNome: string | null;
+  /** Nomes dos cargos atribuídos, para exibição. */
+  cargos: string[];
   ativo: boolean;
   admin: boolean;
-  todas_empresas: boolean;
+  todasEmpresas: boolean;
   ultimo_acesso: string | null;
   avatarVersao: number | null;
 }
@@ -110,33 +77,34 @@ export async function listarUsuarios(): Promise<UsuarioLista[]> {
     id: string;
     nome: string;
     email: string;
-    cargo_nome: string | null;
-    setor_nome: string | null;
+    cargos: string[] | null;
     ativo: boolean;
     admin: boolean;
     todas_empresas: boolean;
     ultimo_acesso: string | null;
     avatar_versao: string | null;
   }>(
-    `select u.id, u.nome, u.email, c.nome as cargo_nome, st.nome as setor_nome,
-            u.ativo, u.admin, u.todas_empresas,
+    `select u.id, u.nome, u.email, u.ativo,
+            coalesce(array_agg(c.nome order by c.nome) filter (where c.id is not null), '{}') as cargos,
+            coalesce(bool_or(c.admin), false) as admin,
+            coalesce(bool_or(c.todas_empresas), false) as todas_empresas,
             to_char(u.ultimo_acesso, 'YYYY-MM-DD"T"HH24:MI:SS') as ultimo_acesso,
-            extract(epoch from a.atualizado_em) * 1000 as avatar_versao
+            extract(epoch from av.atualizado_em) * 1000 as avatar_versao
        from usuario u
-       left join cargo c on c.id = u.cargo_id
-       left join setor st on st.id = c.setor_id
-       left join usuario_avatar a on a.usuario_id = u.id
+       left join usuario_cargo uc on uc.usuario_id = u.id
+       left join cargo c on c.id = uc.cargo_id
+       left join usuario_avatar av on av.usuario_id = u.id
+      group by u.id, av.atualizado_em
       order by u.nome`
   );
   return rows.map((r) => ({
     id: r.id,
     nome: r.nome,
     email: r.email,
-    cargoNome: r.cargo_nome,
-    setorNome: r.setor_nome,
+    cargos: r.cargos ?? [],
     ativo: r.ativo,
     admin: r.admin,
-    todas_empresas: r.todas_empresas,
+    todasEmpresas: r.admin || r.todas_empresas,
     ultimo_acesso: r.ultimo_acesso,
     avatarVersao: r.avatar_versao != null ? Math.round(Number(r.avatar_versao)) : null,
   }));
@@ -174,6 +142,7 @@ export interface CargoResumo {
   id: number;
   nome: string;
   setorNome: string | null;
+  admin: boolean;
   secoes: number;
   grupos: number;
   usuarios: number;
@@ -184,14 +153,15 @@ export async function listarCargos(): Promise<CargoResumo[]> {
     id: number;
     nome: string;
     setor_nome: string | null;
+    admin: boolean;
     secoes: number;
     grupos: number;
     usuarios: number;
   }>(
-    `select c.id, c.nome, st.nome as setor_nome,
+    `select c.id, c.nome, st.nome as setor_nome, c.admin,
             (select count(*)::int from cargo_secao cs where cs.cargo_id = c.id) as secoes,
             (select count(*)::int from cargo_grupo cg where cg.cargo_id = c.id) as grupos,
-            (select count(*)::int from usuario u where u.cargo_id = c.id) as usuarios
+            (select count(*)::int from usuario_cargo uc where uc.cargo_id = c.id) as usuarios
        from cargo c
        left join setor st on st.id = c.setor_id
       order by st.nome nulls last, c.nome`
@@ -200,6 +170,7 @@ export async function listarCargos(): Promise<CargoResumo[]> {
     id: r.id,
     nome: r.nome,
     setorNome: r.setor_nome,
+    admin: r.admin,
     secoes: r.secoes,
     grupos: r.grupos,
     usuarios: r.usuarios,
@@ -211,6 +182,8 @@ export interface CargoDetalhe {
   nome: string;
   setor_id: number | null;
   descricao: string | null;
+  admin: boolean;
+  todas_empresas: boolean;
   /** Seções que o cargo concede, como chaves "modulo/secao". */
   secoes: string[];
   grupos: number[];
@@ -222,7 +195,12 @@ export async function carregarCargo(id: number): Promise<CargoDetalhe | null> {
     nome: string;
     setor_id: number | null;
     descricao: string | null;
-  }>(`select id, nome, setor_id, descricao from cargo where id = $1`, [id]);
+    admin: boolean;
+    todas_empresas: boolean;
+  }>(
+    `select id, nome, setor_id, descricao, admin, todas_empresas from cargo where id = $1`,
+    [id]
+  );
   if (!c) return null;
 
   const [secoes, grupos] = await Promise.all([
@@ -238,57 +216,34 @@ export async function carregarCargo(id: number): Promise<CargoDetalhe | null> {
     nome: c.nome,
     setor_id: c.setor_id,
     descricao: c.descricao,
+    admin: c.admin,
+    todas_empresas: c.todas_empresas,
     secoes: secoes.map((s) => `${s.modulo}/${s.secao}`),
     grupos: grupos.map((g) => g.grupo_id),
   };
 }
 
-/** Cargos com sua base (seções + grupos), para o form de usuário mostrar a herança. */
+/** Cargos disponíveis para atribuir a um usuário. */
 export interface CargoOpcao {
   id: number;
   nome: string;
   setorNome: string | null;
-  /** Seções que o cargo concede, como chaves "modulo/secao". */
-  secoes: string[];
-  grupos: number[];
+  admin: boolean;
 }
 
 export async function listarCargosParaForm(): Promise<CargoOpcao[]> {
-  const cargos = await appQuery<{ id: number; nome: string; setor_nome: string | null }>(
-    `select c.id, c.nome, st.nome as setor_nome
+  const rows = await appQuery<{
+    id: number;
+    nome: string;
+    setor_nome: string | null;
+    admin: boolean;
+  }>(
+    `select c.id, c.nome, st.nome as setor_nome, c.admin
        from cargo c
        left join setor st on st.id = c.setor_id
       order by st.nome nulls last, c.nome`
   );
-  if (cargos.length === 0) return [];
-
-  const [secoes, grupos] = await Promise.all([
-    appQuery<{ cargo_id: number; modulo: string; secao: string }>(
-      `select cargo_id, modulo, secao from cargo_secao`
-    ),
-    appQuery<{ cargo_id: number; grupo_id: number }>(`select cargo_id, grupo_id from cargo_grupo`),
-  ]);
-
-  const secPorCargo = new Map<number, string[]>();
-  for (const s of secoes) {
-    const arr = secPorCargo.get(s.cargo_id) ?? [];
-    arr.push(`${s.modulo}/${s.secao}`);
-    secPorCargo.set(s.cargo_id, arr);
-  }
-  const grpPorCargo = new Map<number, number[]>();
-  for (const g of grupos) {
-    const arr = grpPorCargo.get(g.cargo_id) ?? [];
-    arr.push(g.grupo_id);
-    grpPorCargo.set(g.cargo_id, arr);
-  }
-
-  return cargos.map((c) => ({
-    id: c.id,
-    nome: c.nome,
-    setorNome: c.setor_nome,
-    secoes: secPorCargo.get(c.id) ?? [],
-    grupos: grpPorCargo.get(c.id) ?? [],
-  }));
+  return rows.map((c) => ({ id: c.id, nome: c.nome, setorNome: c.setor_nome, admin: c.admin }));
 }
 
 // -------------------------------------------------------------------- Grupos
@@ -306,7 +261,10 @@ export async function listarGrupos(): Promise<GrupoResumo[]> {
     `select g.id, g.nome,
             (select count(*)::int from empresa_grupo_item i where i.grupo_id = g.id) as empresas,
             (select count(*)::int from cargo_grupo cg where cg.grupo_id = g.id) as cargos,
-            (select count(*)::int from usuario_grupo ug where ug.grupo_id = g.id) as usuarios
+            (select count(distinct uc.usuario_id)::int
+               from cargo_grupo cg2
+               join usuario_cargo uc on uc.cargo_id = cg2.cargo_id
+              where cg2.grupo_id = g.id) as usuarios
        from empresa_grupo g
       order by g.nome`
   );

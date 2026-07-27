@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { appPool, appQuery } from "@/lib/app-db";
+import { appPool } from "@/lib/app-db";
 import { hashSenha } from "@/lib/auth";
 import { assertAdmin } from "@/lib/sessao";
 import { MODULOS, secoesDoModulo } from "@/lib/modulos";
@@ -64,13 +64,13 @@ export async function salvarUsuario(formData: FormData): Promise<void> {
   const email = String(formData.get("email") ?? "").trim();
   const senha = String(formData.get("senha") ?? "");
   const telefone = limpo(formData.get("telefone"));
-  const cargoId = idNum(formData.get("cargo_id"));
   const ativo = formData.get("ativo") === "on";
-  const admin = formData.get("admin") === "on";
-  const todasEmpresas = admin || formData.get("todas_empresas") === "on";
+  // Toda a permissão vem dos cargos (união). Sem ajuste por usuário.
+  const cargos = formData.getAll("cargos").map((c) => Number(c)).filter(Number.isInteger);
 
   if (!nome || !email) throw new Error("Nome e email são obrigatórios");
   if (!id && !senha) throw new Error("Defina uma senha para o novo usuário");
+  if (cargos.length === 0) throw new Error("Atribua ao menos um cargo");
 
   // Foto de perfil: arquivo novo (substitui) ou pedido de remoção. Valida tipo e
   // tamanho no servidor — nunca confiar no accept do input.
@@ -83,47 +83,24 @@ export async function salvarUsuario(formData: FormData): Promise<void> {
     avatar = { mime: arquivo.type, bytes: Buffer.from(await arquivo.arrayBuffer()) };
   }
 
-  // Base do cargo escolhido: só guardamos usuario_secao quando o pedido DIFERE
-  // do que o cargo concede (delta). Liberar = marcado; bloquear = desmarcado.
-  const base = new Set<string>();
-  if (cargoId != null) {
-    const rows = await appQuery<{ modulo: string; secao: string }>(
-      `select modulo, secao from cargo_secao where cargo_id = $1`,
-      [cargoId]
-    );
-    for (const r of rows) base.add(`${r.modulo}/${r.secao}`);
-  }
-  const marcadas = lerSecoesMarcadas(formData);
-  // Override em toda seção onde o efetivo diverge do cargo: marcada e não no
-  // cargo => libera (true); no cargo e desmarcada => bloqueia (false).
-  const overrides: { chave: string; permitido: boolean }[] = [];
-  for (const chave of new Set([...base, ...marcadas])) {
-    const efetivo = marcadas.has(chave);
-    if (efetivo !== base.has(chave)) overrides.push({ chave, permitido: efetivo });
-  }
-
-  const grupos = formData.getAll("grupos").map((g) => Number(g)).filter(Number.isInteger);
-  const empresas = formData.getAll("empresas").map((e) => Number(e)).filter(Number.isInteger);
-
   const senhaHash = senha ? await hashSenha(senha) : null;
 
   await comTransacao(async (q) => {
     let usuarioId = id;
     if (id) {
       await q(
-        `update usuario set nome = $2, email = $3, telefone = $4, cargo_id = $5,
-                ativo = $6, admin = $7, todas_empresas = $8
-           ${senhaHash ? ", senha_hash = $9" : ""}
+        `update usuario set nome = $2, email = $3, telefone = $4, ativo = $5
+           ${senhaHash ? ", senha_hash = $6" : ""}
          where id = $1`,
         senhaHash
-          ? [id, nome, email, telefone, cargoId, ativo, admin, todasEmpresas, senhaHash]
-          : [id, nome, email, telefone, cargoId, ativo, admin, todasEmpresas]
+          ? [id, nome, email, telefone, ativo, senhaHash]
+          : [id, nome, email, telefone, ativo]
       );
     } else {
       const { rows } = await q(
-        `insert into usuario (nome, email, telefone, cargo_id, senha_hash, ativo, admin, todas_empresas)
-         values ($1, $2, $3, $4, $5, $6, $7, $8) returning id`,
-        [nome, email, telefone, cargoId, senhaHash, ativo, admin, todasEmpresas]
+        `insert into usuario (nome, email, telefone, senha_hash, ativo)
+         values ($1, $2, $3, $4, $5) returning id`,
+        [nome, email, telefone, senhaHash, ativo]
       );
       usuarioId = rows[0].id as string;
     }
@@ -142,22 +119,10 @@ export async function salvarUsuario(formData: FormData): Promise<void> {
       );
     }
 
-    // Overrides, grupos e empresas: recria do zero (o form é a verdade completa).
-    await q(`delete from usuario_secao where usuario_id = $1`, [usuarioId]);
-    for (const o of overrides) {
-      const [modulo, secao] = o.chave.split("/");
-      await q(
-        `insert into usuario_secao (usuario_id, modulo, secao, permitido) values ($1, $2, $3, $4)`,
-        [usuarioId, modulo, secao, o.permitido]
-      );
-    }
-    await q(`delete from usuario_grupo where usuario_id = $1`, [usuarioId]);
-    for (const g of grupos) {
-      await q(`insert into usuario_grupo (usuario_id, grupo_id) values ($1, $2)`, [usuarioId, g]);
-    }
-    await q(`delete from usuario_empresa where usuario_id = $1`, [usuarioId]);
-    for (const e of empresas) {
-      await q(`insert into usuario_empresa (usuario_id, codigoempresa) values ($1, $2)`, [usuarioId, e]);
+    // Cargos: o form é a verdade completa — recria o vínculo do zero.
+    await q(`delete from usuario_cargo where usuario_id = $1`, [usuarioId]);
+    for (const c of cargos) {
+      await q(`insert into usuario_cargo (usuario_id, cargo_id) values ($1, $2)`, [usuarioId, c]);
     }
   });
 
@@ -186,6 +151,9 @@ export async function salvarCargo(formData: FormData): Promise<void> {
   const setorIdForm = idNum(formData.get("setor_id"));
   const setorNovo = limpo(formData.get("setor_novo"));
   const descricao = limpo(formData.get("descricao"));
+  // Acesso total (admin) já implica ver todas as empresas.
+  const admin = formData.get("admin") === "on";
+  const todasEmpresas = admin || formData.get("todas_empresas") === "on";
   // Seções marcadas = as que o cargo concede.
   const secoes = [...lerSecoesMarcadas(formData)];
   const grupos = formData.getAll("grupos").map((g) => Number(g)).filter(Number.isInteger);
@@ -204,16 +172,16 @@ export async function salvarCargo(formData: FormData): Promise<void> {
 
     let cargoId = id;
     if (id != null) {
-      await q(`update cargo set nome = $2, setor_id = $3, descricao = $4 where id = $1`, [
-        id,
-        nome,
-        setorId,
-        descricao,
-      ]);
+      await q(
+        `update cargo set nome = $2, setor_id = $3, descricao = $4, admin = $5, todas_empresas = $6
+         where id = $1`,
+        [id, nome, setorId, descricao, admin, todasEmpresas]
+      );
     } else {
       const { rows } = await q(
-        `insert into cargo (nome, setor_id, descricao) values ($1, $2, $3) returning id`,
-        [nome, setorId, descricao]
+        `insert into cargo (nome, setor_id, descricao, admin, todas_empresas)
+         values ($1, $2, $3, $4, $5) returning id`,
+        [nome, setorId, descricao, admin, todasEmpresas]
       );
       cargoId = rows[0].id as number;
     }
