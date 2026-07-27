@@ -20,7 +20,7 @@ for (const arquivo of [".env.local", ".env"]) {
 
 const client = new pg.Client({
   connectionString:
-    process.env.APP_DB_URL ?? "postgres://navetechhub:navetechhub@localhost:5433/navetechhub",
+    process.env.APP_DB_URL ?? "postgres://nexo:nexo@localhost:5022/nexo",
 });
 
 await client.connect();

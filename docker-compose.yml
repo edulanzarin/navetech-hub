@@ -12,7 +12,7 @@ services:
     environment:
       # Dentro da rede do compose o banco próprio atende pelo nome do serviço.
       # Vem depois do env_file de propósito: sobrescreve o valor de dev (localhost:5022).
-      APP_DB_URL: postgres://navetechhub:${APP_DB_PASSWORD:?defina APP_DB_PASSWORD no .env}@app-db:5432/navetechhub
+      APP_DB_URL: postgres://nexo:${APP_DB_PASSWORD:?defina APP_DB_PASSWORD no .env}@app-db:5432/nexo
     depends_on:
       app-db:
         condition: service_healthy
@@ -28,8 +28,8 @@ services:
     container_name: nexo-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: navetechhub
-      POSTGRES_USER: navetechhub
+      POSTGRES_DB: nexo
+      POSTGRES_USER: nexo
       # Senha vem do .env (que é gitignored) — nunca fica neste arquivo.
       # A senha só é aplicada na PRIMEIRA subida, quando o volume é criado.
       POSTGRES_PASSWORD: ${APP_DB_PASSWORD:?defina APP_DB_PASSWORD no .env}
@@ -40,7 +40,7 @@ services:
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U navetechhub -d navetechhub"]
+      test: ["CMD-SHELL", "pg_isready -U nexo -d nexo"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -48,10 +48,7 @@ services:
 volumes:
   db-data:
     # Nome explícito, independente do nome da pasta ou do COMPOSE_PROJECT_NAME.
-    # Mantido como navetech-hub-db-data (nome anterior ao rebrand) de propósito:
-    # renomear o volume criaria um vazio e orfanaria os dados já gravados. Nome
-    # interno do volume/banco não muda a marca.
-    name: navetech-hub-db-data
+    name: nexo-db-data
 
 networks:
   # A rede default do projeto com nome explícito <slug>-net; os serviços falam
