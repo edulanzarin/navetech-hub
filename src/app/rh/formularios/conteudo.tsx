@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
 import {
@@ -13,10 +13,12 @@ import {
   GripVertical,
   Plus,
   Save,
+  Send,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { CamposFormulario } from "@/components/formulario-campos";
+import { EnviarModal, EnviosLista } from "./envios";
 import { mutar } from "@/hooks/mutar";
 import { useFormulario, useFormularios } from "@/hooks/use-api";
 import { dataBR } from "@/lib/format";
@@ -154,8 +156,10 @@ export default function Conteudo() {
 function Lista({ onEditar }: { onEditar: (id: number) => void }) {
   const { data, isLoading } = useFormularios();
   const queryClient = useQueryClient();
+  const [aba, setAba] = useState<"formularios" | "envios">("formularios");
   const [criando, setCriando] = useState(false);
   const [novoNome, setNovoNome] = useState("");
+  const [enviarForm, setEnviarForm] = useState<{ id: number; nome: string } | null>(null);
 
   const invalidar = () => queryClient.invalidateQueries({ queryKey: ["rh-formularios"] });
 
@@ -198,30 +202,43 @@ function Lista({ onEditar }: { onEditar: (id: number) => void }) {
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="max-w-2xl text-sm text-muted">
-          Monte formulários para avaliar funcionários ou pesquisar os gestores. Um formulário{" "}
-          <strong className="text-ink-2">ativo</strong> pode ser ligado à experiência ou enviado numa
-          campanha.
-        </p>
-        <div className="flex items-center gap-2">
-          <input
-            value={novoNome}
-            onChange={(e) => setNovoNome(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && criar()}
-            placeholder="Nome do novo formulário"
-            className="h-9 w-56 rounded-lg border border-hairline bg-surface px-3 text-sm outline-none focus:border-ink/30"
-          />
-          <button
-            onClick={criar}
-            disabled={criando}
-            className="flex h-9 items-center gap-1.5 rounded-lg bg-ink px-3 text-sm font-medium text-surface transition-opacity hover:opacity-90 disabled:opacity-50"
-          >
-            <Plus className="size-4" /> Criar
-          </button>
+        <div className="inline-flex rounded-lg border border-hairline bg-surface p-0.5">
+          {(["formularios", "envios"] as const).map((a) => (
+            <button
+              key={a}
+              onClick={() => setAba(a)}
+              className={clsx(
+                "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                aba === a ? "bg-surface-2 text-ink" : "text-muted hover:text-ink"
+              )}
+            >
+              {a === "formularios" ? "Formulários" : "Envios"}
+            </button>
+          ))}
         </div>
+        {aba === "formularios" && (
+          <div className="flex items-center gap-2">
+            <input
+              value={novoNome}
+              onChange={(e) => setNovoNome(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && criar()}
+              placeholder="Nome do novo formulário"
+              className="h-9 w-56 rounded-lg border border-hairline bg-surface px-3 text-sm outline-none focus:border-ink/30"
+            />
+            <button
+              onClick={criar}
+              disabled={criando}
+              className="flex h-9 items-center gap-1.5 rounded-lg bg-ink px-3 text-sm font-medium text-surface transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              <Plus className="size-4" /> Criar
+            </button>
+          </div>
+        )}
       </div>
 
-      {isLoading ? (
+      {aba === "envios" ? (
+        <EnviosLista />
+      ) : isLoading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="skeleton h-32" />
@@ -261,6 +278,14 @@ function Lista({ onEditar }: { onEditar: (id: number) => void }) {
                 >
                   Editar
                 </button>
+                {f.status === "ativo" && (
+                  <button
+                    onClick={() => setEnviarForm({ id: f.id, nome: f.nome })}
+                    className="flex items-center gap-1 rounded-lg border border-hairline px-2.5 py-1.5 text-xs font-medium text-ent transition-colors hover:bg-ent/10"
+                  >
+                    <Send className="size-3.5" /> Enviar
+                  </button>
+                )}
                 <button
                   onClick={() => duplicar(f)}
                   className="grid size-8 place-items-center rounded-lg text-muted transition-colors hover:bg-surface-2 hover:text-ink"
@@ -279,6 +304,14 @@ function Lista({ onEditar }: { onEditar: (id: number) => void }) {
             </div>
           ))}
         </div>
+      )}
+
+      {enviarForm && (
+        <EnviarModal
+          formularioId={enviarForm.id}
+          formularioNome={enviarForm.nome}
+          onFechar={() => setEnviarForm(null)}
+        />
       )}
     </>
   );
@@ -299,15 +332,15 @@ function Editor({ id, onVoltar }: { id: number; onVoltar: () => void }) {
   const [preview, setPreview] = useState(false);
   const [valoresPreview, setValoresPreview] = useState<RespostaValores>({});
 
-  useEffect(() => {
-    if (data && !seeded) {
-      setNome(data.nome);
-      setDescricao(data.descricao ?? "");
-      setStatus(data.status);
-      setCampos(data.campos.map(campoParaDraft));
-      setSeeded(true);
-    }
-  }, [data, seeded]);
+  // Semeia o estado editável quando a query chega — ajuste de estado no próprio
+  // render (padrão recomendado do React), guardado para não repetir/loopar.
+  if (data && !seeded) {
+    setSeeded(true);
+    setNome(data.nome);
+    setDescricao(data.descricao ?? "");
+    setStatus(data.status);
+    setCampos(data.campos.map(campoParaDraft));
+  }
 
   const patch = (key: string, novo: Partial<CampoDraft>) =>
     setCampos((cs) => cs.map((c) => (c._key === key ? { ...c, ...novo } : c)));
