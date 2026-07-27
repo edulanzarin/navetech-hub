@@ -66,6 +66,9 @@ export function Launcher({
         </Link>
         <h1 className="mt-6 text-2xl font-semibold tracking-tight">Escolha um módulo</h1>
 
+        {/* Módulos de negócio primeiro (na ordem de MODULOS); Administração e
+            Perfil vêm SEMPRE por último e fixos aqui. Módulo novo entra em
+            MODULOS e cai antes destes dois — não mexa nesta ordem. */}
         <div className="mt-8 grid grid-cols-3 gap-3">
           {MODULOS.map((m) => (
             <ModuloCard
