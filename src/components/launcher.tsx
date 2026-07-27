@@ -66,9 +66,10 @@ export function Launcher({
         </Link>
         <h1 className="mt-6 text-2xl font-semibold tracking-tight">Escolha um módulo</h1>
 
-        {/* Módulos de negócio primeiro (na ordem de MODULOS); Administração e
-            Perfil vêm SEMPRE por último e fixos aqui. Módulo novo entra em
-            MODULOS e cai antes destes dois — não mexa nesta ordem. */}
+        {/* Módulos de negócio primeiro (na ordem de MODULOS); Administração vem
+            SEMPRE por último e fixa aqui. Módulo novo entra em MODULOS e cai
+            antes dela — não mexa nesta ordem. O perfil não é módulo: o acesso é
+            pelo bloco de boas-vindas acima (foto clicável). */}
         <div className="mt-8 grid grid-cols-3 gap-3">
           {MODULOS.map((m) => (
             <ModuloCard
@@ -86,13 +87,6 @@ export function Launcher({
             titulo="Administração"
             descricao="Usuários, permissões e grupos de empresa"
             liberado={admin}
-          />
-          <ModuloCard
-            href="/perfil"
-            icone="/images/perfil.png"
-            titulo="Perfil"
-            descricao="Sua foto e sua senha"
-            liberado
           />
         </div>
       </main>
