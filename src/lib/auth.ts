@@ -65,7 +65,11 @@ export async function criarSessao(usuarioId: string): Promise<string> {
   const jar = await cookies();
   jar.set(COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    // `Secure` só quando o Hub é servido por HTTPS. Na LAN interna ele atende
+    // por HTTP puro (ex.: http://ip:4022), e um cookie Secure seria descartado
+    // pelo navegador fora de localhost — a sessão sumiria e o login ciclaria.
+    // Ligar via COOKIE_SECURE=true quando houver TLS na frente.
+    secure: process.env.COOKIE_SECURE === "true",
     sameSite: "lax",
     path: "/",
     expires: expira,
