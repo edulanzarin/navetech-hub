@@ -49,6 +49,7 @@ import type {
 } from "@/lib/rh-tipos";
 import type { Formulario, FormularioResumo } from "@/lib/formularios-tipos";
 import type { EnvioDetalhe, EnvioResumo } from "@/lib/envios";
+import type { RespostaExperienciaDetalhe } from "@/lib/rh-experiencia-dados";
 
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -532,6 +533,14 @@ export interface ExperienciaConfigResp {
 }
 export const useExperienciaConfig = () =>
   useApiQuery<ExperienciaConfigResp>(["rh-experiencia-config"], `/api/rh/experiencia-config`);
+
+/** Respostas de uma avaliação de experiência (por id), para o modal de leitura. */
+export const useExperienciaResposta = (id: number | null) =>
+  useApiQuery<RespostaExperienciaDetalhe>(
+    ["rh-experiencia-resposta", id],
+    `/api/rh/experiencia-respostas?id=${id}`,
+    id != null
+  );
 
 /** Campanhas de envio (lista) e detalhe de uma (com respostas). */
 export const useEnvios = () => useApiQuery<EnvioResumo[]>(["rh-envios"], `/api/rh/envios`);

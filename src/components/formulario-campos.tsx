@@ -35,11 +35,6 @@ export function CamposFormulario({
           <div className="mb-1.5 flex items-baseline gap-1.5">
             <span className="text-sm font-medium text-ink">{campo.rotulo}</span>
             {campo.obrigatorio && <span className="text-critical">*</span>}
-            {campo.config.papel === "decisao" && (
-              <span className="rounded bg-ent/12 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-ent">
-                decisão
-              </span>
-            )}
           </div>
           {campo.ajuda && <p className="mb-2 text-xs text-muted">{campo.ajuda}</p>}
           <CampoControle
@@ -169,22 +164,45 @@ function CampoControle({
       const escala = escalaDoCampo(campo);
       const idx = typeof valor === "number" ? valor : -1;
       return (
-        <div className="inline-flex flex-wrap gap-1 rounded-lg border border-hairline bg-surface p-0.5">
-          {escala.map((rotulo, i) => (
-            <button
-              key={rotulo + i}
-              type="button"
-              disabled={somenteLeitura}
-              onClick={() => onChange(i)}
-              className={clsx(
-                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                idx === i ? "bg-surface-2 text-ink" : "text-muted hover:text-ink",
-                somenteLeitura && "cursor-default"
-              )}
-            >
-              {rotulo}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-start gap-2">
+          {escala.map((rotulo, i) => {
+            const sel = idx === i;
+            const numero = String(i + 1);
+            const temRotulo = rotulo.trim() !== numero; // escala numérica não repete legenda
+            return (
+              <button
+                key={rotulo + i}
+                type="button"
+                disabled={somenteLeitura}
+                onClick={() => onChange(i)}
+                className={clsx(
+                  "flex flex-col items-center gap-1",
+                  somenteLeitura && "cursor-default"
+                )}
+              >
+                <span
+                  className={clsx(
+                    "grid size-10 place-items-center rounded-lg border text-sm font-semibold transition-colors",
+                    sel
+                      ? "border-ink bg-ink text-surface"
+                      : "border-hairline text-ink-2 hover:border-ink/40 hover:bg-surface-2"
+                  )}
+                >
+                  {numero}
+                </span>
+                {temRotulo && (
+                  <span
+                    className={clsx(
+                      "w-16 text-center text-[10px] leading-tight",
+                      sel ? "text-ink" : "text-muted"
+                    )}
+                  >
+                    {rotulo}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       );
     }

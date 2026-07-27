@@ -1,4 +1,3 @@
-import { Contact } from "lucide-react";
 import { resolverTokenPublico } from "@/lib/formulario-publico";
 import { FormularioPublicoView } from "./formulario-publico-view";
 
@@ -14,9 +13,8 @@ export default async function Page({ params }: { params: Promise<{ token: string
     <div className="min-h-screen px-4 py-10">
       <div className="mx-auto max-w-2xl">
         <div className="mb-6 flex items-center gap-2 text-muted">
-          <span className="grid size-8 place-items-center rounded-lg bg-ent/12 text-ent">
-            <Contact className="size-4" />
-          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/images/rh.png" alt="Nexo RH" className="size-8 rounded-lg" />
           <span className="text-sm font-medium">Nexo · RH</span>
         </div>
 

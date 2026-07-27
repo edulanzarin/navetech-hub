@@ -1,14 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertTriangle, Send, CheckCircle2, Clock, UserRound } from "lucide-react";
+import { AlertTriangle, Eye, Send, CheckCircle2, Clock, Settings, UserRound } from "lucide-react";
 import clsx from "clsx";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { SeloEmpresa } from "@/components/rh-selo-empresa";
 import { BotaoExecutar } from "@/components/filters/botao-executar";
 import { FiltroPendente } from "@/components/filtro-pendente";
-import { useExperienciaConfig, useRhExperiencia } from "@/hooks/use-api";
+import { Modal } from "@/components/ui/modal";
+import { CamposFormulario } from "@/components/formulario-campos";
+import { useExperienciaConfig, useExperienciaResposta, useRhExperiencia } from "@/hooks/use-api";
 import { useEstadoModulo } from "@/hooks/use-estado-modulo";
 import { mutar } from "@/hooks/mutar";
 import { EMPRESAS_RH, nomeEmpresaRh } from "@/lib/rh";
@@ -25,7 +27,7 @@ type FiltroEmpresa = "todas" | number;
 
 const STATUS_CLASSE: Record<StatusExperiencia, string> = {
   pendente: "bg-surface-2 text-muted",
-  enviado: "bg-warn/12 text-warn",
+  enviado: "bg-warning/12 text-warning",
   atraso: "bg-critical/12 text-critical",
   respondido: "bg-good/12 text-good",
 };
@@ -37,8 +39,8 @@ function prazoTexto(dias: number): string {
   return `há ${d} ${d === 1 ? "dia" : "dias"}`;
 }
 
-/** Config: qual formulário sai em cada marco e com quanta antecedência. */
-function ConfigExperiencia() {
+/** Config (em modal): qual formulário sai em cada marco e com quanta antecedência. */
+function ConfigExperienciaModal({ onFechar }: { onFechar: () => void }) {
   const { data, isLoading } = useExperienciaConfig();
   const queryClient = useQueryClient();
   const marcos: Marco[] = [45, 90];
@@ -57,63 +59,87 @@ function ConfigExperiencia() {
   const cfgDe = (m: number) => data?.config.find((c) => c.marco === m);
 
   return (
-    <div className="card p-4">
-      <h2 className="text-sm font-semibold text-ink">Configuração da experiência</h2>
-      <p className="mt-0.5 text-xs text-muted">
-        Escolha o formulário que sai em cada marco e com quantos dias de antecedência o aviso dispara
-        para os gestores do setor.
-      </p>
+    <Modal
+      aberto
+      onFechar={onFechar}
+      titulo="Configuração da experiência"
+      subtitulo="Formulário por marco e antecedência do aviso aos gestores do setor"
+      largura="max-w-xl"
+    >
+      <div className="space-y-3 px-6 py-5">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {marcos.map((m) => {
+            const cfg = cfgDe(m);
+            return (
+              <div key={m} className="rounded-lg border border-hairline p-3">
+                <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[11px] font-medium text-ink-2">
+                  Marco {rotuloMarco(m)}
+                </span>
+                <label className="mt-2 block text-xs text-muted">
+                  Formulário
+                  <select
+                    value={cfg?.formularioId ?? ""}
+                    onChange={(e) =>
+                      salvar(m, e.target.value ? Number(e.target.value) : null, cfg?.diasAntes ?? 7)
+                    }
+                    className="mt-1 h-9 w-full rounded-lg border border-hairline bg-surface px-2 text-sm text-ink outline-none focus:border-ink/30"
+                  >
+                    <option value="">Não enviar</option>
+                    {forms.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.nome}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="mt-2 block text-xs text-muted">
+                  Antecedência (dias antes do fim)
+                  <input
+                    key={`${m}-${cfg?.formularioId ?? "x"}-${cfg?.diasAntes ?? 7}`}
+                    type="number"
+                    min={0}
+                    max={60}
+                    defaultValue={cfg?.diasAntes ?? 7}
+                    disabled={!cfg}
+                    onBlur={(e) => cfg && salvar(m, cfg.formularioId, Number(e.target.value))}
+                    className="mt-1 h-9 w-24 rounded-lg border border-hairline bg-surface px-2 text-sm outline-none focus:border-ink/30 disabled:opacity-50"
+                  />
+                </label>
+              </div>
+            );
+          })}
+        </div>
 
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        {marcos.map((m) => {
-          const cfg = cfgDe(m);
-          return (
-            <div key={m} className="rounded-lg border border-hairline p-3">
-              <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[11px] font-medium text-ink-2">
-                Marco {rotuloMarco(m)}
-              </span>
-              <label className="mt-2 block text-xs text-muted">
-                Formulário
-                <select
-                  value={cfg?.formularioId ?? ""}
-                  onChange={(e) =>
-                    salvar(m, e.target.value ? Number(e.target.value) : null, cfg?.diasAntes ?? 7)
-                  }
-                  className="mt-1 h-9 w-full rounded-lg border border-hairline bg-surface px-2 text-sm text-ink outline-none focus:border-ink/30"
-                >
-                  <option value="">Não enviar</option>
-                  {forms.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.nome}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="mt-2 block text-xs text-muted">
-                Antecedência (dias antes do fim)
-                <input
-                  key={`${m}-${cfg?.formularioId ?? "x"}-${cfg?.diasAntes ?? 7}`}
-                  type="number"
-                  min={0}
-                  max={60}
-                  defaultValue={cfg?.diasAntes ?? 7}
-                  disabled={!cfg}
-                  onBlur={(e) => cfg && salvar(m, cfg.formularioId, Number(e.target.value))}
-                  className="mt-1 h-9 w-24 rounded-lg border border-hairline bg-surface px-2 text-sm outline-none focus:border-ink/30 disabled:opacity-50"
-                />
-              </label>
-            </div>
-          );
-        })}
+        {!isLoading && forms.length === 0 && (
+          <p className="text-xs text-warning">
+            Nenhum formulário ativo. Crie um em Formulários e marque como “Ativo” para poder ligá-lo à
+            experiência.
+          </p>
+        )}
       </div>
+    </Modal>
+  );
+}
 
-      {!isLoading && forms.length === 0 && (
-        <p className="mt-3 text-xs text-warning">
-          Nenhum formulário ativo. Crie um em Formulários e marque como “Ativo” para poder ligá-lo à
-          experiência.
-        </p>
-      )}
-    </div>
+/** Modal de leitura das respostas de uma avaliação de experiência respondida. */
+function RespostasExperienciaModal({ id, onFechar }: { id: number; onFechar: () => void }) {
+  const { data, isLoading } = useExperienciaResposta(id);
+  return (
+    <Modal aberto onFechar={onFechar} titulo="Respostas da avaliação" largura="max-w-2xl">
+      <div className="flex-1 overflow-y-auto px-6 py-5">
+        {isLoading || !data ? (
+          <div className="skeleton h-40" />
+        ) : (
+          <>
+            <p className="mb-4 text-xs text-muted">
+              Respondido por <span className="font-medium text-ink-2">{data.respondidoPorNome ?? "—"}</span>
+              {data.respondidoEm && ` em ${dataBR(data.respondidoEm.slice(0, 10))}`}
+            </p>
+            <CamposFormulario campos={data.formulario.campos} valores={data.valores} somenteLeitura />
+          </>
+        )}
+      </div>
+    </Modal>
   );
 }
 
@@ -137,6 +163,8 @@ export default function Conteudo() {
   const { data, isLoading } = useRhExperiencia(qsAplicado ?? "", qsAplicado != null);
   const queryClient = useQueryClient();
   const [enviando, setEnviando] = useState<string | null>(null);
+  const [configAberta, setConfigAberta] = useState(false);
+  const [verResp, setVerResp] = useState<number | null>(null);
 
   const dirty = qsAplicado !== qs;
   const executar = () => {
@@ -190,8 +218,6 @@ export default function Conteudo() {
 
   return (
     <>
-      <ConfigExperiencia />
-
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="inline-flex rounded-lg border border-hairline bg-surface p-0.5">
           {segmentos.map((s) => (
@@ -207,7 +233,15 @@ export default function Conteudo() {
             </button>
           ))}
         </div>
-        <BotaoExecutar onClick={executar} dirty={dirty} rotulo="Visualizar" />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setConfigAberta(true)}
+            className="flex h-9 items-center gap-1.5 rounded-lg border border-hairline px-3 text-sm font-medium text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
+          >
+            <Settings className="size-4" /> Configurar
+          </button>
+          <BotaoExecutar onClick={executar} dirty={dirty} rotulo="Visualizar" />
+        </div>
       </div>
 
       {qsAplicado == null ? (
@@ -218,7 +252,7 @@ export default function Conteudo() {
         <Kpi rotulo="A vencer" valor={kpis.aVencer} tom="text-ink" />
         <Kpi rotulo="Em atraso" valor={kpis.atraso} tom="text-critical" />
         <Kpi rotulo="Respondidos" valor={kpis.respondido} tom="text-good" />
-        <Kpi rotulo="Sem gestor" valor={kpis.semGestor} tom="text-warn" />
+        <Kpi rotulo="Sem gestor" valor={kpis.semGestor} tom="text-warning" />
       </div>
 
       <div className="card overflow-hidden">
@@ -286,15 +320,7 @@ export default function Conteudo() {
                       {STATUS_ROTULO[i.status]}
                     </span>
                     {i.resposta && (
-                      <p className="mt-1 max-w-[220px] text-[11px] text-muted">
-                        {i.resposta.recomendacao && (
-                          <>
-                            <span className="font-medium text-ink-2">{i.resposta.recomendacao}</span>
-                            <br />
-                          </>
-                        )}
-                        <span className="text-muted/80">por {i.resposta.respondidoPor}</span>
-                      </p>
+                      <p className="mt-1 text-[11px] text-muted/80">por {i.resposta.respondidoPor}</p>
                     )}
                     {i.ultimoLembrete && !i.resposta && (
                       <p className="mt-1 text-[11px] text-muted">
@@ -304,7 +330,7 @@ export default function Conteudo() {
                   </td>
                   <td className="py-3 px-3">
                     {i.gestores === 0 ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] text-warn">
+                      <span className="inline-flex items-center gap-1 text-[11px] text-warning">
                         <AlertTriangle className="size-3" /> nenhum
                       </span>
                     ) : (
@@ -312,7 +338,15 @@ export default function Conteudo() {
                     )}
                   </td>
                   <td className="py-3 pl-3 pr-4 text-right">
-                    {i.status !== "respondido" && (
+                    {i.status === "respondido" ? (
+                      <button
+                        onClick={() => setVerResp(i.id)}
+                        disabled={i.id == null}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-hairline px-2.5 py-1.5 text-xs font-medium text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-40"
+                      >
+                        <Eye className="size-3.5" /> Ver respostas
+                      </button>
+                    ) : (
                       <button
                         onClick={() => reenviar(i)}
                         disabled={i.gestores === 0 || enviando === chave(i)}
@@ -338,6 +372,11 @@ export default function Conteudo() {
         </div>
       </div>
       </>
+      )}
+
+      {configAberta && <ConfigExperienciaModal onFechar={() => setConfigAberta(false)} />}
+      {verResp != null && (
+        <RespostasExperienciaModal id={verResp} onFechar={() => setVerResp(null)} />
       )}
     </>
   );

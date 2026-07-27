@@ -3,6 +3,8 @@ import { randomBytes } from "node:crypto";
 import { query } from "./db";
 import { appQuery } from "./app-db";
 import { enviarEmail } from "./mailer";
+import { carregarFormulario } from "./formularios";
+import type { Formulario, RespostaValores } from "./formularios-tipos";
 import { EMPRESAS_RH, nomeEmpresaRh, appUrl } from "./rh";
 import { MARCOS, rotuloMarco, type Marco, type StatusExperiencia } from "./rh-experiencia";
 import type { ExperienciaItem } from "./rh-tipos";
@@ -109,6 +111,42 @@ export async function salvarConfigMarco(
            atualizado_em = now()`,
     [marco, formularioId, dias]
   );
+}
+
+export interface RespostaExperienciaDetalhe {
+  formulario: Formulario;
+  respondidoPorNome: string | null;
+  respondidoEm: string | null;
+  valores: RespostaValores;
+}
+
+/** Respostas de uma avaliação de experiência (por id de rh_experiencia): o
+ *  formulário usado + o que o gestor respondeu, para o painel abrir em leitura. */
+export async function carregarRespostaExperiencia(
+  id: number
+): Promise<RespostaExperienciaDetalhe | null> {
+  const [r] = await appQuery<{
+    formulario_id: number | null;
+    respondido_por_nome: string | null;
+    respondido_em: string | null;
+    respostas: { valores?: RespostaValores } | null;
+  }>(
+    `select e.formulario_id, rr.respondido_por_nome,
+            to_char(rr.respondido_em, 'YYYY-MM-DD"T"HH24:MI:SS') as respondido_em, rr.respostas
+       from rh_experiencia e
+       join rh_experiencia_resposta rr on rr.experiencia_id = e.id
+      where e.id = $1`,
+    [id]
+  );
+  if (!r || !r.formulario_id) return null;
+  const formulario = await carregarFormulario(r.formulario_id);
+  if (!formulario) return null;
+  return {
+    formulario,
+    respondidoPorNome: r.respondido_por_nome,
+    respondidoEm: r.respondido_em,
+    valores: r.respostas?.valores ?? {},
+  };
 }
 
 /** Um contrato específico (para reenvio pontual do formulário). */
@@ -330,6 +368,7 @@ export interface ResumoCron {
   verificados: number;
   enviados: number;
   jaEnviados: number;
+  jaRespondidos: number;
   semGestores: number;
   semFormulario: number;
   erros: number;
@@ -355,6 +394,7 @@ export async function rodarCronExperiencia(
     verificados: 0,
     enviados: 0,
     jaEnviados: 0,
+    jaRespondidos: 0,
     semGestores: 0,
     semFormulario: 0,
     erros: 0,
@@ -368,11 +408,12 @@ export async function rodarCronExperiencia(
       const vencimento = addDias(c.dataadm, marco);
       const dias = diasEntre(hoje, vencimento);
 
-      // Um disparo por marco: quando entra na antecedência configurada (padrão 7
-      // dias antes). Depois do vencimento, um único aviso de atraso (slot 0). O
-      // unique (experiencia_id, dias_antes) garante que não repete.
+      // Antes do fim: UM disparo, quando entra na antecedência configurada (padrão
+      // 7 dias antes) — slot = diasAntes, o unique por slot não deixa repetir.
+      // Depois do fim (atrasado): lembrete TODO DIA até responderem — slot = dias
+      // (negativo, distinto por dia), então um e-mail por dia, sem duplicar no dia.
       let slot: number;
-      if (dias < 0) slot = 0;
+      if (dias < 0) slot = dias;
       else if (dias <= cfg.diasAntes) slot = cfg.diasAntes;
       else continue; // ainda distante
 
@@ -380,6 +421,7 @@ export async function rodarCronExperiencia(
       try {
         const r = await enviarFormularioExperiencia({ contrato: c, marco, vencimento, slot, config });
         if (r.enviado) resumo.enviados++;
+        else if (r.jaRespondido) resumo.jaRespondidos++;
         else if (r.jaEnviado) resumo.jaEnviados++;
         else if (r.semGestores) resumo.semGestores++;
         else if (r.semFormulario) resumo.semFormulario++;
@@ -437,6 +479,7 @@ export async function materializarExperiencia(params: {
 export interface ResultadoEnvio {
   enviado: boolean;
   jaEnviado?: boolean; // esse slot de lembrete já tinha sido disparado
+  jaRespondido?: boolean; // avaliação já respondida — não manda mais nada
   semGestores?: boolean; // setor sem gestor cadastrado — não há para quem enviar
   semFormulario?: boolean; // marco sem formulário configurado — nada a enviar
   destinatarios: string[];
@@ -472,6 +515,14 @@ export async function enviarFormularioExperiencia(opts: {
     vencimento,
     formularioId: cfg.formularioId,
   });
+
+  // Já respondida? Não manda mais nada — nem lembrete diário de atraso, nem
+  // reenvio manual. O link é único e compartilhado: quem respondeu travou o resto.
+  const [st] = await appQuery<{ status: StatusExperiencia }>(
+    `select status from rh_experiencia where id = $1`,
+    [id]
+  );
+  if (st?.status === "respondido") return { enviado: false, jaRespondido: true, destinatarios: [] };
 
   // Slot já disparado antes? (só trava o disparo automático; reenvio manual passa)
   if (!forcado) {

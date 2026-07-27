@@ -56,7 +56,6 @@ interface CampoDraft {
   escalaTexto: string; // um rótulo por linha (nota)
   min: number;
   max: number;
-  papelDecisao: boolean;
 }
 
 function campoParaDraft(c: FormularioCampo): CampoDraft {
@@ -71,7 +70,6 @@ function campoParaDraft(c: FormularioCampo): CampoDraft {
     escalaTexto: (c.config.escala ?? []).join("\n"),
     min: c.config.min ?? 0,
     max: c.config.max ?? (c.tipo === "pontuacao" ? 10 : 5),
-    papelDecisao: c.config.papel === "decisao",
   };
 }
 
@@ -88,7 +86,6 @@ function draftNovo(tipo: TipoCampo): CampoDraft {
     escalaTexto: tipo === "nota" ? "Insatisfatório\nRegular\nBom\nExcelente" : "",
     min: 0,
     max: tipo === "pontuacao" ? 10 : 5,
-    papelDecisao: false,
   };
 }
 
@@ -100,7 +97,6 @@ function draftConfig(d: CampoDraft): CampoConfig {
     config.min = d.min;
     config.max = d.max;
   }
-  if (d.tipo === "selecao_unica" && d.papelDecisao) config.papel = "decisao";
   return config;
 }
 
@@ -369,6 +365,7 @@ function Editor({ id, onVoltar }: { id: number; onVoltar: () => void }) {
       queryClient.invalidateQueries({ queryKey: ["rh-formularios"] });
       queryClient.invalidateQueries({ queryKey: ["rh-formulario", id] });
       toast.success("Formulário salvo");
+      onVoltar(); // limpa o editor e volta pra lista, mostrando o salvo
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao salvar");
     } finally {
@@ -620,17 +617,6 @@ function CampoEditor({
               />
               Obrigatória
             </label>
-            {campo.tipo === "selecao_unica" && (
-              <label className="flex items-center gap-1.5 text-xs text-ink-2">
-                <input
-                  type="checkbox"
-                  checked={campo.papelDecisao}
-                  onChange={(e) => onMudar({ papelDecisao: e.target.checked })}
-                  className="size-3.5 accent-ink"
-                />
-                É a decisão/recomendação
-              </label>
-            )}
           </div>
         </div>
 

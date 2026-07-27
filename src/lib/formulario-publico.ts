@@ -138,17 +138,16 @@ export async function salvarRespostaPublica(
   if (Object.keys(erros).length) {
     return { ok: false, erro: "Revise os campos destacados antes de enviar" };
   }
-  const decisao = extrairDecisao(formulario, dados.valores);
   const respostas = JSON.stringify({ valores: dados.valores });
 
   if (alvo.origem === "experiencia") {
     const [inserida] = await appQuery<{ id: number }>(
       `insert into rh_experiencia_resposta
-          (experiencia_id, respondido_por_nome, respondido_por_email, recomendacao, respostas)
-       values ($1, $2, $3, $4, $5)
+          (experiencia_id, respondido_por_nome, respondido_por_email, respostas)
+       values ($1, $2, $3, $4)
        on conflict (experiencia_id) do nothing
        returning id`,
-      [alvo.id, dados.respondidoPorNome.trim(), dados.respondidoPorEmail?.trim() || null, decisao, respostas]
+      [alvo.id, dados.respondidoPorNome.trim(), dados.respondidoPorEmail?.trim() || null, respostas]
     );
     if (!inserida) return { ok: false, erro: "Este formulário já foi respondido" };
     await appQuery(`update rh_experiencia set status = 'respondido' where id = $1`, [alvo.id]);
@@ -193,12 +192,4 @@ async function localizarAlvo(token: string): Promise<Alvo | null> {
     }
   }
   return null;
-}
-
-/** Valor do campo marcado como decisão (config.papel = 'decisao'), para os painéis. */
-function extrairDecisao(formulario: Formulario, valores: RespostaValores): string | null {
-  const campo = formulario.campos.find((c) => c.config.papel === "decisao");
-  if (!campo) return null;
-  const v = valores[String(campo.id)];
-  return typeof v === "string" && v.trim() ? v : null;
 }

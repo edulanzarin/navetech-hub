@@ -94,6 +94,7 @@ const MAPA: Record<ModuloId, Record<string, string[]>> = {
     // Experiência
     experiencia: ["experiencia"],
     "experiencia-reenviar": ["experiencia"],
+    "experiencia-respostas": ["experiencia"], // ler as respostas de uma avaliação
     "experiencia-config": ["experiencia", "formularios"], // config da experiência
     // Formulários (builder) e campanhas de envio
     formularios: ["formularios"],
