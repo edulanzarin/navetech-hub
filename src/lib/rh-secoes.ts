@@ -1,4 +1,4 @@
-import { CalendarClock, Repeat, UserCog, Users } from "lucide-react";
+import { CalendarClock, FileText, Repeat, UserCog, Users } from "lucide-react";
 import type { SecaoFiscal } from "./fiscal-secoes";
 
 /**
@@ -25,6 +25,14 @@ export const SECOES_RH: SecaoFiscal[] = [
     path: "/rh/experiencia",
     metrica: false,
     descricao: "Contratos em experiência: avaliação de 45 e 90 dias",
+  },
+  {
+    id: "formularios",
+    icone: FileText,
+    rotulo: "Formulários",
+    path: "/rh/formularios",
+    metrica: false,
+    descricao: "Monte formulários e envie aos gestores (manual ou automático)",
   },
   {
     id: "rotatividade",

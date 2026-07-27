@@ -94,6 +94,10 @@ const MAPA: Record<ModuloId, Record<string, string[]>> = {
     // Experiência
     experiencia: ["experiencia"],
     "experiencia-reenviar": ["experiencia"],
+    "experiencia-config": ["experiencia", "formularios"], // config da experiência
+    // Formulários (builder) e campanhas de envio
+    formularios: ["formularios"],
+    envios: ["formularios"],
     // Gestores
     gestores: ["gestores"],
     // Rotatividade (reusa libs da Folha, rotas próprias do módulo)

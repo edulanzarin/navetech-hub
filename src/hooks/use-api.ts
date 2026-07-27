@@ -47,6 +47,7 @@ import type {
   GestorRh,
   ExperienciaItem,
 } from "@/lib/rh-tipos";
+import type { Formulario, FormularioResumo } from "@/lib/formularios-tipos";
 
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -514,3 +515,11 @@ export const useRhExperiencia = (qs = "", enabled = true) =>
     `/api/rh/experiencia${qs ? `?${qs}` : ""}`,
     enabled
   );
+
+/** Formulários montados no builder (lista, sem os campos). */
+export const useFormularios = () =>
+  useApiQuery<FormularioResumo[]>(["rh-formularios"], `/api/rh/formularios`);
+
+/** Um formulário com seus campos (para o editor). */
+export const useFormulario = (id: number | null) =>
+  useApiQuery<Formulario>(["rh-formulario", id], `/api/rh/formularios?id=${id}`, id != null);
