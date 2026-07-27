@@ -1,6 +1,9 @@
 services:
   app:
     build: .
+    # Nome fixo da imagem — sem isto o Compose derivaria de COMPOSE_PROJECT_NAME
+    # (e um .env com nome antigo geraria uma imagem com a marca errada).
+    image: nexo-app
     container_name: nexo-app
     restart: unless-stopped
     # Acesso pela rede: http://<ip-do-computador>:4022
