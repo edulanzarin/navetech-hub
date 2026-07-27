@@ -29,6 +29,11 @@ export const POST = apiRoute(async (req) => {
     slot: -1,
     forcado: true,
   });
+  if (r.semFormulario) {
+    throw new FilterError(
+      "Nenhum formulário ligado a este marco — escolha um na configuração da Experiência"
+    );
+  }
   if (r.semGestores) {
     throw new FilterError("Setor sem gestor cadastrado — cadastre um gestor antes de enviar");
   }

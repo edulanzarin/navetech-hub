@@ -4,8 +4,7 @@ import { query } from "./db";
 import { appQuery } from "./app-db";
 import { enviarEmail } from "./mailer";
 import { EMPRESAS_RH, nomeEmpresaRh, appUrl } from "./rh";
-import { MARCOS, type Marco, type StatusExperiencia } from "./rh-experiencia";
-import { rotuloMarco, recomendacoesDoMarco } from "./rh-experiencia";
+import { MARCOS, rotuloMarco, type Marco, type StatusExperiencia } from "./rh-experiencia";
 import type { ExperienciaItem } from "./rh-tipos";
 
 /**
@@ -60,90 +59,56 @@ export async function buscarContratosExperiencia(
   );
 }
 
-// ── Formulário público (por token, sem login) ────────────────────────────────
+// ── Configuração da experiência (qual formulário e antecedência por marco) ────
 
-export interface ExperienciaPublica {
-  nome: string;
-  empresa: number;
-  cargo: string | null;
-  setor: string | null;
+export interface ConfigMarco {
+  formularioId: number;
+  diasAntes: number;
+}
+
+/** Config por marco (45/90): formulário ligado e dias de antecedência do aviso.
+ *  Marco sem linha = não é enviado (a RH ainda não ligou um formulário). */
+export async function carregarConfigExperiencia(): Promise<Map<Marco, ConfigMarco>> {
+  const m = new Map<Marco, ConfigMarco>();
+  for (const r of await listarConfigExperiencia()) {
+    m.set(r.marco, { formularioId: r.formularioId, diasAntes: r.diasAntes });
+  }
+  return m;
+}
+
+export interface ConfigMarcoLinha {
   marco: Marco;
-  vencimento: string;
-  jaRespondido: boolean;
+  formularioId: number;
+  diasAntes: number;
 }
 
-/** Dados do formulário público a partir do token (ou null se o token não existe). */
-export async function carregarExperienciaPorToken(
-  token: string
-): Promise<ExperienciaPublica | null> {
-  const [e] = await appQuery<{
-    codigoempresa: number;
-    codigofunccontr: number;
-    marco: Marco;
-    data_vencimento: string;
-    status: StatusExperiencia;
-  }>(
-    `select codigoempresa, codigofunccontr, marco,
-            to_char(data_vencimento, 'YYYY-MM-DD') as data_vencimento, status
-       from rh_experiencia where token = $1`,
-    [token]
+/** Config em lista (para a tela). */
+export async function listarConfigExperiencia(): Promise<ConfigMarcoLinha[]> {
+  const rows = await appQuery<{ marco: Marco; formulario_id: number; dias_antes: number }>(
+    `select marco, formulario_id, dias_antes from rh_experiencia_config order by marco`
   );
-  if (!e) return null;
-  const c = await buscarUmContrato(e.codigoempresa, e.codigofunccontr);
-  return {
-    nome: c?.nome ?? "Funcionário",
-    empresa: e.codigoempresa,
-    cargo: c?.cargo ?? null,
-    setor: c?.setor ?? null,
-    marco: e.marco,
-    vencimento: e.data_vencimento,
-    jaRespondido: e.status === "respondido",
-  };
+  return rows.map((r) => ({ marco: r.marco, formularioId: r.formulario_id, diasAntes: r.dias_antes }));
 }
 
-export interface RespostaEntrada {
-  respondidoPorNome: string;
-  respondidoPorEmail?: string | null;
-  recomendacao: string;
-  criterios: Record<string, number>;
-  comentarios?: string | null;
-}
-
-/** Salva a resposta do gestor e marca a experiência como respondida. */
-export async function salvarRespostaExperiencia(
-  token: string,
-  dados: RespostaEntrada
-): Promise<{ ok: boolean; erro?: string }> {
-  const [e] = await appQuery<{ id: number; marco: Marco; status: StatusExperiencia }>(
-    `select id, marco, status from rh_experiencia where token = $1`,
-    [token]
+/** Liga (ou desliga, com formularioId=null) um formulário a um marco. */
+export async function salvarConfigMarco(
+  marco: Marco,
+  formularioId: number | null,
+  diasAntes: number
+): Promise<void> {
+  if (formularioId == null) {
+    await appQuery(`delete from rh_experiencia_config where marco = $1`, [marco]);
+    return;
+  }
+  const dias = Math.max(0, Math.min(60, Math.round(diasAntes)));
+  await appQuery(
+    `insert into rh_experiencia_config (marco, formulario_id, dias_antes)
+     values ($1, $2, $3)
+     on conflict (marco) do update
+       set formulario_id = excluded.formulario_id, dias_antes = excluded.dias_antes,
+           atualizado_em = now()`,
+    [marco, formularioId, dias]
   );
-  if (!e) return { ok: false, erro: "Formulário não encontrado" };
-  if (e.status === "respondido") return { ok: false, erro: "Este formulário já foi respondido" };
-  if (!dados.respondidoPorNome?.trim()) return { ok: false, erro: "Informe seu nome" };
-
-  const validas = recomendacoesDoMarco(e.marco).map((r) => r.valor as string);
-  if (!validas.includes(dados.recomendacao)) return { ok: false, erro: "Recomendação inválida" };
-
-  const [inserida] = await appQuery<{ id: number }>(
-    `insert into rh_experiencia_resposta
-        (experiencia_id, respondido_por_nome, respondido_por_email, recomendacao, respostas, comentarios)
-     values ($1, $2, $3, $4, $5, $6)
-     on conflict (experiencia_id) do nothing
-     returning id`,
-    [
-      e.id,
-      dados.respondidoPorNome.trim(),
-      dados.respondidoPorEmail?.trim() || null,
-      dados.recomendacao,
-      JSON.stringify({ criterios: dados.criterios ?? {} }),
-      dados.comentarios?.trim() || null,
-    ]
-  );
-  if (!inserida) return { ok: false, erro: "Este formulário já foi respondido" };
-
-  await appQuery(`update rh_experiencia set status = 'respondido' where id = $1`, [e.id]);
-  return { ok: true };
 }
 
 /** Um contrato específico (para reenvio pontual do formulário). */
@@ -184,7 +149,7 @@ export function emailExperiencia(params: {
   token: string;
   atrasado?: boolean;
 }): { assunto: string; html: string } {
-  const link = `${appUrl()}/experiencia/${params.token}`;
+  const link = `${appUrl()}/f/${params.token}`;
   const venc = formatarData(params.vencimento);
   const marcoTxt = rotuloMarco(params.marco);
   const urgencia = params.atrasado
@@ -366,6 +331,7 @@ export interface ResumoCron {
   enviados: number;
   jaEnviados: number;
   semGestores: number;
+  semFormulario: number;
   erros: number;
 }
 
@@ -380,30 +346,43 @@ export interface ResumoCron {
 export async function rodarCronExperiencia(
   empresas: number[] = [...EMPRESAS_RH]
 ): Promise<ResumoCron> {
-  const contratos = await buscarContratosExperiencia(empresas, 120);
+  const [contratos, config] = await Promise.all([
+    buscarContratosExperiencia(empresas, 120),
+    carregarConfigExperiencia(),
+  ]);
   const hoje = hojeISO();
-  const resumo: ResumoCron = { verificados: 0, enviados: 0, jaEnviados: 0, semGestores: 0, erros: 0 };
+  const resumo: ResumoCron = {
+    verificados: 0,
+    enviados: 0,
+    jaEnviados: 0,
+    semGestores: 0,
+    semFormulario: 0,
+    erros: 0,
+  };
 
   for (const c of contratos) {
     for (const marco of MARCOS) {
+      const cfg = config.get(marco);
+      if (!cfg) continue; // marco sem formulário ligado: não dispara
+
       const vencimento = addDias(c.dataadm, marco);
       const dias = diasEntre(hoje, vencimento);
 
+      // Um disparo por marco: quando entra na antecedência configurada (padrão 7
+      // dias antes). Depois do vencimento, um único aviso de atraso (slot 0). O
+      // unique (experiencia_id, dias_antes) garante que não repete.
       let slot: number;
-      if (dias < 0) {
-        slot = 0; // atraso: um aviso após o vencimento
-      } else {
-        const alcancados = [15, 10, 5, 1].filter((s) => dias <= s);
-        if (alcancados.length === 0) continue; // ainda distante
-        slot = Math.min(...alcancados);
-      }
+      if (dias < 0) slot = 0;
+      else if (dias <= cfg.diasAntes) slot = cfg.diasAntes;
+      else continue; // ainda distante
 
       resumo.verificados++;
       try {
-        const r = await enviarFormularioExperiencia({ contrato: c, marco, vencimento, slot });
+        const r = await enviarFormularioExperiencia({ contrato: c, marco, vencimento, slot, config });
         if (r.enviado) resumo.enviados++;
         else if (r.jaEnviado) resumo.jaEnviados++;
         else if (r.semGestores) resumo.semGestores++;
+        else if (r.semFormulario) resumo.semFormulario++;
         else resumo.enviados++; // registrado (driver de log sem SMTP)
       } catch (err) {
         resumo.erros++;
@@ -433,12 +412,14 @@ export async function materializarExperiencia(params: {
   marco: Marco;
   dataadm: string;
   vencimento: string;
+  formularioId: number;
 }): Promise<{ id: number; token: string }> {
   const [row] = await appQuery<{ id: number; token: string }>(
     `insert into rh_experiencia
-        (codigoempresa, codigofunccontr, marco, data_admissao, data_vencimento, token)
-     values ($1, $2, $3, $4, $5, $6)
-     on conflict (codigoempresa, codigofunccontr, marco) do update set atualizado_em = now()
+        (codigoempresa, codigofunccontr, marco, data_admissao, data_vencimento, token, formulario_id)
+     values ($1, $2, $3, $4, $5, $6, $7)
+     on conflict (codigoempresa, codigofunccontr, marco)
+       do update set atualizado_em = now(), formulario_id = excluded.formulario_id
      returning id, token`,
     [
       params.codigoempresa,
@@ -447,6 +428,7 @@ export async function materializarExperiencia(params: {
       params.dataadm,
       params.vencimento,
       gerarToken(),
+      params.formularioId,
     ]
   );
   return row;
@@ -456,14 +438,17 @@ export interface ResultadoEnvio {
   enviado: boolean;
   jaEnviado?: boolean; // esse slot de lembrete já tinha sido disparado
   semGestores?: boolean; // setor sem gestor cadastrado — não há para quem enviar
+  semFormulario?: boolean; // marco sem formulário configurado — nada a enviar
   destinatarios: string[];
 }
 
 /**
  * Dispara (ou reenvia) o formulário de experiência de um marco. Materializa a
- * linha, resolve os gestores do setor, manda o e-mail e registra o lembrete.
- * `slot` é o dias-antes do disparo (15/10/5/1, 0 = atraso; -1 = reenvio manual).
- * Sem `forcado`, um slot já disparado não repete (o log tem unique por slot).
+ * linha (com o formulário configurado para o marco), resolve os gestores do
+ * setor, manda o e-mail e registra o lembrete. `slot` é o dias-antes do disparo
+ * (a antecedência configurada, 0 = atraso; -1 = reenvio manual). Sem `forcado`,
+ * um slot já disparado não repete (o log tem unique por slot). Sem formulário
+ * ligado ao marco, devolve `semFormulario` (nada a enviar).
  */
 export async function enviarFormularioExperiencia(opts: {
   contrato: ContratoExperiencia;
@@ -471,8 +456,13 @@ export async function enviarFormularioExperiencia(opts: {
   vencimento: string;
   slot: number;
   forcado?: boolean;
+  config?: Map<Marco, ConfigMarco>;
 }): Promise<ResultadoEnvio> {
   const { contrato: c, marco, vencimento, slot, forcado } = opts;
+
+  const config = opts.config ?? (await carregarConfigExperiencia());
+  const cfg = config.get(marco);
+  if (!cfg) return { enviado: false, semFormulario: true, destinatarios: [] };
 
   const { id, token } = await materializarExperiencia({
     codigoempresa: c.codigoempresa,
@@ -480,6 +470,7 @@ export async function enviarFormularioExperiencia(opts: {
     marco,
     dataadm: c.dataadm,
     vencimento,
+    formularioId: cfg.formularioId,
   });
 
   // Slot já disparado antes? (só trava o disparo automático; reenvio manual passa)

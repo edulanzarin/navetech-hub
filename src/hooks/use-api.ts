@@ -523,3 +523,11 @@ export const useFormularios = () =>
 /** Um formulário com seus campos (para o editor). */
 export const useFormulario = (id: number | null) =>
   useApiQuery<Formulario>(["rh-formulario", id], `/api/rh/formularios?id=${id}`, id != null);
+
+/** Config da experiência: formulário e antecedência por marco (+ forms ativos). */
+export interface ExperienciaConfigResp {
+  config: { marco: 45 | 90; formularioId: number; diasAntes: number }[];
+  formularios: FormularioResumo[];
+}
+export const useExperienciaConfig = () =>
+  useApiQuery<ExperienciaConfigResp>(["rh-experiencia-config"], `/api/rh/experiencia-config`);

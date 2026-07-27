@@ -8,7 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { SeloEmpresa } from "@/components/rh-selo-empresa";
 import { BotaoExecutar } from "@/components/filters/botao-executar";
 import { FiltroPendente } from "@/components/filtro-pendente";
-import { useRhExperiencia } from "@/hooks/use-api";
+import { useExperienciaConfig, useRhExperiencia } from "@/hooks/use-api";
 import { useEstadoModulo } from "@/hooks/use-estado-modulo";
 import { mutar } from "@/hooks/mutar";
 import { EMPRESAS_RH, nomeEmpresaRh } from "@/lib/rh";
@@ -16,7 +16,7 @@ import { dataBR } from "@/lib/format";
 import {
   STATUS_ROTULO,
   rotuloMarco,
-  rotuloRecomendacao,
+  type Marco,
   type StatusExperiencia,
 } from "@/lib/rh-experiencia";
 import type { ExperienciaItem } from "@/lib/rh-tipos";
@@ -35,6 +35,86 @@ function prazoTexto(dias: number): string {
   if (dias > 0) return `em ${dias} ${dias === 1 ? "dia" : "dias"}`;
   const d = Math.abs(dias);
   return `há ${d} ${d === 1 ? "dia" : "dias"}`;
+}
+
+/** Config: qual formulário sai em cada marco e com quanta antecedência. */
+function ConfigExperiencia() {
+  const { data, isLoading } = useExperienciaConfig();
+  const queryClient = useQueryClient();
+  const marcos: Marco[] = [45, 90];
+
+  const salvar = async (marco: number, formularioId: number | null, diasAntes: number) => {
+    try {
+      await mutar("/api/rh/experiencia-config", "PUT", { marco, formularioId, diasAntes });
+      queryClient.invalidateQueries({ queryKey: ["rh-experiencia-config"] });
+      toast.success("Configuração salva");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao salvar");
+    }
+  };
+
+  const forms = data?.formularios ?? [];
+  const cfgDe = (m: number) => data?.config.find((c) => c.marco === m);
+
+  return (
+    <div className="card p-4">
+      <h2 className="text-sm font-semibold text-ink">Configuração da experiência</h2>
+      <p className="mt-0.5 text-xs text-muted">
+        Escolha o formulário que sai em cada marco e com quantos dias de antecedência o aviso dispara
+        para os gestores do setor.
+      </p>
+
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        {marcos.map((m) => {
+          const cfg = cfgDe(m);
+          return (
+            <div key={m} className="rounded-lg border border-hairline p-3">
+              <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[11px] font-medium text-ink-2">
+                Marco {rotuloMarco(m)}
+              </span>
+              <label className="mt-2 block text-xs text-muted">
+                Formulário
+                <select
+                  value={cfg?.formularioId ?? ""}
+                  onChange={(e) =>
+                    salvar(m, e.target.value ? Number(e.target.value) : null, cfg?.diasAntes ?? 7)
+                  }
+                  className="mt-1 h-9 w-full rounded-lg border border-hairline bg-surface px-2 text-sm text-ink outline-none focus:border-ink/30"
+                >
+                  <option value="">Não enviar</option>
+                  {forms.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.nome}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="mt-2 block text-xs text-muted">
+                Antecedência (dias antes do fim)
+                <input
+                  key={`${m}-${cfg?.formularioId ?? "x"}-${cfg?.diasAntes ?? 7}`}
+                  type="number"
+                  min={0}
+                  max={60}
+                  defaultValue={cfg?.diasAntes ?? 7}
+                  disabled={!cfg}
+                  onBlur={(e) => cfg && salvar(m, cfg.formularioId, Number(e.target.value))}
+                  className="mt-1 h-9 w-24 rounded-lg border border-hairline bg-surface px-2 text-sm outline-none focus:border-ink/30 disabled:opacity-50"
+                />
+              </label>
+            </div>
+          );
+        })}
+      </div>
+
+      {!isLoading && forms.length === 0 && (
+        <p className="mt-3 text-xs text-warning">
+          Nenhum formulário ativo. Crie um em Formulários e marque como “Ativo” para poder ligá-lo à
+          experiência.
+        </p>
+      )}
+    </div>
+  );
 }
 
 function Kpi({ rotulo, valor, tom }: { rotulo: string; valor: number; tom: string }) {
@@ -110,6 +190,8 @@ export default function Conteudo() {
 
   return (
     <>
+      <ConfigExperiencia />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="inline-flex rounded-lg border border-hairline bg-surface p-0.5">
           {segmentos.map((s) => (
@@ -205,8 +287,12 @@ export default function Conteudo() {
                     </span>
                     {i.resposta && (
                       <p className="mt-1 max-w-[220px] text-[11px] text-muted">
-                        {rotuloRecomendacao(i.resposta.recomendacao)}
-                        <br />
+                        {i.resposta.recomendacao && (
+                          <>
+                            <span className="font-medium text-ink-2">{i.resposta.recomendacao}</span>
+                            <br />
+                          </>
+                        )}
                         <span className="text-muted/80">por {i.resposta.respondidoPor}</span>
                       </p>
                     )}
