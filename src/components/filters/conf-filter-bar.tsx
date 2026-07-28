@@ -25,6 +25,7 @@ export function ConfFilterBar({
   mostrarPeriodo = true,
   periodoMensal = false,
   mostrarFilial = true,
+  empresaOpcional = false,
   execucao = { imediata: false, rotulo: "Executar" },
   extras,
 }: {
@@ -34,6 +35,9 @@ export function ConfFilterBar({
   /** Seletor de filial (só telas de dado; a Folha tem o seu próprio, e o
    *  cadastro do plano é por empresa). Depende do buildWhere honrar `estabs`. */
   mostrarFilial?: boolean;
+  /** Empresa vira filtro, não obrigação: "Todas as empresas" é o padrão e o
+   *  Executar não exige seleção (Produtividade do DP varre todo o escopo). */
+  empresaOpcional?: boolean;
   execucao?: { imediata: boolean; rotulo: string };
   /** Controles que a aba põe NA LINHA da barra, ao lado da empresa (ex.: conta
    *  e extrato na Conciliação). Compartilham estado com a página via seção. */
@@ -62,7 +66,9 @@ export function ConfFilterBar({
   const rotuloEmpresa =
     empresaSel != null
       ? (empresas?.find((e) => e.codigo === empresaSel)?.nome ?? `Empresa ${empresaSel}`)
-      : "Selecione a empresa";
+      : empresaOpcional
+        ? "Todas as empresas"
+        : "Selecione a empresa";
 
   const empresasFiltradas = useMemo(() => {
     if (!empresas) return [];
@@ -96,6 +102,20 @@ export function ConfFilterBar({
             </div>
             <div className="max-h-72 overflow-y-auto py-1">
               {!empresas && <p className="px-3 py-2 text-sm text-muted">Carregando…</p>}
+              {empresaOpcional && (
+                <ItemLista
+                  selecionado={empresaSel == null}
+                  onClick={() => {
+                    editar({ empresas: [], estabs: [] });
+                    fechar();
+                  }}
+                >
+                  <span className="grid size-4 shrink-0 place-items-center">
+                    {empresaSel == null && <Check className="size-4 stroke-[3] text-ent" />}
+                  </span>
+                  <span className="flex-1 truncate text-muted">Todas as empresas</span>
+                </ItemLista>
+              )}
               {empresasFiltradas.slice(0, 200).map((e) => (
                 <ItemLista
                   key={e.codigo}
@@ -157,8 +177,8 @@ export function ConfFilterBar({
             onClick={aoExecutar}
             dirty={dirty}
             rotulo={execucao.rotulo}
-            disabled={empresaSel == null}
-            title={empresaSel == null ? "Selecione uma empresa" : undefined}
+            disabled={!empresaOpcional && empresaSel == null}
+            title={!empresaOpcional && empresaSel == null ? "Selecione uma empresa" : undefined}
           />
         </div>
       )}

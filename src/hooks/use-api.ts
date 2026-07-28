@@ -48,6 +48,7 @@ import type {
   ExperienciaItem,
 } from "@/lib/rh-tipos";
 import type { Formulario, FormularioResumo } from "@/lib/formularios-tipos";
+import type { DpResumo, DpLinha, DpTipo } from "@/lib/dp-tipos";
 import type { EnvioDetalhe, EnvioResumo } from "@/lib/envios";
 import type { RespostaExperienciaDetalhe } from "@/lib/rh-experiencia-dados";
 
@@ -354,6 +355,20 @@ export const useFicha = (
     ["ficha", modulo, empresa, contrato],
     `/api/${modulo}/funcionario?empresa=${empresa}&contrato=${contrato}`,
     empresa != null && contrato != null
+  );
+
+// ── Produtividade do DP (Folha) ─────────────────────────────────────────────
+
+/** Ranking por colaborador + totais do período (avisos/rescisões/admissões/férias). */
+export const useDpProdutividade = (qs: string, enabled = true) =>
+  useApiQuery<DpResumo>(["dp-produtividade", qs], `/api/folha/dp-produtividade?${qs}`, enabled);
+
+/** Detalhe de um dos quatro trabalhos do DP no período (uma linha por registro). */
+export const useDpLista = (qs: string, tipo: DpTipo, enabled = true) =>
+  useApiQuery<DpLinha[]>(
+    ["dp-lista", tipo, qs],
+    `/api/folha/dp-lista?${qs}&tipo=${tipo}`,
+    enabled
   );
 
 export const useConferencia = (qs: string, enabled = true) =>

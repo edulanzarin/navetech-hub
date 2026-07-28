@@ -37,9 +37,9 @@ export function FolhaShell({ children }: { children: React.ReactNode }) {
         }
       />
 
-      {/* Uma empresa por vez: rotatividade se lê por empresa, não somando o
-          escritório todo. A ConfFilterBar já traz empresa obrigatória + período. */}
-      <ConfFilterBar mostrarFilial={false} />
+      {/* Rotatividade se lê por empresa (uma por vez); Produtividade é o retrato
+          do escritório, então empresa vira filtro opcional (todas por padrão). */}
+      <ConfFilterBar mostrarFilial={false} empresaOpcional={secao?.id === "produtividade"} />
 
       <div className="mt-5 space-y-4">{aplicado ? children : <FiltroPendente />}</div>
     </div>

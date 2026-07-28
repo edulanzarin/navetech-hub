@@ -85,6 +85,9 @@ const MAPA: Record<ModuloId, Record<string, string[]>> = {
     movimentacoes: ["rotatividade"],
     pessoas: ["rotatividade"],
     turnover: ["rotatividade"],
+    // Produtividade do DP
+    "dp-produtividade": ["produtividade"],
+    "dp-lista": ["produtividade"],
   },
   rh: {
     // Diretório

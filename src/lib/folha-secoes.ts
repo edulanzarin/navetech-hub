@@ -1,10 +1,9 @@
-import { Repeat } from "lucide-react";
+import { Gauge, Repeat } from "lucide-react";
 import type { SecaoFiscal } from "./fiscal-secoes";
 
 /**
  * Seções do módulo Folha. Mesmo recorte `SecaoFiscal` do Fiscal (uma seção =
- * um item de sidebar); a Folha começa com uma tela só — Rotatividade —, então
- * não precisa do aparato de abas do Contábil. Seção nova é uma entrada aqui.
+ * um item de sidebar). Seção nova é uma entrada aqui.
  *
  * `metrica` (toggle Valor|Quantidade) não existe na Folha, mas o campo é do tipo
  * compartilhado — fica `false`.
@@ -17,6 +16,14 @@ export const SECOES_FOLHA: SecaoFiscal[] = [
     path: "/folha/rotatividade",
     metrica: false,
     descricao: "Turnover: admissões e desligamentos sobre o efetivo",
+  },
+  {
+    id: "produtividade",
+    icone: Gauge,
+    rotulo: "Produtividade",
+    path: "/folha/produtividade",
+    metrica: false,
+    descricao: "O que o DP fez no período, por colaborador",
   },
 ];
 
