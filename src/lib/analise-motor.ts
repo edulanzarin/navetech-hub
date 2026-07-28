@@ -1,5 +1,5 @@
 import type { BalanceteContabil, ContaBalancete } from "./balancete-contabil";
-import { validarBalancete } from "./validacao-balancete";
+import { ehContaRedutora, validarBalancete } from "./validacao-balancete";
 import type {
   AnaliseDeterministica,
   GrupoPatrimonial,
@@ -422,7 +422,7 @@ export function analisarMotor(bal: BalanceteContabil): AnaliseDeterministica {
   for (const c of leaves) {
     const g = classificar(c);
     if (g !== "ativoCirc" && g !== "ativoNaoCirc" && g !== "passivoCirc" && g !== "passivoNaoCirc" && g !== "plReg") continue;
-    if (ehContraparte(c.classif)) continue;
+    if (ehContraparte(c.classif) || ehContaRedutora(c.descricao)) continue;
     const nat = c.meses.map((m) => (c.natureza === "C" ? -m.saldoFinal : m.saldoFinal));
     if (nat.some((v) => v > TOL) && nat.some((v) => v < -TOL)) {
       invCount++;

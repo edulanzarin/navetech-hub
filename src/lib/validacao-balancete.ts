@@ -23,6 +23,16 @@ const TOL = 1;
 /** Quantas anomalias no máximo (as de maior valor). */
 const MAX_ANOMALIAS = 60;
 
+/**
+ * Conta REDUTORA (contra): o Questor deste escritório marca com o prefixo "(-)"
+ * na descrição (ex.: "(-) Prejuízos do Exercício", "(-) Depreciação Acumulada",
+ * "(-) Lucros Distribuídos"). Por definição ela carrega saldo de sinal OPOSTO ao
+ * do grupo — um prejuízo é devedor dentro do PL credor —, então "sinal vs
+ * natureza" não se aplica: o saldo invertido é o esperado, não anomalia.
+ */
+export const ehContaRedutora = (descricao: string) =>
+  descricao.trimStart().startsWith("(-)");
+
 export function validarBalancete(bal: BalanceteContabil): ValidacaoBalancete {
   const analiticas = bal.contas.filter((c) => !c.sintetica);
 
@@ -38,6 +48,7 @@ export function validarBalancete(bal: BalanceteContabil): ValidacaoBalancete {
   // Normaliza pela natureza: saldoNatural > 0 = normal; < 0 = sinal atípico.
   const anomalias: AnomaliaConta[] = [];
   for (const c of analiticas) {
+    if (ehContaRedutora(c.descricao)) continue; // saldo oposto é o esperado
     const saldoFinal = c.meses.at(-1)?.saldoFinal ?? 0;
     const saldoNatural = c.natureza === "C" ? -saldoFinal : saldoFinal;
     if (saldoNatural < -TOL) {
