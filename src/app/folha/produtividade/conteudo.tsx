@@ -1,11 +1,20 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CalendarClock, FileMinus, LayoutDashboard, LogOut, Plane, UserPlus } from "lucide-react";
+import {
+  CalendarClock,
+  ClipboardList,
+  FileMinus,
+  LayoutDashboard,
+  LogOut,
+  Plane,
+  UserPlus,
+} from "lucide-react";
 import clsx from "clsx";
 import { DpRankingTabela } from "@/components/dp-ranking-tabela";
 import { DpListaTabela } from "@/components/dp-lista-tabela";
 import { DpBarras } from "@/components/dp-barras";
+import { DpComposicaoDonut, DpColaboradorStack } from "@/components/dp-composicao";
 import { DpFuncionarioFiltro } from "@/components/dp-funcionario-filtro";
 import { DpSerieChart } from "@/components/charts/dp-serie-chart";
 import { useFiltros } from "@/hooks/use-filters";
@@ -13,8 +22,8 @@ import { useDpProdutividade, useDpLista, useDpQuebra } from "@/hooks/use-api";
 import { num, deltaPct } from "@/lib/format";
 import { DP_TIPOS, type DpColaborador, type DpTipo } from "@/lib/dp-tipos";
 
-/** Menu do topo: a visão geral + uma aba por trabalho. */
-type Menu = "geral" | DpTipo;
+/** Menu do topo: a visão geral + uma aba por trabalho + os registros. */
+type Menu = "geral" | DpTipo | "registros";
 
 const COR: Record<DpTipo, string> = {
   avisos: "var(--warning)",
@@ -80,6 +89,7 @@ function Menus({ menu, onMenu }: { menu: Menu; onMenu: (m: Menu) => void }) {
   const itens: { id: Menu; rotulo: string; icone: React.ReactNode }[] = [
     { id: "geral", rotulo: "Visão geral", icone: <LayoutDashboard className="size-4" /> },
     ...DP_TIPOS.map((t) => ({ id: t.id as Menu, rotulo: t.rotulo, icone: ICONE[t.id] })),
+    { id: "registros", rotulo: "Registros", icone: <ClipboardList className="size-4" /> },
   ];
   return (
     <nav className="flex gap-1 overflow-x-auto border-b border-hairline">
@@ -106,7 +116,7 @@ function Menus({ menu, onMenu }: { menu: Menu; onMenu: (m: Menu) => void }) {
   );
 }
 
-/** Aba completa de um trabalho: KPIs + por colaborador + por empresa + série + lista. */
+/** Aba de um trabalho: só dashboard (KPIs + por colaborador + por empresa + série). */
 function AbaTipo({
   tipo,
   qs,
@@ -129,11 +139,10 @@ function AbaTipo({
   const rotulo = DP_TIPOS.find((t) => t.id === tipo)!.rotulo;
   const cor = COR[tipo];
 
-  // Filtro por colaborador vale para série, por-empresa e lista (não para o
+  // Filtro por colaborador vale para série e por-empresa (não para o
   // ranking/por-colaborador, que é a comparação entre pessoas).
   const listaQs = usuarioSel != null ? `${qs}&usuario=${usuarioSel}` : qs;
   const quebra = useDpQuebra(listaQs, tipo);
-  const lista = useDpLista(listaQs, tipo);
 
   // Quebra por colaborador: sai do ranking já carregado (quem fez ESTE trabalho).
   const porColaborador = useMemo(
@@ -244,20 +253,60 @@ function AbaTipo({
         carregando={quebra.isLoading}
         recarregando={quebra.isFetching && !quebra.isLoading}
       />
-
-      {/* Lista detalhada (menu por colaborador) */}
-      <section className="card anim-fade-up p-5">
-        <p className="mb-3 text-xs text-muted">
-          Registro a registro, agrupado por colaborador — clique num nome para abrir e conferir.
-        </p>
-        <DpListaTabela
-          tipo={tipo}
-          dados={lista.data}
-          carregando={lista.isLoading}
-          recarregando={lista.isFetching && !lista.isLoading}
-        />
-      </section>
     </>
+  );
+}
+
+/**
+ * Aba "Registros": a única lista da tela. Filtro de tipo em cima; o funcionário
+ * e o período vêm dos filtros globais. É o "quando preciso conferir" — o resumo
+ * mora nas outras abas.
+ */
+function AbaRegistros({
+  qs,
+  usuarioSel,
+  tipoSel,
+  onTipo,
+}: {
+  qs: string;
+  usuarioSel: number | null;
+  tipoSel: DpTipo;
+  onTipo: (t: DpTipo) => void;
+}) {
+  const listaQs = usuarioSel != null ? `${qs}&usuario=${usuarioSel}` : qs;
+  const lista = useDpLista(listaQs, tipoSel);
+
+  return (
+    <section className="card anim-fade-up p-5">
+      <header className="mb-4 flex flex-wrap items-center gap-2">
+        <span className="mr-1 text-xs text-muted">Registros de:</span>
+        {DP_TIPOS.map((tp) => (
+          <button
+            key={tp.id}
+            onClick={() => onTipo(tp.id)}
+            className={clsx(
+              "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition-colors",
+              tipoSel === tp.id
+                ? "border-ent/30 bg-ent/12 font-medium text-ent"
+                : "border-hairline bg-surface-2 text-muted hover:text-ink"
+            )}
+          >
+            {ICONE[tp.id]}
+            {tp.rotulo}
+          </button>
+        ))}
+      </header>
+      <p className="mb-3 text-xs text-muted">
+        Agrupado por colaborador — clique num nome para abrir. Use o seletor de funcionário lá em
+        cima para isolar uma pessoa.
+      </p>
+      <DpListaTabela
+        tipo={tipoSel}
+        dados={lista.data}
+        carregando={lista.isLoading}
+        recarregando={lista.isFetching && !lista.isLoading}
+      />
+    </section>
   );
 }
 
@@ -265,6 +314,7 @@ export default function ProdutividadeDpPage() {
   const { qs } = useFiltros();
   const [menu, setMenu] = useState<Menu>("geral");
   const [usuarioSel, setUsuarioSel] = useState<number | null>(null);
+  const [tipoReg, setTipoReg] = useState<DpTipo>("avisos");
 
   const resumo = useDpProdutividade(qs);
   const t = resumo.data?.totais;
@@ -340,6 +390,24 @@ export default function ProdutividadeDpPage() {
             )}
           </div>
 
+          {/* Mais dashboard: composição dos quatro trabalhos + top empilhado */}
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <DpComposicaoDonut
+              totais={t}
+              cores={COR}
+              carregando={carregandoResumo}
+              recarregando={resumo.isFetching && !resumo.isLoading}
+            />
+            <DpColaboradorStack
+              dados={resumo.data?.ranking}
+              cores={COR}
+              carregando={resumo.isLoading}
+              recarregando={resumo.isFetching && !resumo.isLoading}
+              selecionado={usuarioSel}
+              onSelecionar={setUsuarioSel}
+            />
+          </div>
+
           <DpRankingTabela
             dados={resumo.data?.ranking}
             carregando={resumo.isLoading}
@@ -349,10 +417,12 @@ export default function ProdutividadeDpPage() {
           />
 
           <p className="text-center text-xs text-muted">
-            Selecione um colaborador acima e abra qualquer aba (Avisos, Rescisões…) para ver o
-            detalhe dele, com gráficos por empresa e no tempo.
+            Selecione um colaborador (aqui ou no filtro do topo) e abra qualquer aba para ver o
+            trabalho dele em gráficos. A aba Registros lista item a item, quando precisar conferir.
           </p>
         </>
+      ) : menu === "registros" ? (
+        <AbaRegistros qs={qs} usuarioSel={usuarioSel} tipoSel={tipoReg} onTipo={setTipoReg} />
       ) : (
         <AbaTipo
           tipo={menu}
