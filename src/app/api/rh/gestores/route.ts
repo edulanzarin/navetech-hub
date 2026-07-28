@@ -7,7 +7,7 @@ const PAPEIS = ["supervisor", "coordenador", "outro"] as const;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** Gestores por DEPARTAMENTO (classiforgan) — recebem o formulário de experiência.
- *  NAVECON e FOUR compartilham os departamentos, então o gestor não tem empresa. */
+ *  As empresas do RH compartilham os departamentos, então o gestor não tem empresa. */
 export const GET = apiRoute(async (req) => {
   const classiforgan = req.nextUrl.searchParams.get("classiforgan");
   const conds: string[] = ["ativo"];

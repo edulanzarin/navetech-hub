@@ -243,7 +243,7 @@ export default function Conteudo() {
   const { data: setores, isLoading } = useRhSetores();
   const { data: gestores } = useRhGestores();
 
-  // Gestores por departamento (classiforgan). NAVECON e FOUR compartilham os
+  // Gestores por departamento (classiforgan). As empresas do RH compartilham os
   // departamentos, então é um cadastro só por departamento.
   const porSetor = useMemo(() => {
     const mapa = new Map<string, GestorRh[]>();

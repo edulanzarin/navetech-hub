@@ -4,7 +4,7 @@ import { EMPRESAS_RH } from "@/lib/rh";
 import type { FuncionarioDiretorio } from "@/lib/rh-tipos";
 
 /**
- * Diretório: todos os funcionários ATIVOS das duas empresas do RH. Volume é
+ * Diretório: todos os funcionários ATIVOS das empresas do RH. Volume é
  * pequeno (~80), então a rota devolve a lista inteira e a tela filtra por
  * empresa/setor/busca no cliente (instantâneo, e a contagem por empresa sai de
  * graça). Base é a view `funcionario`.

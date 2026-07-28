@@ -16,7 +16,7 @@ export const SECOES_RH: SecaoFiscal[] = [
     rotulo: "Diretório",
     path: "/rh/diretorio",
     metrica: false,
-    descricao: "Funcionários das duas empresas, com filtro e ficha",
+    descricao: "Funcionários das empresas do RH, com filtro e ficha",
   },
   {
     id: "experiencia",
@@ -40,7 +40,7 @@ export const SECOES_RH: SecaoFiscal[] = [
     rotulo: "Rotatividade",
     path: "/rh/rotatividade",
     metrica: false,
-    descricao: "Turnover das duas empresas",
+    descricao: "Turnover das empresas do RH",
   },
   {
     id: "gestores",

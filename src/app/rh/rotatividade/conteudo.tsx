@@ -119,7 +119,7 @@ export default function Conteudo() {
   const abrirDrill = (dim: string, valor: string, rotulo: string) => setDrill({ dim, valor, rotulo });
 
   const empresaSeg: { valor: FiltroEmpresa; rotulo: string }[] = [
-    { valor: "todas", rotulo: "Ambas" },
+    { valor: "todas", rotulo: "Todas" },
     ...EMPRESAS_RH.map((cod) => ({ valor: cod as FiltroEmpresa, rotulo: nomeEmpresaRh(cod) })),
   ];
 
@@ -343,7 +343,7 @@ export default function Conteudo() {
 
       <p className="text-[11px] text-muted">
         Turnover = (admissões + desligamentos) ÷ 2, sobre os colaboradores ativos
-        (efetivo no fim do período), só das empresas NAVECON e FOUR. Clique em
+        (efetivo no fim do período), só das empresas NAVECON, FOUR e FINAVE. Clique em
         qualquer quebra para ver as pessoas.
       </p>
 

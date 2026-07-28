@@ -3,8 +3,8 @@ import { montarTurnover, parseTurnoverReq } from "@/lib/folha-turnover-query";
 import { EMPRESAS_RH, ehEmpresaRh } from "@/lib/rh";
 
 /**
- * Rotatividade do RH: mesma consulta-mãe da Folha, mas com empresa FORÇADA em
- * NAVECON/FOUR (o escopo da sessão não se aplica — o gate é o módulo). O filtro
+ * Rotatividade do RH: mesma consulta-mãe da Folha, mas com empresa FORÇADA nas
+ * do RH — NAVECON/FOUR/FINAVE (o escopo da sessão não se aplica — o gate é o módulo). O filtro
  * `empresas` do cliente só restringe dentro do conjunto do RH.
  */
 export const GET = apiRoute(async (req) => {

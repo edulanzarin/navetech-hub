@@ -44,9 +44,9 @@ export async function construirBase(
   // Fiscal/Contábil): "todas" usa o que o cliente pediu; senão limita ao
   // permitido (interseção), e vazio não casa nenhuma empresa.
   //
-  // `empresasForcadas` pula o escopo da sessão: é o RH, cujo dado é fixo em
-  // NAVECON/FOUR (o gate é o módulo, não o grupo de empresas — o grupo padrão
-  // até esconde a NAVECON). O chamador já garantiu o acesso.
+  // `empresasForcadas` pula o escopo da sessão: é o RH, cujo dado é fixo nas
+  // empresas do RH — NAVECON/FOUR/FINAVE (o gate é o módulo, não o grupo de
+  // empresas — o grupo padrão até esconde a NAVECON). O chamador já garantiu o acesso.
   let empresas: number[];
   if (empresasForcadas) {
     empresas = empresasForcadas;

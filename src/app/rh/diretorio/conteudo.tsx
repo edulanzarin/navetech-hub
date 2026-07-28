@@ -84,7 +84,7 @@ export default function Conteudo() {
   const [aberto, setAberto] = useState<FuncionarioDiretorio | null>(null);
 
   const segmentos: { valor: FiltroEmpresa; rotulo: string; qtd: number }[] = [
-    { valor: "todas", rotulo: "Ambas", qtd: todos.length },
+    { valor: "todas", rotulo: "Todas", qtd: todos.length },
     ...EMPRESAS_RH.map((cod) => ({
       valor: cod as FiltroEmpresa,
       rotulo: nomeEmpresaRh(cod),

@@ -2,7 +2,7 @@ import { apiRoute } from "@/lib/api-route";
 import { montarMovimentacoes, parseTurnoverReq } from "@/lib/folha-turnover-query";
 import { EMPRESAS_RH, ehEmpresaRh } from "@/lib/rh";
 
-/** Movimentações do RH — empresas forçadas em NAVECON/FOUR. */
+/** Movimentações do RH — empresas forçadas nas do RH (NAVECON/FOUR/FINAVE). */
 export const GET = apiRoute(async (req) => {
   const { f, sel } = parseTurnoverReq(req.nextUrl.searchParams);
   const pedido = f.empresas.filter(ehEmpresaRh);

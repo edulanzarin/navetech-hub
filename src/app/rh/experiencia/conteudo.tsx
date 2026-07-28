@@ -212,7 +212,7 @@ export default function Conteudo() {
   };
 
   const segmentos: { valor: FiltroEmpresa; rotulo: string }[] = [
-    { valor: "todas", rotulo: "Ambas" },
+    { valor: "todas", rotulo: "Todas" },
     ...EMPRESAS_RH.map((cod) => ({ valor: cod as FiltroEmpresa, rotulo: nomeEmpresaRh(cod) })),
   ];
 

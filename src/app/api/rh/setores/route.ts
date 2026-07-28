@@ -4,10 +4,10 @@ import { EMPRESAS_RH } from "@/lib/rh";
 import type { SetorRh } from "@/lib/rh-tipos";
 
 /**
- * Departamentos (classiforgan) com funcionários ativos, UNINDO NAVECON e FOUR —
- * são a mesma empresa, mesmos departamentos. Um por classiforgan, com o nome do
- * setor mais populado como rótulo e a soma dos ativos das duas. Serve o cadastro
- * de Gestores (um gestor por departamento, não por empresa).
+ * Departamentos (classiforgan) com funcionários ativos, UNINDO as empresas do RH
+ * (NAVECON, FOUR e FINAVE) — mesma Navecon, mesmos departamentos. Um por
+ * classiforgan, com o nome do setor mais populado como rótulo e a soma dos ativos.
+ * Serve o cadastro de Gestores (um gestor por departamento, não por empresa).
  */
 export const GET = apiRoute(async () => {
   const rows = await query<SetorRh>(

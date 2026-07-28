@@ -4,7 +4,7 @@
  */
 import type { Marco, StatusExperiencia } from "./rh-experiencia";
 
-/** Linha do Diretório: funcionário ativo de uma das duas empresas. */
+/** Linha do Diretório: funcionário ativo de uma das empresas do RH. */
 export interface FuncionarioDiretorio {
   codigoempresa: number;
   contrato: number;
@@ -16,9 +16,10 @@ export interface FuncionarioDiretorio {
 }
 
 /**
- * Departamento (classiforgan do organograma) com funcionários ativos. NAVECON e
- * FOUR são a mesma empresa (CNPJs distintos) com os mesmos departamentos, então
- * o setor é identificado só por `classiforgan` e a contagem soma as duas.
+ * Departamento (classiforgan do organograma) com funcionários ativos. As empresas
+ * do RH (NAVECON, FOUR, FINAVE) são a mesma Navecon (CNPJs distintos) com os mesmos
+ * departamentos, então o setor é identificado só por `classiforgan` e a contagem
+ * soma todas.
  */
 export interface SetorRh {
   classiforgan: string;

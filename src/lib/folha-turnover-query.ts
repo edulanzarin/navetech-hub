@@ -21,9 +21,9 @@ import type {
 
 /**
  * Cálculo do turnover — a consulta-mãe da Rotatividade. Extraída da rota da
- * Folha para ser reusada pelo RH (mesma query, empresa forçada em NAVECON/FOUR):
- * o que dois módulos compartilham é a QUERY, não a rota. A Folha chama sem
- * `empresasForcadas` (escopo da sessão); o RH passa as duas empresas.
+ * Folha para ser reusada pelo RH (mesma query, empresa forçada nas do RH —
+ * NAVECON/FOUR/FINAVE): o que dois módulos compartilham é a QUERY, não a rota. A
+ * Folha chama sem `empresasForcadas` (escopo da sessão); o RH passa as empresas do RH.
  */
 interface GrupoRaw {
   grupo: string;
