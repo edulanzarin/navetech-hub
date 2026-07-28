@@ -824,16 +824,54 @@ export interface ValidacaoBalancete {
   };
 }
 
-/** Grupo estrutural do balancete (Ativo Circulante, Passivo, PL, Receita…). */
-export interface GrupoBalancete {
+/**
+ * Grupo PATRIMONIAL (estoque) do balanço: Ativo/Passivo Circulante e Não
+ * Circulante e Patrimônio Líquido. Magnitude natural positiva, saldo acumulado.
+ * O PL já vem RECONCILIADO (Ativo − Passivo exigível), então Ativo = Passivo+PL.
+ */
+export interface GrupoPatrimonial {
+  chave: "ativoCirc" | "ativoNaoCirc" | "passivoCirc" | "passivoNaoCirc" | "pl";
+  nome: string;
+  /** Saldo (estoque) no último mês, magnitude natural positiva. */
+  saldo: number;
+  /** % do Ativo total (ativos) ou do Passivo+PL total (passivos/PL); null se n/a. */
+  pctBase: number | null;
+  /** Saldo acumulado ao fim de cada mês, na ordem de `meses`. */
+  serie: number[];
+}
+
+/**
+ * Linha da DRE condensada do PERÍODO — valor de FLUXO (movimento do intervalo),
+ * não saldo acumulado. É o que corrige a leitura de receita/despesa mês a mês.
+ */
+export interface LinhaDRE {
   chave: string;
   nome: string;
-  /** Magnitude natural (positiva) no último mês. */
-  saldoFinal: number;
-  /** % da base do grupo (Ativo total, ou Passivo+PL); null quando não se aplica. */
-  pctBase: number | null;
-  /** Magnitude por mês, na ordem de `meses`. */
+  /** Fluxo no período, magnitude natural (deduções e resultado podem ser < 0). */
+  valor: number;
+  /** Análise vertical: % da receita líquida do período; null para a base/sem receita. */
+  pctReceita: number | null;
+  /** Fluxo de cada mês, na ordem de `meses`. */
   serie: number[];
+  /** Linha de subtotal/resultado (ênfase visual), vs. linha de item. */
+  destaque?: boolean;
+}
+
+/** Totais reconciliados do balanço — o Ativo fecha com Passivo + PL. */
+export interface TotaisBalanco {
+  /** Ativo total (circulante + não circulante), magnitude. */
+  ativo: number;
+  /** Passivo exigível (circulante + não circulante) — capital de terceiros. */
+  passivo: number;
+  /** PL reconciliado = Ativo − Passivo exigível (já inclui o resultado do exercício). */
+  pl: number;
+  /** PL só das contas de PL registradas no plano (2.4/2.5/2.6). */
+  plRegistrado: number;
+  /**
+   * Resultado acumulado do exercício ainda NÃO transportado ao PL registrado
+   * (pl − plRegistrado). Explica por que Ativo ≠ Passivo+PL antes da apuração.
+   */
+  resultadoExercicio: number;
 }
 
 /** Indicador financeiro calculado — determinístico. */
@@ -868,7 +906,12 @@ export interface AnaliseDeterministica {
   fecha: boolean;
   difFechamento: number;
   cobertura: ValidacaoBalancete["cobertura"];
-  grupos: GrupoBalancete[];
+  /** Estrutura patrimonial (estoque, último mês). Ativo = Passivo + PL. */
+  estrutura: GrupoPatrimonial[];
+  /** Totais reconciliados do balanço (Ativo, Passivo exigível, PL). */
+  totais: TotaisBalanco;
+  /** DRE condensada do período (fluxo), na ordem de apresentação. */
+  dre: LinhaDRE[];
   indicadores: IndicadorCalc[];
   inconsistencias: Inconsistencia[];
   meses: string[];

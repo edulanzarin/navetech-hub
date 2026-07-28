@@ -18,8 +18,12 @@ const brl0 = (v: number) => "R$ " + Math.round(v).toLocaleString("pt-BR");
 
 /** Serializa os achados do motor pro prompt (compacto). */
 function prepararAchados(bal: BalanceteContabil, a: AnaliseDeterministica): string {
-  const grupos = a.grupos.map(
-    (g) => `- ${g.nome}: ${brl0(g.saldoFinal)}${g.pctBase != null ? ` (${(g.pctBase * 100).toFixed(1)}% da base)` : ""}`
+  const estrutura = a.estrutura.map(
+    (g) => `- ${g.nome}: ${brl0(g.saldo)}${g.pctBase != null ? ` (${(g.pctBase * 100).toFixed(1)}% do ativo)` : ""}`
+  );
+  const t = a.totais;
+  const dre = a.dre.map(
+    (l) => `- ${l.nome}: ${brl0(l.valor)}${l.pctReceita != null ? ` (${(l.pctReceita * 100).toFixed(1)}% da receita líquida)` : ""}`
   );
   const inds = a.indicadores.map(
     (i) => `- ${i.nome}: ${i.formatado} [${i.faixa}, tendência ${i.tendencia}] — ${i.interpretacao}`
@@ -35,10 +39,17 @@ function prepararAchados(bal: BalanceteContabil, a: AnaliseDeterministica): stri
     `Balancete fecha: ${a.fecha ? "sim" : `NÃO (diferença ${brl0(a.difFechamento)})`}`,
     `Cobertura: ${c.mesesComMovimento}/${c.mesesSolicitados} meses com movimento; 1º mês com dado: ${c.primeiroMesComDado ?? "nenhum"}; saldo antes do período: ${c.temSaldoInicial ? "sim" : "não"}.`,
     ``,
-    `GRUPOS (último mês):`,
-    ...grupos,
+    `ESTRUTURA PATRIMONIAL (saldo no último mês — Ativo = Passivo + PL):`,
+    ...estrutura,
+    `- Ativo total: ${brl0(t.ativo)} · Passivo exigível: ${brl0(t.passivo)} · PL: ${brl0(t.pl)}`,
+    t.resultadoExercicio > 1 || t.resultadoExercicio < -1
+      ? `- Obs.: o PL já inclui ${brl0(t.resultadoExercicio)} de resultado do exercício ainda não transportado às contas de PL (pré-apuração).`
+      : `- PL sem resultado pendente de transporte.`,
     ``,
-    `INDICADORES (último mês):`,
+    `RESULTADO DO PERÍODO (DRE em fluxo — movimento do intervalo, não saldo acumulado):`,
+    ...dre,
+    ``,
+    `INDICADORES:`,
     ...inds,
     ``,
     `INCONSISTÊNCIAS/ALERTAS (${a.inconsistencias.length}):`,
@@ -47,6 +58,10 @@ function prepararAchados(bal: BalanceteContabil, a: AnaliseDeterministica): stri
 }
 
 const SYSTEM = `Você é um contador e controller sênior brasileiro. Recebe um balancete JÁ ANALISADO por um motor determinístico: os grupos, os indicadores (com faixa e tendência), as inconsistências (com severidade) e a cobertura já vêm calculados e classificados. Seu trabalho é ESCREVER o laudo em prosa, para apresentar ao cliente da contabilidade.
+
+Contexto dos números:
+- A estrutura patrimonial já vem reconciliada: o PL inclui o resultado do exercício, então Ativo = Passivo exigível + PL. Se houver "resultado do exercício ainda não transportado", é um balancete mensal pré-apuração — normal, não é erro.
+- A DRE do período está em FLUXO (movimento do intervalo), não em saldo acumulado do ano. Trate receita/custo/resultado como o desempenho DAQUELE período.
 
 Regras:
 - Use SOMENTE os números e classificações fornecidos. NÃO recalcule indicadores nem invente valores — se um dado não veio, não fale dele.
