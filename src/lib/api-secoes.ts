@@ -88,6 +88,7 @@ const MAPA: Record<ModuloId, Record<string, string[]>> = {
     // Produtividade do DP
     "dp-produtividade": ["produtividade"],
     "dp-lista": ["produtividade"],
+    "dp-quebra": ["produtividade"],
   },
   rh: {
     // Diretório

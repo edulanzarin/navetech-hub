@@ -5,7 +5,10 @@ import { getSessaoOpcional, empresasPermitidas } from "./sessao";
 import type {
   DpColaborador,
   DpLinha,
+  DpQuebra,
+  DpQuebraItem,
   DpResumo,
+  DpSeriePonto,
   DpTipo,
   EsocialStatus,
 } from "./dp-tipos";
@@ -128,6 +131,14 @@ interface TotaisRow {
   admissoes: number;
   ferias: number;
 }
+
+/** Tabela do Questor onde cada trabalho é registrado (a fonte de auditoria). */
+const TABELA: Record<DpTipo, string> = {
+  avisos: "funcavisoprevio",
+  rescisoes: "rescisao",
+  admissoes: "funccontrato",
+  ferias: "reciboferias",
+};
 
 /** Conta os quatro trabalhos num intervalo (usado no período e no anterior). */
 function subFonte(condEmpresa: string): string {
@@ -371,6 +382,58 @@ export async function montarListaDp(f: DpFiltros, tipo: DpTipo): Promise<DpLinha
     periodoAquisitivo: r.periodo_aquis,
     dataPgto: r.data_pgto,
   }));
+}
+
+/**
+ * Quebra de UM trabalho no período: por empresa e no tempo (série). Alimenta a
+ * aba completa do tipo. Respeita o mesmo escopo/usuário das outras consultas —
+ * quando um colaborador está selecionado, é o retrato só dele.
+ *
+ * A série vira mensal em períodos longos (> 92 dias) pra não desenhar 300 barras;
+ * os buckets são densos (generate_series preenche os dias/meses sem movimento).
+ */
+export async function montarQuebraDp(f: DpFiltros, tipo: DpTipo): Promise<DpQuebra> {
+  const { params, condEmpresa, usuarioIdx } = await baseParams(f);
+  const tabela = TABELA[tipo];
+  const condEmp = condEmpresa.replace("codigoempresa", "src.codigoempresa");
+  const condUsuario = usuarioIdx != null ? ` and src.codigousuario = $${usuarioIdx}` : "";
+  const filtros = `src.datahoralcto::date between $1 and $2${condEmp}${condUsuario}`;
+
+  const dias = (Date.parse(f.fim) - Date.parse(f.inicio)) / 86_400_000 + 1;
+  const granularidade: "dia" | "mes" = dias > 92 ? "mes" : "dia";
+  const passo = granularidade === "mes" ? "1 month" : "1 day";
+  const truncSrc = granularidade === "mes" ? "date_trunc('month', src.datahoralcto)::date" : "src.datahoralcto::date";
+  const truncGen = granularidade === "mes" ? "date_trunc('month', $1::date)" : "$1::date";
+  const fmt = granularidade === "mes" ? "YYYY-MM" : "YYYY-MM-DD";
+
+  const [porEmpresa, serie] = await Promise.all([
+    query<DpQuebraItem>(
+      `select src.codigoempresa as codigo,
+              coalesce(nullif(btrim(e.nomeempresa), ''), 'Empresa ' || src.codigoempresa) as nome,
+              count(*)::int as qtd
+         from ${tabela} src
+         left join empresa e on e.codigoempresa = src.codigoempresa
+        where ${filtros}
+        group by src.codigoempresa, e.nomeempresa
+        order by qtd desc
+        limit 500`,
+      params
+    ),
+    query<DpSeriePonto>(
+      `select to_char(g.b, '${fmt}') as bucket, coalesce(c.qtd, 0)::int as qtd
+         from generate_series(${truncGen}, $2::date, interval '${passo}') g(b)
+         left join (
+           select ${truncSrc} as b, count(*)::int as qtd
+             from ${tabela} src
+            where ${filtros}
+            group by 1
+         ) c on c.b = g.b::date
+        order by g.b`,
+      params
+    ),
+  ]);
+
+  return { porEmpresa, granularidade, serie };
 }
 
 export { FilterError };

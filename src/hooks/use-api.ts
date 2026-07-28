@@ -48,7 +48,7 @@ import type {
   ExperienciaItem,
 } from "@/lib/rh-tipos";
 import type { Formulario, FormularioResumo } from "@/lib/formularios-tipos";
-import type { DpResumo, DpLinha, DpTipo } from "@/lib/dp-tipos";
+import type { DpResumo, DpLinha, DpQuebra, DpTipo } from "@/lib/dp-tipos";
 import type { EnvioDetalhe, EnvioResumo } from "@/lib/envios";
 import type { RespostaExperienciaDetalhe } from "@/lib/rh-experiencia-dados";
 
@@ -368,6 +368,14 @@ export const useDpLista = (qs: string, tipo: DpTipo, enabled = true) =>
   useApiQuery<DpLinha[]>(
     ["dp-lista", tipo, qs],
     `/api/folha/dp-lista?${qs}&tipo=${tipo}`,
+    enabled
+  );
+
+/** Quebra de um trabalho do DP: por empresa + série no tempo (aba do tipo). */
+export const useDpQuebra = (qs: string, tipo: DpTipo, enabled = true) =>
+  useApiQuery<DpQuebra>(
+    ["dp-quebra", tipo, qs],
+    `/api/folha/dp-quebra?${qs}&tipo=${tipo}`,
     enabled
   );
 

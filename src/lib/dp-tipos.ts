@@ -50,6 +50,30 @@ export interface DpResumo {
   colaboradores: number;
 }
 
+/** Item de uma quebra (por empresa, por colaborador): um rótulo e sua contagem. */
+export interface DpQuebraItem {
+  codigo: number;
+  nome: string;
+  qtd: number;
+}
+
+/** Um ponto da série temporal de um tipo: o bucket (dia ou mês) e a contagem. */
+export interface DpSeriePonto {
+  bucket: string; // "YYYY-MM-DD" (dia) ou "YYYY-MM" (mês)
+  qtd: number;
+}
+
+/**
+ * Recorte de UM trabalho no período — o que alimenta a aba completa daquele
+ * tipo: quebra por empresa e evolução no tempo. A quebra por colaborador sai do
+ * ranking (já carregado), então não repete aqui. Respeita o usuário selecionado.
+ */
+export interface DpQuebra {
+  porEmpresa: DpQuebraItem[];
+  granularidade: "dia" | "mes";
+  serie: DpSeriePonto[];
+}
+
 /** Status do S-2200 (admissão) no eSocial, derivado da última transação do contrato. */
 export type EsocialStatus = "ok" | "pendente" | "nao_enviado";
 

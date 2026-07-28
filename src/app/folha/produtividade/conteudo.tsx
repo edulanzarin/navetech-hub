@@ -1,14 +1,26 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CalendarClock, FileMinus, LogOut, Plane, UserPlus } from "lucide-react";
+import { CalendarClock, FileMinus, LayoutDashboard, LogOut, Plane, UserPlus } from "lucide-react";
 import clsx from "clsx";
 import { DpRankingTabela } from "@/components/dp-ranking-tabela";
 import { DpListaTabela } from "@/components/dp-lista-tabela";
+import { DpBarras } from "@/components/dp-barras";
+import { DpSerieChart } from "@/components/charts/dp-serie-chart";
 import { useFiltros } from "@/hooks/use-filters";
-import { useDpProdutividade, useDpLista } from "@/hooks/use-api";
+import { useDpProdutividade, useDpLista, useDpQuebra } from "@/hooks/use-api";
 import { num, deltaPct } from "@/lib/format";
-import { DP_TIPOS, type DpTipo } from "@/lib/dp-tipos";
+import { DP_TIPOS, type DpColaborador, type DpTipo } from "@/lib/dp-tipos";
+
+/** Menu do topo: a visão geral + uma aba por trabalho. */
+type Menu = "geral" | DpTipo;
+
+const COR: Record<DpTipo, string> = {
+  avisos: "var(--warning)",
+  rescisoes: "var(--critical)",
+  admissoes: "var(--ent)",
+  ferias: "var(--sai)",
+};
 
 const ICONE: Record<DpTipo | "total", React.ReactNode> = {
   total: <CalendarClock className="size-4 text-ink-2" />,
@@ -16,6 +28,14 @@ const ICONE: Record<DpTipo | "total", React.ReactNode> = {
   rescisoes: <LogOut className="size-4 text-critical" />,
   admissoes: <UserPlus className="size-4 text-ent" />,
   ferias: <Plane className="size-4 text-sai" />,
+};
+
+const BG_ICONE: Record<DpTipo | "total", string> = {
+  total: "bg-surface-2",
+  avisos: "bg-warning/12",
+  rescisoes: "bg-critical/12",
+  admissoes: "bg-ent/12",
+  ferias: "bg-sai/12",
 };
 
 function Delta({ atual, anterior }: { atual: number; anterior: number }) {
@@ -54,127 +74,291 @@ function Kpi({
   );
 }
 
-export default function ProdutividadeDpPage() {
-  const { qs } = useFiltros();
-  const [aba, setAba] = useState<DpTipo>("avisos");
-  const [usuarioSel, setUsuarioSel] = useState<number | null>(null);
-
-  const resumo = useDpProdutividade(qs);
-
-  // A lista respeita o colaborador selecionado no ranking (append usuario).
-  const listaQs = usuarioSel != null ? `${qs}&usuario=${usuarioSel}` : qs;
-  const lista = useDpLista(listaQs, aba);
-
-  const t = resumo.data?.totais;
-  const ant = resumo.data?.anterior;
-  const carregandoResumo = resumo.isLoading;
-
-  const nomeSel = useMemo(
-    () => (usuarioSel != null ? resumo.data?.ranking.find((c) => c.codigo === usuarioSel)?.nome : null),
-    [usuarioSel, resumo.data]
+/** Barra de menus do topo (estilo das abas do módulo: sublinhado). */
+function Menus({ menu, onMenu }: { menu: Menu; onMenu: (m: Menu) => void }) {
+  const itens: { id: Menu; rotulo: string; icone: React.ReactNode }[] = [
+    { id: "geral", rotulo: "Visão geral", icone: <LayoutDashboard className="size-4" /> },
+    ...DP_TIPOS.map((t) => ({ id: t.id as Menu, rotulo: t.rotulo, icone: ICONE[t.id] })),
+  ];
+  return (
+    <nav className="flex gap-1 overflow-x-auto border-b border-hairline">
+      {itens.map((it) => {
+        const ativa = it.id === menu;
+        return (
+          <button
+            key={it.id}
+            onClick={() => onMenu(it.id)}
+            aria-current={ativa ? "page" : undefined}
+            className={clsx(
+              "-mb-px flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2 text-sm transition-colors",
+              ativa
+                ? "border-ent font-medium text-ent"
+                : "border-transparent text-muted hover:border-hairline hover:text-ink"
+            )}
+          >
+            {it.icone}
+            {it.rotulo}
+          </button>
+        );
+      })}
+    </nav>
   );
+}
+
+/** Aba completa de um trabalho: KPIs + por colaborador + por empresa + série + lista. */
+function AbaTipo({
+  tipo,
+  qs,
+  ranking,
+  totais,
+  anterior,
+  carregandoResumo,
+  usuarioSel,
+  onSelecionar,
+}: {
+  tipo: DpTipo;
+  qs: string;
+  ranking: DpColaborador[] | undefined;
+  totais: Record<DpTipo, number> | undefined;
+  anterior: Record<DpTipo, number> | undefined;
+  carregandoResumo: boolean;
+  usuarioSel: number | null;
+  onSelecionar: (codigo: number | null) => void;
+}) {
+  const rotulo = DP_TIPOS.find((t) => t.id === tipo)!.rotulo;
+  const cor = COR[tipo];
+
+  // Filtro por colaborador vale para série, por-empresa e lista (não para o
+  // ranking/por-colaborador, que é a comparação entre pessoas).
+  const listaQs = usuarioSel != null ? `${qs}&usuario=${usuarioSel}` : qs;
+  const quebra = useDpQuebra(listaQs, tipo);
+  const lista = useDpLista(listaQs, tipo);
+
+  // Quebra por colaborador: sai do ranking já carregado (quem fez ESTE trabalho).
+  const porColaborador = useMemo(
+    () =>
+      ranking
+        ? ranking
+            .map((c) => ({ codigo: c.codigo, nome: c.nome, qtd: c[tipo] }))
+            .filter((c) => c.qtd > 0)
+            .sort((a, b) => b.qtd - a.qtd)
+        : undefined,
+    [ranking, tipo]
+  );
+
+  const selNome = usuarioSel != null ? ranking?.find((c) => c.codigo === usuarioSel)?.nome : null;
+  const colabTipo = usuarioSel != null ? ranking?.find((c) => c.codigo === usuarioSel)?.[tipo] ?? 0 : null;
+
+  const nColab = porColaborador?.filter((c) => c.codigo !== 0).length ?? 0;
+  const totalTeam = totais?.[tipo] ?? 0;
+  const totalMostrado = colabTipo != null ? colabTipo : totalTeam;
+  const nEmpresas = quebra.data?.porEmpresa.length ?? 0;
+  const media = nColab > 0 ? Math.round(totalTeam / nColab) : 0;
+  const topEmpresa = quebra.data?.porEmpresa[0];
+  const topColab = porColaborador?.[0];
 
   return (
     <>
-      {/* KPIs — os quatro trabalhos + total, com delta vs. período anterior */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        {carregandoResumo || !t || !ant ? (
-          Array.from({ length: 5 }).map((_, i) => <div key={i} className="skeleton h-36" />)
+      {/* KPIs do trabalho */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {carregandoResumo || !totais || !anterior ? (
+          Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton h-36" />)
         ) : (
           <>
             <Kpi
-              rotulo="Avisos prévios"
-              icone={ICONE.avisos}
-              corIcone="bg-warning/12"
-              valor={num(t.avisos)}
-              secundario={<Delta atual={t.avisos} anterior={ant.avisos} />}
+              rotulo={rotulo}
+              icone={ICONE[tipo]}
+              corIcone={BG_ICONE[tipo]}
+              valor={num(totalMostrado)}
+              secundario={
+                colabTipo != null ? (
+                  <span className="text-muted">de {selNome}</span>
+                ) : (
+                  <Delta atual={totalTeam} anterior={anterior[tipo]} />
+                )
+              }
             />
             <Kpi
-              rotulo="Rescisões calculadas"
-              icone={ICONE.rescisoes}
-              corIcone="bg-critical/12"
-              valor={num(t.rescisoes)}
-              secundario={<Delta atual={t.rescisoes} anterior={ant.rescisoes} />}
-            />
-            <Kpi
-              rotulo="Admissões feitas"
-              icone={ICONE.admissoes}
-              corIcone="bg-ent/12"
-              valor={num(t.admissoes)}
-              secundario={<Delta atual={t.admissoes} anterior={ant.admissoes} />}
-            />
-            <Kpi
-              rotulo="Férias calculadas"
-              icone={ICONE.ferias}
-              corIcone="bg-sai/12"
-              valor={num(t.ferias)}
-              secundario={<Delta atual={t.ferias} anterior={ant.ferias} />}
-            />
-            <Kpi
-              rotulo="Total no período"
-              icone={ICONE.total}
+              rotulo="Colaboradores"
+              icone={<UserPlus className="size-4 text-ink-2" />}
               corIcone="bg-surface-2"
-              valor={num(t.total)}
+              valor={num(usuarioSel != null ? 1 : nColab)}
               secundario={
                 <span className="text-muted">
-                  {num(resumo.data!.colaboradores)} colaboradores do DP
+                  {topColab ? `líder: ${topColab.nome}` : "ninguém no período"}
                 </span>
               }
+            />
+            <Kpi
+              rotulo="Empresas atendidas"
+              icone={<CalendarClock className="size-4 text-ink-2" />}
+              corIcone="bg-surface-2"
+              valor={quebra.isLoading ? "…" : num(nEmpresas)}
+              secundario={
+                <span className="text-muted">
+                  {topEmpresa ? `maior: ${topEmpresa.nome}` : "—"}
+                </span>
+              }
+            />
+            <Kpi
+              rotulo="Média por colaborador"
+              icone={<LayoutDashboard className="size-4 text-ink-2" />}
+              corIcone="bg-surface-2"
+              valor={num(media)}
+              secundario={<span className="text-muted">registros/pessoa no time</span>}
             />
           </>
         )}
       </div>
 
-      {/* Ranking por colaborador */}
-      <DpRankingTabela
-        dados={resumo.data?.ranking}
-        carregando={resumo.isLoading}
-        recarregando={resumo.isFetching && !resumo.isLoading}
-        selecionado={usuarioSel}
-        onSelecionar={setUsuarioSel}
+      {usuarioSel != null && (
+        <button
+          onClick={() => onSelecionar(null)}
+          className="w-fit rounded-lg border border-hairline bg-surface-2 px-3 py-1.5 text-xs text-muted transition-colors hover:text-ink"
+        >
+          Recorte por <span className="font-medium text-ink">{selNome}</span> · ver o time todo ✕
+        </button>
+      )}
+
+      {/* Por colaborador (eixo principal) + por empresa */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <DpBarras
+          titulo="Por colaborador"
+          subtitulo="Quem fez este trabalho no período · clique para isolar"
+          dados={porColaborador}
+          cor={cor}
+          carregando={carregandoResumo}
+          recarregando={false}
+          rotuloEixo="Colaborador"
+          selecionado={usuarioSel}
+          onSelecionar={onSelecionar}
+        />
+        <DpBarras
+          titulo="Por empresa"
+          subtitulo={usuarioSel != null ? `Empresas de ${selNome}` : "Onde o trabalho aconteceu"}
+          dados={quebra.data?.porEmpresa}
+          cor={cor}
+          carregando={quebra.isLoading}
+          recarregando={quebra.isFetching && !quebra.isLoading}
+          rotuloEixo="Empresa"
+        />
+      </div>
+
+      {/* Evolução no tempo */}
+      <DpSerieChart
+        titulo="Evolução no período"
+        dados={quebra.data}
+        cor={cor}
+        carregando={quebra.isLoading}
+        recarregando={quebra.isFetching && !quebra.isLoading}
       />
 
-      {/* Detalhe: abas dos quatro trabalhos, agrupado por colaborador do DP */}
+      {/* Lista detalhada (menu por colaborador) */}
       <section className="card anim-fade-up p-5">
         <p className="mb-3 text-xs text-muted">
-          Um menu por colaborador do DP — clique para abrir e ver os registros dele. Ou clique
-          num colaborador no ranking acima para isolar só ele.
+          Registro a registro, agrupado por colaborador — clique num nome para abrir e conferir.
         </p>
-        <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap gap-2">
-            {DP_TIPOS.map((tp) => (
-              <button
-                key={tp.id}
-                onClick={() => setAba(tp.id)}
-                className={clsx(
-                  "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition-colors",
-                  aba === tp.id
-                    ? "border-ent/30 bg-ent/12 font-medium text-ent"
-                    : "border-hairline bg-surface-2 text-muted hover:text-ink"
-                )}
-              >
-                {ICONE[tp.id]}
-                {tp.rotulo}
-              </button>
-            ))}
-          </div>
-          {usuarioSel != null && (
-            <button
-              onClick={() => setUsuarioSel(null)}
-              className="rounded-lg border border-hairline bg-surface-2 px-3 py-1.5 text-xs text-muted transition-colors hover:text-ink"
-            >
-              Filtrando por <span className="font-medium text-ink">{nomeSel}</span> · limpar ✕
-            </button>
-          )}
-        </header>
-
         <DpListaTabela
-          tipo={aba}
+          tipo={tipo}
           dados={lista.data}
           carregando={lista.isLoading}
           recarregando={lista.isFetching && !lista.isLoading}
         />
       </section>
     </>
+  );
+}
+
+export default function ProdutividadeDpPage() {
+  const { qs } = useFiltros();
+  const [menu, setMenu] = useState<Menu>("geral");
+  const [usuarioSel, setUsuarioSel] = useState<number | null>(null);
+
+  const resumo = useDpProdutividade(qs);
+  const t = resumo.data?.totais;
+  const ant = resumo.data?.anterior;
+  const carregandoResumo = resumo.isLoading;
+
+  return (
+    <div className="flex flex-col gap-5">
+      <Menus menu={menu} onMenu={setMenu} />
+
+      {menu === "geral" ? (
+        <>
+          {/* KPIs — os quatro trabalhos + total, com delta vs. período anterior */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            {carregandoResumo || !t || !ant ? (
+              Array.from({ length: 5 }).map((_, i) => <div key={i} className="skeleton h-36" />)
+            ) : (
+              <>
+                <Kpi
+                  rotulo="Avisos prévios"
+                  icone={ICONE.avisos}
+                  corIcone={BG_ICONE.avisos}
+                  valor={num(t.avisos)}
+                  secundario={<Delta atual={t.avisos} anterior={ant.avisos} />}
+                />
+                <Kpi
+                  rotulo="Rescisões calculadas"
+                  icone={ICONE.rescisoes}
+                  corIcone={BG_ICONE.rescisoes}
+                  valor={num(t.rescisoes)}
+                  secundario={<Delta atual={t.rescisoes} anterior={ant.rescisoes} />}
+                />
+                <Kpi
+                  rotulo="Admissões feitas"
+                  icone={ICONE.admissoes}
+                  corIcone={BG_ICONE.admissoes}
+                  valor={num(t.admissoes)}
+                  secundario={<Delta atual={t.admissoes} anterior={ant.admissoes} />}
+                />
+                <Kpi
+                  rotulo="Férias calculadas"
+                  icone={ICONE.ferias}
+                  corIcone={BG_ICONE.ferias}
+                  valor={num(t.ferias)}
+                  secundario={<Delta atual={t.ferias} anterior={ant.ferias} />}
+                />
+                <Kpi
+                  rotulo="Total no período"
+                  icone={ICONE.total}
+                  corIcone={BG_ICONE.total}
+                  valor={num(t.total)}
+                  secundario={
+                    <span className="text-muted">
+                      {num(resumo.data!.colaboradores)} colaboradores do DP
+                    </span>
+                  }
+                />
+              </>
+            )}
+          </div>
+
+          <DpRankingTabela
+            dados={resumo.data?.ranking}
+            carregando={resumo.isLoading}
+            recarregando={resumo.isFetching && !resumo.isLoading}
+            selecionado={usuarioSel}
+            onSelecionar={setUsuarioSel}
+          />
+
+          <p className="text-center text-xs text-muted">
+            Selecione um colaborador acima e abra qualquer aba (Avisos, Rescisões…) para ver o
+            detalhe dele, com gráficos por empresa e no tempo.
+          </p>
+        </>
+      ) : (
+        <AbaTipo
+          tipo={menu}
+          qs={qs}
+          ranking={resumo.data?.ranking}
+          totais={t}
+          anterior={ant}
+          carregandoResumo={carregandoResumo}
+          usuarioSel={usuarioSel}
+          onSelecionar={setUsuarioSel}
+        />
+      )}
+    </div>
   );
 }
