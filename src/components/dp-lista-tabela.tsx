@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { ChevronRight } from "lucide-react";
 import clsx from "clsx";
 import type { DpLinha, DpTipo, EsocialStatus } from "@/lib/dp-tipos";
 import { dataBR, num } from "@/lib/format";
@@ -26,7 +27,6 @@ function EsocialBadge({ status }: { status: EsocialStatus | undefined }) {
 
 interface Coluna {
   rotulo: string;
-  /** Alinhamento; padrão à esquerda. */
   fim?: boolean;
   render: (l: DpLinha) => React.ReactNode;
 }
@@ -41,9 +41,8 @@ function empresaCell(l: DpLinha) {
 }
 
 /**
- * Colunas por tipo. O colaborador do DP NÃO é coluna: ele é o cabeçalho do grupo
- * (a tela é por colaborador). Cada linha mostra o funcionário e a empresa do
- * registro que aquele colaborador processou.
+ * Colunas por tipo. O colaborador do DP não é coluna — é o menu (o accordion).
+ * Cada linha mostra o funcionário e a empresa do registro que ele processou.
  */
 function colunas(tipo: DpTipo): Coluna[] {
   const funcionario: Coluna = {
@@ -118,6 +117,45 @@ function agrupar(dados: DpLinha[]): Grupo[] {
   return [...mapa.values()].sort((a, b) => b.linhas.length - a.linhas.length);
 }
 
+/** Tabela dos registros de UM colaborador (dentro do accordion aberto). */
+function TabelaRegistros({ cols, linhas }: { cols: Coluna[]; linhas: DpLinha[] }) {
+  return (
+    <div className="max-h-[28rem] overflow-auto border-t border-hairline">
+      <table className="w-full min-w-[760px] border-collapse text-sm">
+        <thead className="sticky top-0 z-10 bg-surface-2">
+          <tr className="border-b border-hairline text-xs text-muted">
+            {cols.map((c) => (
+              <th
+                key={c.rotulo}
+                className={clsx("px-3 py-2 font-medium", c.fim ? "text-right" : "text-left")}
+              >
+                {c.rotulo}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {linhas.map((l, i) => (
+            <tr
+              key={`${l.codigoempresa}-${l.contrato}-${i}`}
+              className="border-b border-hairline/60 last:border-0 hover:bg-surface-2/40"
+            >
+              {cols.map((c) => (
+                <td
+                  key={c.rotulo}
+                  className={clsx("px-3 py-2.5 align-top", c.fim && "text-right")}
+                >
+                  {c.render(l)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 interface Props {
   tipo: DpTipo;
   dados: DpLinha[] | undefined;
@@ -129,59 +167,60 @@ export function DpListaTabela({ tipo, dados, carregando, recarregando }: Props) 
   const cols = colunas(tipo);
   const grupos = useMemo(() => (dados ? agrupar(dados) : undefined), [dados]);
 
+  // Colaboradores abertos (por codigousuario). Fechados por padrão — o menu não
+  // cresce sem fim; abre um por vez conforme o interesse.
+  const [abertos, setAbertos] = useState<Set<number>>(new Set());
+  const alternar = (codigo: number) =>
+    setAbertos((prev) => {
+      const proximo = new Set(prev);
+      if (proximo.has(codigo)) proximo.delete(codigo);
+      else proximo.add(codigo);
+      return proximo;
+    });
+
+  // Quando o conjunto de colaboradores muda (troca de aba, filtro, período),
+  // ressincroniza o menu no render (padrão React de derivar de prop, sem effect
+  // — igual ao useRascunhoFiltros): se sobrou 1 colaborador (filtrado pelo
+  // ranking), abre-o direto; senão volta tudo a fechado.
+  const sig = grupos ? grupos.map((g) => g.codigousuario).join(",") : "";
+  const [sigAnterior, setSigAnterior] = useState(sig);
+  if (sig !== sigAnterior) {
+    setSigAnterior(sig);
+    setAbertos(grupos && grupos.length === 1 ? new Set([grupos[0].codigousuario]) : new Set());
+  }
+
   if (carregando || !grupos) return <div className="skeleton h-96 w-full" />;
   if (grupos.length === 0) {
-    return (
-      <p className="grid h-40 place-items-center text-sm text-muted">Nada lançado no período</p>
-    );
+    return <p className="grid h-40 place-items-center text-sm text-muted">Nada lançado no período</p>;
   }
 
   return (
-    <div className={clsx("overflow-x-auto", recarregando && "refetching")}>
-      <table className="w-full min-w-[820px] border-collapse text-sm">
-        <thead className="sticky top-0 z-10 bg-surface">
-          <tr className="border-b border-hairline text-xs text-muted">
-            {cols.map((c) => (
-              <th
-                key={c.rotulo}
-                className={clsx("py-2 font-medium", c.fim ? "pl-3 text-right" : "pr-3 text-left")}
+    <div className={clsx(recarregando && "refetching")}>
+      <div className="max-h-[42rem] space-y-2 overflow-y-auto pr-1">
+        {grupos.map((g) => {
+          const aberto = abertos.has(g.codigousuario);
+          return (
+            <div key={g.codigousuario} className="overflow-hidden rounded-xl border border-hairline">
+              <button
+                onClick={() => alternar(g.codigousuario)}
+                className={clsx(
+                  "flex w-full items-center gap-3 px-4 py-3 text-left transition-colors",
+                  aberto ? "bg-surface-2/70" : "bg-surface-2/30 hover:bg-surface-2/60"
+                )}
               >
-                {c.rotulo}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        {grupos.map((g) => (
-          <tbody key={g.codigousuario}>
-            {/* Cabeçalho do colaborador — o eixo da tela é quem fez o trabalho */}
-            <tr className="bg-surface-2/60">
-              <td colSpan={cols.length} className="px-1 py-2">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-ink">{g.usuario}</span>
-                  <span className="rounded-full bg-ent/12 px-2 py-0.5 text-[11px] font-medium text-ent">
-                    {num(g.linhas.length)} {g.linhas.length === 1 ? "registro" : "registros"}
-                  </span>
-                </div>
-              </td>
-            </tr>
-            {g.linhas.map((l, i) => (
-              <tr
-                key={`${l.codigoempresa}-${l.contrato}-${i}`}
-                className="border-b border-hairline/60 hover:bg-surface-2/50"
-              >
-                {cols.map((c) => (
-                  <td
-                    key={c.rotulo}
-                    className={clsx("py-2.5 align-top", c.fim ? "pl-3 text-right" : "pr-3")}
-                  >
-                    {c.render(l)}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        ))}
-      </table>
+                <ChevronRight
+                  className={clsx("size-4 shrink-0 text-muted transition-transform", aberto && "rotate-90")}
+                />
+                <span className="flex-1 truncate font-semibold text-ink">{g.usuario}</span>
+                <span className="rounded-full bg-ent/12 px-2.5 py-0.5 text-xs font-medium text-ent">
+                  {num(g.linhas.length)} {g.linhas.length === 1 ? "registro" : "registros"}
+                </span>
+              </button>
+              {aberto && <TabelaRegistros cols={cols} linhas={g.linhas} />}
+            </div>
+          );
+        })}
+      </div>
       {dados && dados.length >= 1000 && (
         <p className="mt-3 text-center text-xs text-muted">
           Mostrando as 1000 linhas mais recentes — refine o período ou a empresa

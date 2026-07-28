@@ -137,8 +137,8 @@ export default function ProdutividadeDpPage() {
       {/* Detalhe: abas dos quatro trabalhos, agrupado por colaborador do DP */}
       <section className="card anim-fade-up p-5">
         <p className="mb-3 text-xs text-muted">
-          Detalhe agrupado por colaborador do DP — cada bloco é quem fez o trabalho, com os
-          registros embaixo. Clique num colaborador do ranking acima para ver só ele.
+          Um menu por colaborador do DP — clique para abrir e ver os registros dele. Ou clique
+          num colaborador no ranking acima para isolar só ele.
         </p>
         <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-2">
