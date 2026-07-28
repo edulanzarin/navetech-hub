@@ -6,6 +6,7 @@ import clsx from "clsx";
 import { DpRankingTabela } from "@/components/dp-ranking-tabela";
 import { DpListaTabela } from "@/components/dp-lista-tabela";
 import { DpBarras } from "@/components/dp-barras";
+import { DpFuncionarioFiltro } from "@/components/dp-funcionario-filtro";
 import { DpSerieChart } from "@/components/charts/dp-serie-chart";
 import { useFiltros } from "@/hooks/use-filters";
 import { useDpProdutividade, useDpLista, useDpQuebra } from "@/hooks/use-api";
@@ -211,15 +212,6 @@ function AbaTipo({
         )}
       </div>
 
-      {usuarioSel != null && (
-        <button
-          onClick={() => onSelecionar(null)}
-          className="w-fit rounded-lg border border-hairline bg-surface-2 px-3 py-1.5 text-xs text-muted transition-colors hover:text-ink"
-        >
-          Recorte por <span className="font-medium text-ink">{selNome}</span> · ver o time todo ✕
-        </button>
-      )}
-
       {/* Por colaborador (eixo principal) + por empresa */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <DpBarras
@@ -282,6 +274,20 @@ export default function ProdutividadeDpPage() {
   return (
     <div className="flex flex-col gap-5">
       <Menus menu={menu} onMenu={setMenu} />
+
+      {/* Filtro por funcionário da Navecon — recorta o dashboard inteiro */}
+      <div className="flex flex-wrap items-center gap-2">
+        <DpFuncionarioFiltro
+          dados={resumo.data?.ranking}
+          valor={usuarioSel}
+          onMudar={setUsuarioSel}
+        />
+        {usuarioSel != null && (
+          <span className="text-xs text-muted">
+            Mostrando só o trabalho deste funcionário · o ranking segue com o time todo
+          </span>
+        )}
+      </div>
 
       {menu === "geral" ? (
         <>

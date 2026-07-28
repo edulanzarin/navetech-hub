@@ -41,19 +41,15 @@ function empresaCell(l: DpLinha) {
 }
 
 /**
- * Colunas por tipo. O colaborador do DP não é coluna — é o menu (o accordion).
- * Cada linha mostra o funcionário e a empresa do registro que ele processou.
+ * Colunas por tipo. O colaborador do DP (funcionário da Navecon) não é coluna —
+ * é o menu (o accordion). Cada linha mostra a EMPRESA do registro e os dados do
+ * trabalho; o empregado do cliente não entra (este é o painel do nosso pessoal).
  */
 function colunas(tipo: DpTipo): Coluna[] {
-  const funcionario: Coluna = {
-    rotulo: "Funcionário",
-    render: (l) => <span className="text-ink">{l.funcionario}</span>,
-  };
   const empresa: Coluna = { rotulo: "Empresa", render: empresaCell };
 
   if (tipo === "avisos" || tipo === "rescisoes") {
     return [
-      funcionario,
       empresa,
       { rotulo: "Causa da demissão", render: (l) => l.causa ?? "—" },
       { rotulo: "Data do aviso", render: (l) => dataBR(l.dataAviso) },
@@ -68,7 +64,6 @@ function colunas(tipo: DpTipo): Coluna[] {
 
   if (tipo === "admissoes") {
     return [
-      funcionario,
       empresa,
       { rotulo: "Data de admissão", render: (l) => dataBR(l.dataAdm) },
       { rotulo: "eSocial", render: (l) => <EsocialBadge status={l.esocial} /> },
@@ -83,7 +78,6 @@ function colunas(tipo: DpTipo): Coluna[] {
 
   // férias
   return [
-    funcionario,
     empresa,
     { rotulo: "Início do gozo", render: (l) => dataBR(l.inicioFerias) },
     { rotulo: "Fim do gozo", render: (l) => dataBR(l.fimFerias) },
@@ -121,7 +115,7 @@ function agrupar(dados: DpLinha[]): Grupo[] {
 function TabelaRegistros({ cols, linhas }: { cols: Coluna[]; linhas: DpLinha[] }) {
   return (
     <div className="max-h-[28rem] overflow-auto border-t border-hairline">
-      <table className="w-full min-w-[760px] border-collapse text-sm">
+      <table className="w-full min-w-[640px] border-collapse text-sm">
         <thead className="sticky top-0 z-10 bg-surface-2">
           <tr className="border-b border-hairline text-xs text-muted">
             {cols.map((c) => (
