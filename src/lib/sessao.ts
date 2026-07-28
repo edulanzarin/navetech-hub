@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { appQuery } from "./app-db";
 import { COOKIE } from "./auth";
 import { MODULOS, secoesDoModulo, type ModuloId } from "./modulos";
+import { ehEmpresaRh } from "./rh";
 
 /**
  * Seam de permissão do Hub, no servidor.
@@ -191,5 +192,9 @@ export function empresasPermitidas(sessao: Sessao): number[] | "todas" {
 
 /** Uma empresa específica é visível para a sessão? Para checagens pontuais. */
 export function podeVerEmpresa(sessao: Sessao, codigo: number): boolean {
+  // As empresas do RH (NAVECON/FOUR/FINAVE) são invisíveis fora do módulo RH,
+  // que tem escopo fixo próprio (ehEmpresaRh) e não passa por aqui. Vale até
+  // para quem vê "todas": elas nunca aparecem no resto do Hub.
+  if (ehEmpresaRh(codigo)) return false;
   return sessao.empresas.todas || sessao.empresas.permitidas.includes(codigo);
 }

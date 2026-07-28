@@ -1,5 +1,5 @@
 import { pool } from "@/lib/db";
-import { apiRoute } from "@/lib/api-route";
+import { apiRoute, assertEmpresaVisivel } from "@/lib/api-route";
 import { parseFilters, FilterError } from "@/lib/fiscal-filters";
 import { balanceteFiscal, CONTA_CONTRAPARTIDA } from "@/lib/balancete-fiscal";
 import { pendentesNfse } from "@/lib/balancete-pendentes";
@@ -20,6 +20,7 @@ export const GET = apiRoute(async (req) => {
   const f = parseFilters(req.nextUrl.searchParams);
   if (f.empresas.length !== 1) throw new FilterError("Selecione uma empresa para o balancete");
   const empresa = f.empresas[0];
+  await assertEmpresaVisivel(empresa);
 
   const client = await pool.connect();
   try {

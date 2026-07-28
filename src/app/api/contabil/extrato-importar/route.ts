@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { apiRoute } from "@/lib/api-route";
+import { apiRoute, assertEmpresaVisivel } from "@/lib/api-route";
 import { FilterError } from "@/lib/fiscal-filters";
 import { lerOfx } from "@/lib/extrato-ofx";
 import { lerPdf, PdfNaoReconhecido, type PdfLido } from "@/lib/extrato-pdf";
@@ -75,6 +75,7 @@ export const POST = apiRoute(async (req) => {
 
   if (!(arquivo instanceof File)) throw new FilterError("Envie o arquivo do extrato");
   if (!Number.isInteger(empresa)) throw new FilterError("Selecione uma empresa");
+  await assertEmpresaVisivel(empresa);
   if (!Number.isInteger(conta)) throw new FilterError("Selecione a conta de banco");
   if (arquivo.size > MAX_BYTES) throw new FilterError("Arquivo muito grande (máx. 15 MB)");
 

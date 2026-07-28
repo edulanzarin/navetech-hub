@@ -1,4 +1,4 @@
-import { apiRoute } from "@/lib/api-route";
+import { apiRoute, assertEmpresaVisivel } from "@/lib/api-route";
 import { FilterError } from "@/lib/fiscal-filters";
 import {
   contasFaltantes,
@@ -20,6 +20,7 @@ export const GET = apiRoute(async (req) => {
   const p = req.nextUrl.searchParams;
   const empresa = Number(p.get("empresa"));
   if (!Number.isInteger(empresa)) throw new FilterError("Selecione uma empresa");
+  await assertEmpresaVisivel(empresa);
 
   // Prévia da replicação: quais contrapartidas não existem no plano do destino.
   const faltantesConta = p.get("faltantesDe");
@@ -28,6 +29,7 @@ export const GET = apiRoute(async (req) => {
     const c = Number(faltantesConta);
     const d = Number(faltantesEm);
     if (!Number.isInteger(c) || !Number.isInteger(d)) throw new FilterError("Parâmetros inválidos");
+    await assertEmpresaVisivel(d);
     return { faltantes: await contasFaltantes({ empresa, conta: c }, d) };
   }
 
@@ -62,6 +64,7 @@ export const POST = apiRoute(async (req) => {
   if (!Number.isInteger(c.empresa) || !Number.isInteger(c.conta)) {
     throw new FilterError("Informe a empresa e a conta do banco");
   }
+  await assertEmpresaVisivel(c.empresa!);
 
   if (c.acao === "replicar") {
     if (!c.destinos?.length) throw new FilterError("Escolha ao menos um destino para replicar");
@@ -69,6 +72,7 @@ export const POST = apiRoute(async (req) => {
       if (!Number.isInteger(d.empresa) || !Number.isInteger(d.conta)) {
         throw new FilterError("Destino inválido");
       }
+      await assertEmpresaVisivel(d.empresa);
     }
     const resultado = await replicarRegras({ empresa: c.empresa!, conta: c.conta! }, c.destinos);
     return { resultado, ok: true };

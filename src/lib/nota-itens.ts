@@ -1,5 +1,6 @@
 import { query } from "./db";
 import { FilterError } from "./fiscal-filters";
+import { getSessaoOpcional, podeVerEmpresa } from "./sessao";
 import type { NotaItem } from "./types";
 
 /**
@@ -7,12 +8,18 @@ import type { NotaItem } from "./types";
  * explorador de notas) e o Contábil (modal de detalhe da Conferência) — cada
  * módulo pela sua própria rota, gateada pelo módulo; a query é uma só.
  */
-export function buscarNotaItens(sp: URLSearchParams): Promise<NotaItem[]> {
+export async function buscarNotaItens(sp: URLSearchParams): Promise<NotaItem[]> {
   const tipo = sp.get("tipo") === "ent" ? "ent" : "sai";
   const empresa = Number(sp.get("empresa"));
   const chave = sp.get("chave") ?? "";
   if (!Number.isInteger(empresa) || !/^\d+$/.test(chave)) {
     throw new FilterError("empresa e chave são obrigatórios");
+  }
+  // Drill-down por empresa avulsa: sem o funil do buildWhere, o escopo se trava
+  // aqui — inclusive as empresas do RH, invisíveis fora do módulo RH.
+  const sessao = await getSessaoOpcional();
+  if (!sessao || !podeVerEmpresa(sessao, empresa)) {
+    throw new FilterError("Empresa fora do seu escopo de acesso");
   }
   const tabela = `lctofis${tipo}produto`;
   const chaveCol = tipo === "ent" ? "chavelctofisent" : "chavelctofissai";

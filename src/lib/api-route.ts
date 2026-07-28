@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { FilterError } from "./fiscal-filters";
 import { AppDbError } from "./app-db";
-import { getSessaoOpcional, podeSecao, podeAcessarModuloSync } from "./sessao";
+import { getSessaoOpcional, podeSecao, podeAcessarModuloSync, podeVerEmpresa } from "./sessao";
 import { secoesDoEndpoint } from "./api-secoes";
 import type { ModuloId } from "./modulos";
 
@@ -16,6 +16,19 @@ type Handler = (req: NextRequest) => Promise<unknown>;
 function moduloDaRota(pathname: string): ModuloId | undefined {
   const m = pathname.match(/^\/api\/(fiscal|contabil|folha|rh)(?:\/|$)/);
   return m ? (m[1] as ModuloId) : undefined;
+}
+
+/**
+ * Trava de escopo por empresa para rotas que consultam UMA empresa direto (sem
+ * passar pelo funil do `buildWhere`/escopo de lista). Chame logo após ler o
+ * código da empresa. Recusa empresa fora do alcance da sessão — e, por tabela,
+ * as empresas do RH (invisíveis fora daquele módulo, ver `podeVerEmpresa`).
+ */
+export async function assertEmpresaVisivel(codigo: number): Promise<void> {
+  const sessao = await getSessaoOpcional();
+  if (!sessao || !podeVerEmpresa(sessao, codigo)) {
+    throw new FilterError("Empresa fora do seu escopo de acesso");
+  }
 }
 
 export function apiRoute(handler: Handler) {

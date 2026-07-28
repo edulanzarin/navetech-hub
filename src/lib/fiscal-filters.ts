@@ -1,4 +1,5 @@
 import { getSessaoOpcional, empresasPermitidas } from "./sessao";
+import { condForaDoRh } from "./rh";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -91,6 +92,10 @@ export async function buildWhere(
     params.push(efetivas);
     conds.push(`${a}codigoempresa = any($${params.length}::int[])`);
   }
+
+  // As empresas do RH nunca aparecem no Fiscal/Contábil — mesmo para quem vê
+  // "todas". Fragmento literal (códigos constantes), sem parâmetro.
+  conds.push(condForaDoRh(opts.alias));
 
   // Filial: recorta DENTRO da empresa. Toda tabela do funil (nota, item e o
   // contábil lctoctb) tem codigoestab, então a condição vale em qualquer

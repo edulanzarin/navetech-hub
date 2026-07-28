@@ -2,6 +2,7 @@ import "server-only";
 import { query } from "./db";
 import { FilterError } from "./fiscal-filters";
 import { getSessaoOpcional, empresasPermitidas } from "./sessao";
+import { condForaDoRh } from "./rh";
 import type {
   DpColaborador,
   DpLinha,
@@ -100,6 +101,9 @@ async function baseParams(
     params.push(scope);
     condEmpresa = ` and codigoempresa = any($${params.length}::int[])`;
   }
+  // As empresas do RH nunca contam na produtividade do DP — sempre exclui,
+  // inclusive quando o escopo é "todas". Literal (códigos constantes).
+  condEmpresa += ` and ${condForaDoRh()}`;
   let usuarioIdx: number | null = null;
   if (f.usuario != null) {
     params.push(f.usuario);
@@ -269,8 +273,9 @@ interface ListaRawBase {
 export async function montarListaDp(f: DpFiltros, tipo: DpTipo): Promise<DpLinha[]> {
   const { params, condEmpresa, usuarioIdx } = await baseParams(f);
   // O escopo de empresa entra qualificado por `src` (a fonte). O condEmpresa
-  // genérico usa `codigoempresa` cru; aqui reescrevo para `src.codigoempresa`.
-  const condEmp = condEmpresa.replace("codigoempresa", "src.codigoempresa");
+  // genérico usa `codigoempresa` cru; aqui reescrevo TODAS as ocorrências
+  // (escopo + exclusão do RH) para `src.codigoempresa`.
+  const condEmp = condEmpresa.replaceAll("codigoempresa", "src.codigoempresa");
   const condUsuario = usuarioIdx != null ? ` and src.codigousuario = $${usuarioIdx}` : "";
   const where = `where src.datahoralcto::date between $1 and $2${condEmp}${condUsuario}`;
   const ordem = `order by src.datahoralcto desc limit ${LIMITE_LISTA}`;
@@ -395,7 +400,7 @@ export async function montarListaDp(f: DpFiltros, tipo: DpTipo): Promise<DpLinha
 export async function montarQuebraDp(f: DpFiltros, tipo: DpTipo): Promise<DpQuebra> {
   const { params, condEmpresa, usuarioIdx } = await baseParams(f);
   const tabela = TABELA[tipo];
-  const condEmp = condEmpresa.replace("codigoempresa", "src.codigoempresa");
+  const condEmp = condEmpresa.replaceAll("codigoempresa", "src.codigoempresa");
   const condUsuario = usuarioIdx != null ? ` and src.codigousuario = $${usuarioIdx}` : "";
   const filtros = `src.datahoralcto::date between $1 and $2${condEmp}${condUsuario}`;
 

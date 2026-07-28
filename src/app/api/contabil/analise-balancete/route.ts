@@ -1,7 +1,6 @@
 import { pool } from "@/lib/db";
-import { apiRoute } from "@/lib/api-route";
+import { apiRoute, assertEmpresaVisivel } from "@/lib/api-route";
 import { parseFilters, FilterError } from "@/lib/fiscal-filters";
-import { getSessao, empresasPermitidas } from "@/lib/sessao";
 import { coletarBalanceteContabil } from "@/lib/balancete-contabil";
 import { analisarMotor } from "@/lib/analise-motor";
 import type { AnaliseBalanceteResp } from "@/lib/types";
@@ -20,11 +19,7 @@ export const GET = apiRoute(async (req) => {
     throw new FilterError("Selecione uma empresa para a análise");
   }
   const empresa = f.empresas[0];
-
-  const escopo = empresasPermitidas(await getSessao());
-  if (escopo !== "todas" && !escopo.includes(empresa)) {
-    throw new FilterError("Empresa fora do seu escopo de acesso");
-  }
+  await assertEmpresaVisivel(empresa);
 
   const client = await pool.connect();
   try {

@@ -1,5 +1,5 @@
 import { pool } from "@/lib/db";
-import { apiRoute } from "@/lib/api-route";
+import { apiRoute, assertEmpresaVisivel } from "@/lib/api-route";
 import { parseFilters, FilterError } from "@/lib/fiscal-filters";
 import { contasDoAlvo } from "@/lib/plano-contabil";
 import type { BalanceteLancamento, BalanceteLancamentosResp } from "@/lib/types";
@@ -15,6 +15,7 @@ export const GET = apiRoute(async (req) => {
   const f = parseFilters(sp);
   if (f.empresas.length !== 1) throw new FilterError("Selecione uma empresa");
   const empresa = f.empresas[0];
+  await assertEmpresaVisivel(empresa);
   const classif = (sp.get("classif") ?? "").trim();
   if (!classif) throw new FilterError("classif é obrigatório");
   const natureza = sp.get("natureza") === "-1" ? -1 : 1;

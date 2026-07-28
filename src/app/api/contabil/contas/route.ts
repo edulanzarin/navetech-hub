@@ -1,5 +1,5 @@
 import { pool } from "@/lib/db";
-import { apiRoute } from "@/lib/api-route";
+import { apiRoute, assertEmpresaVisivel } from "@/lib/api-route";
 import { FilterError } from "@/lib/fiscal-filters";
 import type { ContaPlano } from "@/lib/types";
 
@@ -16,6 +16,7 @@ export const GET = apiRoute(async (req) => {
   const p = req.nextUrl.searchParams;
   const empresa = Number(p.get("empresa"));
   if (!Number.isInteger(empresa)) throw new FilterError("Selecione uma empresa");
+  await assertEmpresaVisivel(empresa);
 
   const busca = (p.get("busca") ?? "").trim();
   const soBanco = p.get("banco") === "1";

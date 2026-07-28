@@ -1,5 +1,5 @@
 import { pool } from "@/lib/db";
-import { apiRoute } from "@/lib/api-route";
+import { apiRoute, assertEmpresaVisivel } from "@/lib/api-route";
 import { FilterError } from "@/lib/fiscal-filters";
 import { planoQuestor } from "@/lib/plano-contabil";
 import {
@@ -24,6 +24,7 @@ export const GET = apiRoute(async (req) => {
 
   const empresa = Number(p.get("empresa"));
   if (!Number.isInteger(empresa)) throw new FilterError("Selecione uma empresa");
+  await assertEmpresaVisivel(empresa);
 
   const estabParam = p.get("estab");
   const estab = estabParam ? Number(estabParam) : undefined;
@@ -129,6 +130,7 @@ export const PUT = apiRoute(async (req) => {
   if (!Number.isInteger(empresa) || !Number.isInteger(cfop)) {
     throw new FilterError("Informe empresa e cfop");
   }
+  await assertEmpresaVisivel(empresa!);
   const estab = corpo.estab ?? 0;
   if (!Number.isInteger(estab) || estab < 0) throw new FilterError("Estabelecimento inválido");
 
@@ -175,6 +177,7 @@ export const DELETE = apiRoute(async (req) => {
   if (!Number.isInteger(empresa) || !Number.isInteger(cfop) || !Number.isInteger(estab)) {
     throw new FilterError("Informe empresa e cfop");
   }
+  await assertEmpresaVisivel(empresa);
   const removido = await removerOverride(empresa, estab, cfop);
   return { ok: removido };
 });

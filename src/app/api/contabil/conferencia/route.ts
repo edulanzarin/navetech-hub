@@ -1,6 +1,6 @@
 import { PoolClient } from "pg";
 import { pool } from "@/lib/db";
-import { apiRoute } from "@/lib/api-route";
+import { apiRoute, assertEmpresaVisivel } from "@/lib/api-route";
 import { parseFilters, FilterError } from "@/lib/fiscal-filters";
 import { planoQuestor } from "@/lib/plano-contabil";
 import { aplicarOverrides, listarOverrides } from "@/lib/plano-override";
@@ -550,6 +550,7 @@ export const GET = apiRoute(async (req) => {
   if (filters.empresas.length !== 1) {
     throw new FilterError("Selecione uma empresa para a conferência");
   }
+  await assertEmpresaVisivel(filters.empresas[0]);
   const p = req.nextUrl.searchParams;
   const cfops = (p.get("cfops") ?? "")
     .split(",")

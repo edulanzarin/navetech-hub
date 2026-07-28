@@ -1,5 +1,5 @@
 import { pool } from "@/lib/db";
-import { apiRoute } from "@/lib/api-route";
+import { apiRoute, assertEmpresaVisivel } from "@/lib/api-route";
 import { FilterError } from "@/lib/fiscal-filters";
 import { aprenderContabilizacao } from "@/lib/aprender-contabilizacao";
 
@@ -11,6 +11,7 @@ import { aprenderContabilizacao } from "@/lib/aprender-contabilizacao";
 export const POST = apiRoute(async (req) => {
   const empresa = Number(req.nextUrl.searchParams.get("empresa"));
   if (!Number.isInteger(empresa)) throw new FilterError("Selecione uma empresa");
+  await assertEmpresaVisivel(empresa);
   const client = await pool.connect();
   try {
     const cfops = await aprenderContabilizacao(client, empresa);
