@@ -4,13 +4,12 @@ import { createContext, useContext, useState } from "react";
 import clsx from "clsx";
 import { DP_TIPOS, type DpTipo } from "@/lib/dp-tipos";
 
-/** Aba ativa da Produtividade: visão geral + um por trabalho + os registros. */
-export type MenuProd = "geral" | DpTipo | "registros";
+/** Aba ativa da Produtividade: visão geral + um por trabalho. */
+export type MenuProd = "geral" | DpTipo;
 
 const ABAS: { id: MenuProd; rotulo: string }[] = [
   { id: "geral", rotulo: "Visão geral" },
   ...DP_TIPOS.map((t) => ({ id: t.id as MenuProd, rotulo: t.rotulo })),
-  { id: "registros", rotulo: "Registros" },
 ];
 
 interface Ctx {

@@ -4,13 +4,12 @@ import { useMemo, useState } from "react";
 import { CalendarClock, FileMinus, LayoutDashboard, LogOut, Plane, UserPlus } from "lucide-react";
 import clsx from "clsx";
 import { DpRankingTabela } from "@/components/dp-ranking-tabela";
-import { DpListaTabela } from "@/components/dp-lista-tabela";
 import { DpBarras } from "@/components/dp-barras";
 import { DpComposicaoDonut, DpColaboradorStack } from "@/components/dp-composicao";
 import { DpFuncionarioFiltro } from "@/components/dp-funcionario-filtro";
 import { DpSerieChart } from "@/components/charts/dp-serie-chart";
 import { useFiltros } from "@/hooks/use-filters";
-import { useDpProdutividade, useDpLista, useDpQuebra } from "@/hooks/use-api";
+import { useDpProdutividade, useDpQuebra } from "@/hooks/use-api";
 import { num, deltaPct } from "@/lib/format";
 import { DP_TIPOS, type DpColaborador, type DpTipo } from "@/lib/dp-tipos";
 import { useProdutividadeTabs } from "./tabs";
@@ -215,64 +214,10 @@ function AbaTipo({
   );
 }
 
-/**
- * Aba "Registros": a única lista da tela. Filtro de tipo em cima; o funcionário
- * e o período vêm dos filtros globais. É o "quando preciso conferir" — o resumo
- * mora nas outras abas.
- */
-function AbaRegistros({
-  qs,
-  usuarioSel,
-  tipoSel,
-  onTipo,
-}: {
-  qs: string;
-  usuarioSel: number | null;
-  tipoSel: DpTipo;
-  onTipo: (t: DpTipo) => void;
-}) {
-  const listaQs = usuarioSel != null ? `${qs}&usuario=${usuarioSel}` : qs;
-  const lista = useDpLista(listaQs, tipoSel);
-
-  return (
-    <section className="card anim-fade-up p-5">
-      <header className="mb-4 flex flex-wrap items-center gap-2">
-        <span className="mr-1 text-xs text-muted">Registros de:</span>
-        {DP_TIPOS.map((tp) => (
-          <button
-            key={tp.id}
-            onClick={() => onTipo(tp.id)}
-            className={clsx(
-              "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition-colors",
-              tipoSel === tp.id
-                ? "border-ent/30 bg-ent/12 font-medium text-ent"
-                : "border-hairline bg-surface-2 text-muted hover:text-ink"
-            )}
-          >
-            {ICONE[tp.id]}
-            {tp.rotulo}
-          </button>
-        ))}
-      </header>
-      <p className="mb-3 text-xs text-muted">
-        Agrupado por colaborador — clique num nome para abrir. Use o seletor de funcionário lá em
-        cima para isolar uma pessoa.
-      </p>
-      <DpListaTabela
-        tipo={tipoSel}
-        dados={lista.data}
-        carregando={lista.isLoading}
-        recarregando={lista.isFetching && !lista.isLoading}
-      />
-    </section>
-  );
-}
-
 export default function ProdutividadeDpPage() {
   const { qs } = useFiltros();
   const { menu } = useProdutividadeTabs();
   const [usuarioSel, setUsuarioSel] = useState<number | null>(null);
-  const [tipoReg, setTipoReg] = useState<DpTipo>("avisos");
 
   const resumo = useDpProdutividade(qs);
   const t = resumo.data?.totais;
@@ -374,11 +319,9 @@ export default function ProdutividadeDpPage() {
 
           <p className="text-center text-xs text-muted">
             Selecione um colaborador (aqui ou no filtro do topo) e abra qualquer aba para ver o
-            trabalho dele em gráficos. A aba Registros lista item a item, quando precisar conferir.
+            trabalho dele em gráficos.
           </p>
         </>
-      ) : menu === "registros" ? (
-        <AbaRegistros qs={qs} usuarioSel={usuarioSel} tipoSel={tipoReg} onTipo={setTipoReg} />
       ) : (
         <AbaTipo
           tipo={menu}
