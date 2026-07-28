@@ -41,7 +41,7 @@ export function useProdutividadeTabs() {
 export function ProdutividadeMenus() {
   const { menu, setMenu } = useProdutividadeTabs();
   return (
-    <nav className="mb-4 flex gap-1 overflow-x-auto border-b border-hairline" aria-label="Produtividade">
+    <nav className="mb-4 flex gap-1 border-b border-hairline" aria-label="Produtividade">
       {ABAS.map((a) => {
         const ativa = a.id === menu;
         return (
@@ -50,7 +50,7 @@ export function ProdutividadeMenus() {
             onClick={() => setMenu(a.id)}
             aria-current={ativa ? "page" : undefined}
             className={clsx(
-              "-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm transition-colors",
+              "-mb-px border-b-2 px-3 py-2 text-sm transition-colors",
               ativa
                 ? "border-ent font-medium text-ent"
                 : "border-transparent text-muted hover:border-hairline hover:text-ink"
