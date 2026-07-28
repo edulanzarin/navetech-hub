@@ -4,7 +4,7 @@ import { FilterError } from "./fiscal-filters";
 import { enviarEmail } from "./mailer";
 import { carregarFormulario } from "./formularios";
 import type { Formulario, RespostaValores } from "./formularios-tipos";
-import { gerarToken } from "./rh-experiencia-dados";
+import { gerarToken, gestoresDoSetor } from "./rh-experiencia-dados";
 import { appUrl } from "./rh";
 
 /**
@@ -22,16 +22,32 @@ export interface DestinatarioEntrada {
   gestorId?: number | null;
 }
 
+/** Um colaborador que a avaliação avalia (modo "sobre um colaborador"). O e-mail
+ *  não vem daqui: no disparo, resolvemos os gestores do departamento (classiforgan). */
+export interface ColaboradorEntrada {
+  codigoempresa: number;
+  codigofunccontr: number;
+  nome?: string | null;
+  classiforgan?: string | null;
+}
+
 // ── Criação e disparo ─────────────────────────────────────────────────────────
 
 export async function criarEnvio(params: {
   formularioId: number;
   titulo?: string | null;
   mensagem?: string | null;
-  destinatarios: DestinatarioEntrada[];
+  destinatarios?: DestinatarioEntrada[];
+  colaboradores?: ColaboradorEntrada[];
   agendarPara?: string | null;
   criadoPor?: string | null;
-}): Promise<{ id: number; enviados: number; total: number; agendado: boolean }> {
+}): Promise<{
+  id: number;
+  enviados: number;
+  total: number;
+  agendado: boolean;
+  semGestor: string[];
+}> {
   const form = await carregarFormulario(params.formularioId);
   if (!form) throw new FilterError("Formulário não encontrado");
   if (form.status !== "ativo") throw new FilterError("Só é possível enviar formulários ativos");
@@ -39,7 +55,8 @@ export async function criarEnvio(params: {
 
   const titulo = (params.titulo || form.nome).trim();
 
-  // Dedup por e-mail (o mesmo gestor pode cair em "todos" e "avulso").
+  // Destinatários comuns (gestores/avulsos): dedup por e-mail (o mesmo gestor
+  // pode cair em "todos" e "avulso").
   const vistos = new Set<string>();
   const dests: Required<DestinatarioEntrada>[] = [];
   for (const d of params.destinatarios ?? []) {
@@ -48,7 +65,36 @@ export async function criarEnvio(params: {
     vistos.add(email);
     dests.push({ email, nome: d.nome?.trim() || null, gestorId: d.gestorId ?? null });
   }
-  if (!dests.length) throw new FilterError("Selecione ao menos um destinatário válido");
+
+  // Colaboradores (modo "sobre um colaborador"): dedup por contrato e só entram
+  // os que têm gestor cadastrado no departamento — o resto vira aviso (semGestor).
+  const vistosColab = new Set<string>();
+  const colabs: (ColaboradorEntrada & { classiforgan: string })[] = [];
+  const semGestor: string[] = [];
+  for (const c of params.colaboradores ?? []) {
+    if (!Number.isInteger(c.codigoempresa) || !Number.isInteger(c.codigofunccontr)) continue;
+    const chave = `${c.codigoempresa}:${c.codigofunccontr}`;
+    if (vistosColab.has(chave)) continue;
+    vistosColab.add(chave);
+    const classiforgan = (c.classiforgan ?? "").trim();
+    const nome = c.nome?.trim() || `Contrato ${c.codigofunccontr}`;
+    const gestores = classiforgan ? await gestoresDoSetor(classiforgan) : [];
+    if (!gestores.length) {
+      semGestor.push(nome);
+      continue;
+    }
+    colabs.push({ ...c, nome, classiforgan });
+  }
+
+  const total = dests.length + colabs.length;
+  if (!total) {
+    if (semGestor.length) {
+      throw new FilterError(
+        "Nenhum colaborador selecionado tem gestor cadastrado no departamento"
+      );
+    }
+    throw new FilterError("Selecione ao menos um destinatário válido");
+  }
 
   const quando = params.agendarPara ? new Date(params.agendarPara) : null;
   const futuro = quando != null && !Number.isNaN(quando.getTime()) && quando.getTime() > Date.now();
@@ -73,10 +119,18 @@ export async function criarEnvio(params: {
       [env.id, d.nome, d.email, d.gestorId, gerarToken()]
     );
   }
+  for (const c of colabs) {
+    await appQuery(
+      `insert into envio_destinatario
+          (envio_id, nome, token, codigoempresa, codigofunccontr, classiforgan, funcionario_nome)
+       values ($1, $2, $3, $4, $5, $6, $2)`,
+      [env.id, c.nome, gerarToken(), c.codigoempresa, c.codigofunccontr, c.classiforgan]
+    );
+  }
 
-  if (futuro) return { id: env.id, enviados: 0, total: dests.length, agendado: true };
+  if (futuro) return { id: env.id, enviados: 0, total, agendado: true, semGestor };
   const enviados = await dispararEnvio(env.id);
-  return { id: env.id, enviados, total: dests.length, agendado: false };
+  return { id: env.id, enviados, total, agendado: false, semGestor };
 }
 
 /** Envia (ou reenvia) os destinatários pendentes de uma campanha. Devolve quantos
@@ -88,17 +142,41 @@ export async function dispararEnvio(envioId: number): Promise<number> {
   );
   if (!env) return 0;
 
-  const dests = await appQuery<{ id: number; email: string; token: string }>(
-    `select id, email, token from envio_destinatario where envio_id = $1 and status = 'pendente'`,
+  const dests = await appQuery<{
+    id: number;
+    email: string | null;
+    token: string;
+    classiforgan: string | null;
+    funcionario_nome: string | null;
+  }>(
+    `select id, email, token, classiforgan, funcionario_nome
+       from envio_destinatario where envio_id = $1 and status = 'pendente'`,
     [envioId]
   );
 
   let enviados = 0;
   for (const d of dests) {
+    // Colaborador: os destinatários reais são os gestores do departamento
+    // (mesmo link para todos, uma resposta). Comum: o próprio e-mail da linha.
+    const para = d.classiforgan
+      ? await gestoresDoSetor(d.classiforgan)
+      : d.email
+        ? [d.email]
+        : [];
+    if (!para.length) {
+      await appQuery(`update envio_destinatario set status = 'erro' where id = $1`, [d.id]);
+      console.error("[envio] destinatário sem e-mail para envio", d.id);
+      continue;
+    }
     const link = `${appUrl()}/f/${d.token}`;
-    const { assunto, html } = emailFormulario({ titulo: env.titulo, mensagem: env.mensagem, link });
+    const { assunto, html } = emailFormulario({
+      titulo: env.titulo,
+      mensagem: env.mensagem,
+      link,
+      funcionario: d.funcionario_nome,
+    });
     try {
-      const { enviado } = await enviarEmail({ para: d.email, assunto, html });
+      const { enviado } = await enviarEmail({ para, assunto, html });
       await appQuery(
         `update envio_destinatario set status = 'enviado', enviado_em = now() where id = $1`,
         [d.id]
@@ -106,7 +184,7 @@ export async function dispararEnvio(envioId: number): Promise<number> {
       if (enviado) enviados++;
     } catch (e) {
       await appQuery(`update envio_destinatario set status = 'erro' where id = $1`, [d.id]);
-      console.error("[envio] falha ao enviar para", d.email, e);
+      console.error("[envio] falha ao enviar para", para, e);
     }
   }
   await appQuery(`update envio set disparado_em = now() where id = $1`, [envioId]);
@@ -177,8 +255,11 @@ export async function listarEnvios(): Promise<EnvioResumo[]> {
 export interface EnvioDestinatario {
   id: number;
   nome: string | null;
-  email: string;
+  email: string | null;
   status: string;
+  /** Preenchido quando o destinatário é "sobre um colaborador". */
+  funcionarioNome: string | null;
+  classiforgan: string | null;
   respondidoPorNome: string | null;
   respondidoEm: string | null;
   valores: RespostaValores | null;
@@ -203,15 +284,17 @@ export async function carregarEnvio(id: number): Promise<EnvioDetalhe | null> {
   const rows = await appQuery<{
     id: number;
     nome: string | null;
-    email: string;
+    email: string | null;
     status: string;
+    funcionario_nome: string | null;
+    classiforgan: string | null;
     respondido_por_nome: string | null;
     respondido_em: string | null;
     valores: { valores?: RespostaValores } | null;
   }>(
-    `select id, nome, email, status, respondido_por_nome,
+    `select id, nome, email, status, funcionario_nome, classiforgan, respondido_por_nome,
             to_char(respondido_em, 'YYYY-MM-DD"T"HH24:MI:SS') as respondido_em, valores
-       from envio_destinatario where envio_id = $1 order by email`,
+       from envio_destinatario where envio_id = $1 order by funcionario_nome nulls last, email`,
     [id]
   );
   return {
@@ -223,6 +306,8 @@ export async function carregarEnvio(id: number): Promise<EnvioDetalhe | null> {
       nome: r.nome,
       email: r.email,
       status: r.status,
+      funcionarioNome: r.funcionario_nome,
+      classiforgan: r.classiforgan,
       respondidoPorNome: r.respondido_por_nome,
       respondidoEm: r.respondido_em,
       // `valores` é gravado embrulhado ({ valores: {...} }) — desembrulha p/ o mapa plano.
@@ -233,18 +318,28 @@ export async function carregarEnvio(id: number): Promise<EnvioDetalhe | null> {
 
 // ── E-mail genérico da campanha ───────────────────────────────────────────────
 
-function emailFormulario(params: { titulo: string; mensagem: string | null; link: string }): {
+function emailFormulario(params: {
+  titulo: string;
+  mensagem: string | null;
+  link: string;
+  funcionario?: string | null;
+}): {
   assunto: string;
   html: string;
 } {
-  const assunto = params.titulo;
+  const assunto = params.funcionario
+    ? `${params.titulo} — ${params.funcionario}`
+    : params.titulo;
   const msg = params.mensagem
     ? `<p style="white-space:pre-line">${escapar(params.mensagem)}</p>`
     : "";
+  const pedido = params.funcionario
+    ? `O RH da Navecon pede que você responda o formulário <strong>${escapar(params.titulo)}</strong> sobre <strong>${escapar(params.funcionario)}</strong>.`
+    : `O RH da Navecon pede que você responda o formulário <strong>${escapar(params.titulo)}</strong>.`;
   const html = `
   <div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#111;line-height:1.5">
     <p>Olá,</p>
-    <p>O RH da Navecon pede que você responda o formulário <strong>${escapar(params.titulo)}</strong>.</p>
+    <p>${pedido}</p>
     ${msg}
     <p style="margin:20px 0">
       <a href="${params.link}" style="background:#1d4ed8;color:#fff;text-decoration:none;padding:10px 18px;border-radius:6px;display:inline-block">

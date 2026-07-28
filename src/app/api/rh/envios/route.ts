@@ -1,6 +1,12 @@
 import { apiRoute } from "@/lib/api-route";
 import { FilterError } from "@/lib/fiscal-filters";
-import { carregarEnvio, criarEnvio, listarEnvios, type DestinatarioEntrada } from "@/lib/envios";
+import {
+  carregarEnvio,
+  criarEnvio,
+  listarEnvios,
+  type ColaboradorEntrada,
+  type DestinatarioEntrada,
+} from "@/lib/envios";
 import { getSessaoOpcional } from "@/lib/sessao";
 
 /** Campanhas de envio. `?id=` traz o detalhe (com respostas); sem id, a lista. */
@@ -23,6 +29,9 @@ export const POST = apiRoute(async (req) => {
   const destinatarios = Array.isArray(body.destinatarios)
     ? (body.destinatarios as DestinatarioEntrada[])
     : [];
+  const colaboradores = Array.isArray(body.colaboradores)
+    ? (body.colaboradores as ColaboradorEntrada[])
+    : [];
 
   const sessao = await getSessaoOpcional();
   return criarEnvio({
@@ -30,6 +39,7 @@ export const POST = apiRoute(async (req) => {
     titulo: (body.titulo as string) ?? null,
     mensagem: (body.mensagem as string) ?? null,
     destinatarios,
+    colaboradores,
     agendarPara: (body.agendarPara as string) ?? null,
     criadoPor: sessao?.usuario.id ?? null,
   });

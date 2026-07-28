@@ -3,14 +3,26 @@
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
-import { CalendarClock, CheckCircle2, Clock, Loader2, Send } from "lucide-react";
+import {
+  AlertTriangle,
+  CalendarClock,
+  CheckCircle2,
+  Clock,
+  Loader2,
+  Search,
+  Send,
+  User,
+  Users,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Modal } from "@/components/ui/modal";
 import { CamposFormulario } from "@/components/formulario-campos";
 import { mutar } from "@/hooks/mutar";
-import { useEnvio, useEnvios, useRhGestores } from "@/hooks/use-api";
+import { useEnvio, useEnvios, useRhFuncionarios, useRhGestores } from "@/hooks/use-api";
 import { dataBR } from "@/lib/format";
 import type { RespostaValores } from "@/lib/formularios-tipos";
+
+type Modo = "gestores" | "colaboradores";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const linhasEmail = (s: string) =>
@@ -33,16 +45,52 @@ export function EnviarModal({
   const { data: gestores } = useRhGestores();
   const queryClient = useQueryClient();
 
+  const [modo, setModo] = useState<Modo>("gestores");
   const [titulo, setTitulo] = useState(formularioNome);
   const [mensagem, setMensagem] = useState("");
   const [selec, setSelec] = useState<Set<number>>(new Set());
   const [avulsos, setAvulsos] = useState("");
+  const [selecColab, setSelecColab] = useState<Set<string>>(new Set());
+  const [buscaColab, setBuscaColab] = useState("");
   const [agendar, setAgendar] = useState(false);
   const [quando, setQuando] = useState("");
   const [enviando, setEnviando] = useState(false);
 
+  const { data: funcionarios } = useRhFuncionarios(modo === "colaboradores");
+
   const lista = useMemo(() => (gestores ?? []).filter((g) => g.ativo), [gestores]);
   const todosMarcados = lista.length > 0 && selec.size === lista.length;
+
+  // Departamentos (classiforgan) que têm ao menos um gestor ativo — só sobre
+  // esses dá para enviar "sobre um colaborador".
+  const deptComGestor = useMemo(
+    () => new Set(lista.map((g) => g.classiforgan)),
+    [lista]
+  );
+
+  const colabKey = (empresa: number, contrato: number) => `${empresa}:${contrato}`;
+
+  const colabFiltrados = useMemo(() => {
+    const q = buscaColab.trim().toLowerCase();
+    const todos = funcionarios ?? [];
+    if (!q) return todos;
+    return todos.filter((f) =>
+      [f.nome, f.setor, f.cargo].some((v) => v?.toLowerCase().includes(q))
+    );
+  }, [funcionarios, buscaColab]);
+
+  // Colaboradores marcados que de fato têm gestor no depto (contam como envio).
+  const colabValidos = useMemo(
+    () =>
+      (funcionarios ?? []).filter(
+        (f) =>
+          selecColab.has(colabKey(f.codigoempresa, f.contrato)) &&
+          f.classiforgan != null &&
+          deptComGestor.has(f.classiforgan)
+      ),
+    [funcionarios, selecColab, deptComGestor]
+  );
+  const colabSemGestor = selecColab.size - colabValidos.length;
 
   const alternar = (id: number) =>
     setSelec((s) => {
@@ -54,41 +102,75 @@ export function EnviarModal({
   const marcarTodos = () =>
     setSelec(todosMarcados ? new Set() : new Set(lista.map((g) => g.id)));
 
-  const totalDestinatarios = useMemo(() => {
+  const alternarColab = (empresa: number, contrato: number) =>
+    setSelecColab((s) => {
+      const k = colabKey(empresa, contrato);
+      const n = new Set(s);
+      if (n.has(k)) n.delete(k);
+      else n.add(k);
+      return n;
+    });
+
+  const totalGestores = useMemo(() => {
     const emails = new Set<string>();
     for (const g of lista) if (selec.has(g.id)) emails.add(g.email.toLowerCase());
     for (const e of linhasEmail(avulsos)) emails.add(e);
     return emails.size;
   }, [lista, selec, avulsos]);
 
+  const total = modo === "gestores" ? totalGestores : colabValidos.length;
+
   const enviar = async () => {
-    if (totalDestinatarios === 0) return toast.error("Selecione ao menos um destinatário");
+    if (total === 0) {
+      return toast.error(
+        modo === "gestores"
+          ? "Selecione ao menos um destinatário"
+          : "Selecione ao menos um colaborador com gestor cadastrado"
+      );
+    }
     if (agendar && !quando) return toast.error("Escolha a data e a hora do agendamento");
 
-    const porGestor = lista
-      .filter((g) => selec.has(g.id))
-      .map((g) => ({ email: g.email, nome: g.nome, gestorId: g.id }));
-    const avulsosDest = linhasEmail(avulsos).map((email) => ({ email }));
+    const corpo: Record<string, unknown> = {
+      formularioId,
+      titulo,
+      mensagem,
+      agendarPara: agendar && quando ? new Date(quando).toISOString() : null,
+    };
+    if (modo === "gestores") {
+      const porGestor = lista
+        .filter((g) => selec.has(g.id))
+        .map((g) => ({ email: g.email, nome: g.nome, gestorId: g.id }));
+      const avulsosDest = linhasEmail(avulsos).map((email) => ({ email }));
+      corpo.destinatarios = [...porGestor, ...avulsosDest];
+    } else {
+      corpo.colaboradores = colabValidos.map((f) => ({
+        codigoempresa: f.codigoempresa,
+        codigofunccontr: f.contrato,
+        nome: f.nome,
+        classiforgan: f.classiforgan,
+      }));
+    }
 
     setEnviando(true);
     try {
-      const r = await mutar<{ enviados: number; total: number; agendado: boolean }>(
-        "/api/rh/envios",
-        "POST",
-        {
-          formularioId,
-          titulo,
-          mensagem,
-          destinatarios: [...porGestor, ...avulsosDest],
-          agendarPara: agendar && quando ? new Date(quando).toISOString() : null,
-        }
-      );
+      const r = await mutar<{
+        enviados: number;
+        total: number;
+        agendado: boolean;
+        semGestor: string[];
+      }>("/api/rh/envios", "POST", corpo);
       queryClient.invalidateQueries({ queryKey: ["rh-envios"] });
+      const alvo = modo === "gestores" ? "destinatário(s)" : "avaliação(ões)";
       toast.success(
         r.agendado
-          ? `Campanha agendada para ${r.total} destinatário(s)`
-          : `Enviado para ${r.total} destinatário(s)`
+          ? `Campanha agendada — ${r.total} ${alvo}`
+          : `Enviado — ${r.total} ${alvo}`
       );
+      if (r.semGestor?.length) {
+        toast.warning(
+          `${r.semGestor.length} colaborador(es) sem gestor no depto foram ignorados`
+        );
+      }
       onFechar();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao enviar");
@@ -100,6 +182,33 @@ export function EnviarModal({
   return (
     <Modal aberto onFechar={onFechar} titulo="Enviar formulário" subtitulo={formularioNome} largura="max-w-xl">
       <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
+        {/* Modo: broadcast para gestores vs. avaliação sobre colaboradores */}
+        <div className="grid grid-cols-2 gap-1 rounded-lg border border-hairline p-1">
+          {(
+            [
+              { v: "gestores", rot: "Para gestores", Icone: Users },
+              { v: "colaboradores", rot: "Sobre colaboradores", Icone: User },
+            ] as const
+          ).map(({ v, rot, Icone }) => (
+            <button
+              key={v}
+              onClick={() => setModo(v)}
+              className={clsx(
+                "flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                modo === v ? "bg-ink text-surface" : "text-ink-2 hover:bg-surface-2"
+              )}
+            >
+              <Icone className="size-4" />
+              {rot}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-muted">
+          {modo === "gestores"
+            ? "Cada destinatário recebe um link próprio e responde uma vez."
+            : "Cada colaborador vira uma avaliação enviada ao gestor do departamento dele — uma resposta por colaborador."}
+        </p>
+
         <label className="block">
           <span className="mb-1 block text-xs font-medium text-ink-2">Assunto do e-mail</span>
           <input
@@ -119,52 +228,111 @@ export function EnviarModal({
           />
         </label>
 
-        {/* Gestores */}
-        <div>
-          <div className="mb-1.5 flex items-center justify-between">
-            <span className="text-xs font-medium text-ink-2">Gestores cadastrados</span>
-            {lista.length > 0 && (
-              <button onClick={marcarTodos} className="text-xs font-medium text-ent hover:underline">
-                {todosMarcados ? "Limpar" : "Selecionar todos"}
-              </button>
+        {modo === "gestores" ? (
+          <>
+            {/* Gestores */}
+            <div>
+              <div className="mb-1.5 flex items-center justify-between">
+                <span className="text-xs font-medium text-ink-2">Gestores cadastrados</span>
+                {lista.length > 0 && (
+                  <button onClick={marcarTodos} className="text-xs font-medium text-ent hover:underline">
+                    {todosMarcados ? "Limpar" : "Selecionar todos"}
+                  </button>
+                )}
+              </div>
+              {lista.length === 0 ? (
+                <p className="rounded-lg border border-hairline px-3 py-2 text-xs text-muted">
+                  Nenhum gestor cadastrado. Cadastre em Gestores ou use e-mails avulsos abaixo.
+                </p>
+              ) : (
+                <div className="max-h-44 space-y-1 overflow-y-auto rounded-lg border border-hairline p-1.5">
+                  {lista.map((g) => (
+                    <label
+                      key={g.id}
+                      className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-surface-2"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selec.has(g.id)}
+                        onChange={() => alternar(g.id)}
+                        className="size-3.5 accent-ink"
+                      />
+                      <span className="min-w-0 flex-1 truncate text-sm text-ink">{g.nome}</span>
+                      <span className="truncate text-xs text-muted">{g.email}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Avulsos */}
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-ink-2">E-mails avulsos (um por linha)</span>
+              <textarea
+                value={avulsos}
+                onChange={(e) => setAvulsos(e.target.value)}
+                rows={2}
+                className="w-full rounded-lg border border-hairline bg-surface px-3 py-2 text-sm outline-none focus:border-ink/30"
+                placeholder="fulano@empresa.com.br"
+              />
+            </label>
+          </>
+        ) : (
+          /* Colaboradores */
+          <div>
+            <span className="mb-1.5 block text-xs font-medium text-ink-2">Colaboradores</span>
+            <div className="relative mb-2">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted" />
+              <input
+                value={buscaColab}
+                onChange={(e) => setBuscaColab(e.target.value)}
+                placeholder="Buscar por nome, setor ou cargo"
+                className="h-9 w-full rounded-lg border border-hairline bg-surface pl-8 pr-3 text-sm outline-none focus:border-ink/30"
+              />
+            </div>
+            {!funcionarios ? (
+              <div className="skeleton h-44 rounded-lg" />
+            ) : colabFiltrados.length === 0 ? (
+              <p className="rounded-lg border border-hairline px-3 py-2 text-xs text-muted">
+                Nenhum colaborador encontrado.
+              </p>
+            ) : (
+              <div className="max-h-56 space-y-1 overflow-y-auto rounded-lg border border-hairline p-1.5">
+                {colabFiltrados.map((f) => {
+                  const k = colabKey(f.codigoempresa, f.contrato);
+                  const semGestor = f.classiforgan == null || !deptComGestor.has(f.classiforgan);
+                  return (
+                    <label
+                      key={k}
+                      className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-surface-2"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selecColab.has(k)}
+                        onChange={() => alternarColab(f.codigoempresa, f.contrato)}
+                        className="size-3.5 accent-ink"
+                      />
+                      <span className="min-w-0 flex-1 truncate text-sm text-ink">{f.nome}</span>
+                      {semGestor ? (
+                        <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-warning">
+                          <AlertTriangle className="size-3" /> sem gestor
+                        </span>
+                      ) : (
+                        <span className="shrink-0 truncate text-xs text-muted">{f.setor ?? "—"}</span>
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+            {colabSemGestor > 0 && (
+              <p className="mt-1.5 flex items-center gap-1 text-[11px] text-warning">
+                <AlertTriangle className="size-3" />
+                {colabSemGestor} selecionado(s) sem gestor no depto — não serão enviados.
+              </p>
             )}
           </div>
-          {lista.length === 0 ? (
-            <p className="rounded-lg border border-hairline px-3 py-2 text-xs text-muted">
-              Nenhum gestor cadastrado. Cadastre em Gestores ou use e-mails avulsos abaixo.
-            </p>
-          ) : (
-            <div className="max-h-44 space-y-1 overflow-y-auto rounded-lg border border-hairline p-1.5">
-              {lista.map((g) => (
-                <label
-                  key={g.id}
-                  className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-surface-2"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selec.has(g.id)}
-                    onChange={() => alternar(g.id)}
-                    className="size-3.5 accent-ink"
-                  />
-                  <span className="min-w-0 flex-1 truncate text-sm text-ink">{g.nome}</span>
-                  <span className="truncate text-xs text-muted">{g.email}</span>
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Avulsos */}
-        <label className="block">
-          <span className="mb-1 block text-xs font-medium text-ink-2">E-mails avulsos (um por linha)</span>
-          <textarea
-            value={avulsos}
-            onChange={(e) => setAvulsos(e.target.value)}
-            rows={2}
-            className="w-full rounded-lg border border-hairline bg-surface px-3 py-2 text-sm outline-none focus:border-ink/30"
-            placeholder="fulano@empresa.com.br"
-          />
-        </label>
+        )}
 
         {/* Agendamento */}
         <div className="flex flex-wrap items-center gap-3">
@@ -190,7 +358,7 @@ export function EnviarModal({
 
       <footer className="flex items-center justify-between gap-3 border-t border-hairline px-6 py-3">
         <span className="text-xs text-muted">
-          {totalDestinatarios} destinatário(s)
+          {modo === "gestores" ? `${total} destinatário(s)` : `${total} avaliação(ões)`}
         </span>
         <button
           onClick={enviar}
@@ -314,8 +482,16 @@ function RespostasModal({ envioId, onFechar }: { envioId: number; onFechar: () =
                     )}
                   >
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-ink">{d.nome || d.email}</p>
-                      <p className="truncate text-xs text-muted">{d.email}</p>
+                      <p className="truncate text-sm font-medium text-ink">
+                        {d.funcionarioNome || d.nome || d.email}
+                      </p>
+                      <p className="truncate text-xs text-muted">
+                        {d.funcionarioNome
+                          ? d.respondidoPorNome
+                            ? `Sobre colaborador · respondido por ${d.respondidoPorNome}`
+                            : "Sobre colaborador"
+                          : d.email}
+                      </p>
                     </div>
                     <span
                       className={clsx(

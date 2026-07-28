@@ -84,8 +84,12 @@ async function resolverEnvio(token: string): Promise<FormularioPublico | null> {
     titulo: string;
     mensagem: string | null;
     status: string;
+    codigoempresa: number | null;
+    codigofunccontr: number | null;
+    funcionario_nome: string | null;
   }>(
-    `select e.formulario_id, e.titulo, e.mensagem, d.status
+    `select e.formulario_id, e.titulo, e.mensagem, d.status,
+            d.codigoempresa, d.codigofunccontr, d.funcionario_nome
        from envio_destinatario d join envio e on e.id = d.envio_id
       where d.token = $1`,
     [token]
@@ -93,12 +97,28 @@ async function resolverEnvio(token: string): Promise<FormularioPublico | null> {
   if (!d) return null;
   const formulario = await carregarFormulario(d.formulario_id);
   if (!formulario) return null;
+
+  // "Sobre um colaborador": cabeçalho com o contrato (nome/cargo/setor/empresa),
+  // buscado fresco no Questor — igual à experiência.
+  let subtitulo: string | null = null;
+  const contexto: { rotulo: string; valor: string }[] = [];
+  if (d.codigoempresa != null && d.codigofunccontr != null) {
+    const c = await buscarUmContrato(d.codigoempresa, d.codigofunccontr);
+    subtitulo = "Sobre um colaborador";
+    contexto.push(
+      { rotulo: "Colaborador", valor: c?.nome ?? d.funcionario_nome ?? "Colaborador" },
+      { rotulo: "Empresa", valor: nomeEmpresaRh(d.codigoempresa) },
+      { rotulo: "Cargo", valor: c?.cargo ?? "—" },
+      { rotulo: "Setor", valor: c?.setor ?? "—" }
+    );
+  }
+
   return {
     origem: "envio",
     formulario,
     titulo: d.titulo || formulario.nome,
-    subtitulo: null,
-    contexto: [],
+    subtitulo,
+    contexto,
     mensagem: d.mensagem,
     jaRespondido: d.status === "respondido",
   };
