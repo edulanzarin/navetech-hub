@@ -13,9 +13,7 @@ import { useFiltros } from "@/hooks/use-filters";
 import { useDpProdutividade, useDpLista, useDpQuebra } from "@/hooks/use-api";
 import { num, deltaPct } from "@/lib/format";
 import { DP_TIPOS, type DpColaborador, type DpTipo } from "@/lib/dp-tipos";
-
-/** Menu do topo: a visão geral + uma aba por trabalho + os registros. */
-type Menu = "geral" | DpTipo | "registros";
+import { useProdutividadeTabs } from "./tabs";
 
 const COR: Record<DpTipo, string> = {
   avisos: "var(--warning)",
@@ -73,37 +71,6 @@ function Kpi({
       <p className="text-3xl font-semibold tracking-tight">{valor}</p>
       <p className="text-xs">{secundario}</p>
     </div>
-  );
-}
-
-/** Barra de menus do topo (estilo das abas do módulo: sublinhado). */
-function Menus({ menu, onMenu }: { menu: Menu; onMenu: (m: Menu) => void }) {
-  const itens: { id: Menu; rotulo: string }[] = [
-    { id: "geral", rotulo: "Visão geral" },
-    ...DP_TIPOS.map((t) => ({ id: t.id as Menu, rotulo: t.rotulo })),
-    { id: "registros", rotulo: "Registros" },
-  ];
-  return (
-    <nav className="flex gap-1 overflow-x-auto border-b border-hairline">
-      {itens.map((it) => {
-        const ativa = it.id === menu;
-        return (
-          <button
-            key={it.id}
-            onClick={() => onMenu(it.id)}
-            aria-current={ativa ? "page" : undefined}
-            className={clsx(
-              "-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm transition-colors",
-              ativa
-                ? "border-ent font-medium text-ent"
-                : "border-transparent text-muted hover:border-hairline hover:text-ink"
-            )}
-          >
-            {it.rotulo}
-          </button>
-        );
-      })}
-    </nav>
   );
 }
 
@@ -303,7 +270,7 @@ function AbaRegistros({
 
 export default function ProdutividadeDpPage() {
   const { qs } = useFiltros();
-  const [menu, setMenu] = useState<Menu>("geral");
+  const { menu } = useProdutividadeTabs();
   const [usuarioSel, setUsuarioSel] = useState<number | null>(null);
   const [tipoReg, setTipoReg] = useState<DpTipo>("avisos");
 
@@ -314,8 +281,6 @@ export default function ProdutividadeDpPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <Menus menu={menu} onMenu={setMenu} />
-
       {/* Filtro por funcionário da Navecon — recorta o dashboard inteiro */}
       <div className="flex flex-wrap items-center gap-2">
         <DpFuncionarioFiltro
