@@ -1,6 +1,5 @@
 import type { FiscalFilters } from "./fiscal-filters";
 import { getSessaoOpcional, empresasPermitidas } from "./sessao";
-import { condForaDoRh } from "./rh";
 
 /**
  * A base da rotatividade: a view `funcionario` (ficha atual por contrato) já traz
@@ -49,9 +48,6 @@ export async function construirBase(
   // empresas do RH — NAVECON/FOUR/FINAVE (o gate é o módulo, não o grupo de
   // empresas — o grupo padrão até esconde a NAVECON). O chamador já garantiu o acesso.
   let empresas: number[];
-  // Fora do RH, as empresas do RH nunca entram — nem para quem vê "todas". Com
-  // `empresasForcadas` (é o próprio RH), esse recorte não se aplica.
-  let condRh = "";
   if (empresasForcadas) {
     empresas = empresasForcadas;
   } else {
@@ -63,7 +59,6 @@ export async function construirBase(
         : f.empresas.length > 0
           ? f.empresas.filter((e) => escopo.includes(e))
           : escopo;
-    condRh = ` and ${condForaDoRh("f")}`;
   }
   const params: unknown[] = incluirPeriodo
     ? [empresas, f.inicio, f.fim]
@@ -109,7 +104,7 @@ export async function construirBase(
            order by complementar limit 1
         ) rr on true
         left join causademissao cd on cd.codigocausa = rr.codigocausa
-       where f.codigoempresa = any($1::int[])${condRh}
+       where f.codigoempresa = any($1::int[])
     ),
     fbase as (select * from base ${filtro})${ativo}
   `;

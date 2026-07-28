@@ -23,17 +23,6 @@ export function ehEmpresaRh(codigo: number): codigo is EmpresaRh {
 }
 
 /**
- * Fragmento SQL que esconde as empresas do RH (NAVECON/FOUR/FINAVE) de qualquer
- * consulta FORA do módulo RH — elas só existem no RH. Como os códigos são
- * constantes, entra literal (sem parâmetro). `alias` qualifica a coluna
- * (ex.: "f" -> f.codigoempresa); vazio usa `codigoempresa` cru.
- */
-export function condForaDoRh(alias = ""): string {
-  const col = alias ? `${alias}.codigoempresa` : "codigoempresa";
-  return `${col} not in (${EMPRESAS_RH.join(", ")})`;
-}
-
-/**
  * Empresas a consultar a partir do filtro `?empresa=`. Vazio/ausente = todas as
  * do RH; um código válido = só ela. Nunca deixa escapar de {NAVECON, FOUR, FINAVE}.
  */
