@@ -1,15 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  CalendarClock,
-  ClipboardList,
-  FileMinus,
-  LayoutDashboard,
-  LogOut,
-  Plane,
-  UserPlus,
-} from "lucide-react";
+import { CalendarClock, FileMinus, LayoutDashboard, LogOut, Plane, UserPlus } from "lucide-react";
 import clsx from "clsx";
 import { DpRankingTabela } from "@/components/dp-ranking-tabela";
 import { DpListaTabela } from "@/components/dp-lista-tabela";
@@ -86,10 +78,10 @@ function Kpi({
 
 /** Barra de menus do topo (estilo das abas do módulo: sublinhado). */
 function Menus({ menu, onMenu }: { menu: Menu; onMenu: (m: Menu) => void }) {
-  const itens: { id: Menu; rotulo: string; icone: React.ReactNode }[] = [
-    { id: "geral", rotulo: "Visão geral", icone: <LayoutDashboard className="size-4" /> },
-    ...DP_TIPOS.map((t) => ({ id: t.id as Menu, rotulo: t.rotulo, icone: ICONE[t.id] })),
-    { id: "registros", rotulo: "Registros", icone: <ClipboardList className="size-4" /> },
+  const itens: { id: Menu; rotulo: string }[] = [
+    { id: "geral", rotulo: "Visão geral" },
+    ...DP_TIPOS.map((t) => ({ id: t.id as Menu, rotulo: t.rotulo })),
+    { id: "registros", rotulo: "Registros" },
   ];
   return (
     <nav className="flex gap-1 overflow-x-auto border-b border-hairline">
@@ -101,13 +93,12 @@ function Menus({ menu, onMenu }: { menu: Menu; onMenu: (m: Menu) => void }) {
             onClick={() => onMenu(it.id)}
             aria-current={ativa ? "page" : undefined}
             className={clsx(
-              "-mb-px flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2 text-sm transition-colors",
+              "-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm transition-colors",
               ativa
                 ? "border-ent font-medium text-ent"
                 : "border-transparent text-muted hover:border-hairline hover:text-ink"
             )}
           >
-            {it.icone}
             {it.rotulo}
           </button>
         );
