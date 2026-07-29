@@ -111,7 +111,7 @@ export const SECOES_CONTABIL: SecaoContabil[] = [
     id: "balancete",
     rotulo: "Balancete Fiscal",
     icone: Scale,
-    path: "/contabil/balancete",
+    path: "/contabil/balancete-fiscal",
     metrica: false,
     descricao: "Movimento esperado pelas regras × o real do contábil",
     // Uma tela só: o balancete tem o filtro "Só diferenças" embutido (que era a
@@ -121,16 +121,17 @@ export const SECOES_CONTABIL: SecaoContabil[] = [
       {
         id: "balancete",
         rotulo: "Balancete Fiscal",
-        path: "/contabil/balancete",
+        path: "/contabil/balancete-fiscal",
         descricao: "Balancete esperado pelas regras, comparado ao contábil real",
       },
     ],
   },
   {
     // id "analise" mantido: é a chave de permissão da seção (não renomear sem
-    // migrar o gate). Rótulo e caminho passam a ser do Balancete, que é a 1ª aba.
+    // migrar o gate). As duas abas moram sob /contabil/balancete-contabil, pra a
+    // sidebar (que casa por prefixo do path da seção) manter o item ativo nas duas.
     id: "analise",
-    rotulo: "Balancete",
+    rotulo: "Balancete Contábil",
     icone: FileSpreadsheet,
     path: "/contabil/balancete-contabil",
     metrica: false,
@@ -150,7 +151,7 @@ export const SECOES_CONTABIL: SecaoContabil[] = [
       {
         id: "analise",
         rotulo: "Análise",
-        path: "/contabil/analise",
+        path: "/contabil/balancete-contabil/analise",
         descricao: "Pontos fortes, fracos, alertas e recomendações sobre o balancete",
         periodoMensal: true,
         execucao: "Analisar",
