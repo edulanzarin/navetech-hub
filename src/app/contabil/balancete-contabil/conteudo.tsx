@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Building2, CheckCircle2, AlertTriangle, Layers, Printer } from "lucide-react";
+import { Building2, AlertTriangle, Layers, Printer } from "lucide-react";
 import clsx from "clsx";
 import { useFiltros } from "@/hooks/use-filters";
 import { useBalanceteContabil } from "@/hooks/use-api";
@@ -86,10 +86,11 @@ export default function BalanceteContabilPage() {
         ) : (
           <div className={clsx(bal.isFetching && !bal.isLoading && "refetching")}>
             <div className="max-h-[40rem] overflow-auto rounded-xl border border-hairline">
-              <table className="w-full min-w-[820px] border-collapse text-sm">
+              <table className="w-full min-w-[900px] border-collapse text-sm">
                 <thead className="sticky top-0 z-10 bg-surface">
                   <tr className="border-b border-hairline text-[10px] uppercase tracking-wide text-muted">
                     <th className="py-2 pl-3 pr-3 text-left font-medium">Conta</th>
+                    <th className="py-2 pr-3 text-left font-medium">Descrição</th>
                     <th className="border-l border-hairline py-2 pl-3 pr-3 text-right font-medium">
                       Saldo anterior
                     </th>
@@ -105,7 +106,6 @@ export default function BalanceteContabilPage() {
                     <Linha key={`${l.classif}-${l.conta}`} l={l} />
                   ))}
                 </tbody>
-                <Totais dados={dados} />
               </table>
             </div>
           </div>
@@ -178,9 +178,15 @@ function Linha({ l }: { l: BalanceteContabilLinha }) {
   const indent = Math.max(0, l.nivel - 1) * 14;
   return (
     <tr className={clsx("border-b border-hairline/50 last:border-0", l.sintetica && "bg-surface-2/30")}>
-      <td className="py-1.5 pl-3 pr-3">
+      <td className="whitespace-nowrap py-1.5 pl-3 pr-3">
+        <span className={clsx("tabular-nums", l.sintetica ? "font-medium text-ink" : "text-ink-2")}>
+          {l.conta}
+        </span>
+        <span className="ml-1.5 text-[10px] text-muted">{l.natureza}</span>
+      </td>
+      <td className="py-1.5 pr-3">
         <div style={{ paddingLeft: indent }} className="flex items-baseline gap-2">
-          <span className={clsx("shrink-0 tabular-nums text-[11px] text-muted")}>{l.classif}</span>
+          <span className="shrink-0 tabular-nums text-[11px] text-muted">{l.classif}</span>
           <span className={clsx("truncate", l.sintetica ? "font-medium text-ink" : "text-ink-2")}>
             {l.descricao}
           </span>
@@ -199,33 +205,5 @@ function Linha({ l }: { l: BalanceteContabilLinha }) {
         <SaldoCel v={l.saldoAtual} forte={l.sintetica} />
       </td>
     </tr>
-  );
-}
-
-function Totais({ dados }: { dados: BalanceteContabilResp }) {
-  const t = dados.totais;
-  return (
-    <tfoot className="sticky bottom-0 z-10 bg-surface">
-      <tr className="border-t-2 border-hairline text-xs font-semibold text-ink">
-        <td className="py-2 pl-3 pr-3">
-          <span className="inline-flex items-center gap-1.5">
-            {t.fecha ? (
-              <CheckCircle2 className="size-3.5 text-good" />
-            ) : (
-              <AlertTriangle className="size-3.5 text-critical" />
-            )}
-            Totais das analíticas {t.fecha ? "· fecha" : "· NÃO fecha"}
-          </span>
-        </td>
-        <td className="border-l border-hairline py-2 pl-3 pr-3 text-right tabular-nums">
-          {brl(t.saldoAnteriorDevedor)} D · {brl(t.saldoAnteriorCredor)} C
-        </td>
-        <td className="border-l border-hairline py-2 pl-3 pr-3 text-right tabular-nums">{brl(t.debito)}</td>
-        <td className="py-2 pr-3 text-right tabular-nums">{brl(t.credito)}</td>
-        <td className="border-l border-hairline py-2 pl-3 pr-3 text-right tabular-nums">
-          {brl(t.saldoAtualDevedor)} D · {brl(t.saldoAtualCredor)} C
-        </td>
-      </tr>
-    </tfoot>
   );
 }
