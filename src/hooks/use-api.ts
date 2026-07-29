@@ -35,6 +35,7 @@ import type {
   FolhaFicha,
   PlanoResp,
   BalanceteFiscalResp,
+  BalanceteContabilResp,
   BalanceteLancamentosResp,
   BalanceteCulpadosResp,
   ReplicarPreviewResp,
@@ -390,6 +391,13 @@ export const useBalanceteFiscal = (qs: string, enabled = true) =>
   useApiQuery<BalanceteFiscalResp>(
     ["balancete-fiscal", qs],
     `/api/contabil/balancete-fiscal?${qs}`,
+    enabled
+  );
+
+export const useBalanceteContabil = (qs: string, enabled = true) =>
+  useApiQuery<BalanceteContabilResp>(
+    ["balancete-contabil", qs],
+    `/api/contabil/balancete-contabil?${qs}`,
     enabled
   );
 

@@ -1,4 +1,4 @@
-import { ClipboardCheck, Landmark, Scale, Sparkles, Table2 } from "lucide-react";
+import { ClipboardCheck, FileSpreadsheet, Landmark, Scale, Table2 } from "lucide-react";
 import type { SecaoFiscal } from "./fiscal-secoes";
 
 /**
@@ -127,21 +127,31 @@ export const SECOES_CONTABIL: SecaoContabil[] = [
     ],
   },
   {
+    // id "analise" mantido: é a chave de permissão da seção (não renomear sem
+    // migrar o gate). Rótulo e caminho passam a ser do Balancete, que é a 1ª aba.
     id: "analise",
-    rotulo: "Análise de Balancete",
-    icone: Sparkles,
-    path: "/contabil/analise",
+    rotulo: "Balancete",
+    icone: FileSpreadsheet,
+    path: "/contabil/balancete-contabil",
     metrica: false,
-    descricao: "Laudo do balancete gerado por IA",
-    // Uma tela só. A análise é cara (chamada de IA), então nunca roda sozinha:
-    // o usuário escolhe empresa e período e dispara pelo botão "Analisar".
+    descricao: "Balancete de verificação e análise",
+    // Duas abas do mesmo trabalho, mesmo filtro (empresa + mês): montar o
+    // balancete e, sobre ele, o laudo. Trocar de aba mantém o balancete
+    // carregado (cache por empresa+período).
     abas: [
       {
+        id: "balancete",
+        rotulo: "Balancete",
+        path: "/contabil/balancete-contabil",
+        descricao: "Saldo anterior, movimento do período e saldo atual, por conta",
+        periodoMensal: true,
+        execucao: "Gerar",
+      },
+      {
         id: "analise",
-        rotulo: "Análise de Balancete",
+        rotulo: "Análise",
         path: "/contabil/analise",
         descricao: "Pontos fortes, fracos, alertas e recomendações sobre o balancete",
-        // Balancete é mensal: o período é escolhido por mês, não por dia.
         periodoMensal: true,
         execucao: "Analisar",
       },

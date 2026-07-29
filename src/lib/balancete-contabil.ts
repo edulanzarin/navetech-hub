@@ -1,4 +1,5 @@
 import { PoolClient } from "pg";
+import type { BalanceteContabilLinha, BalanceteContabilResp } from "./types";
 
 /**
  * Balancete CONTÁBIL de saldos (o de verdade, não o fiscal hipotético do
@@ -292,4 +293,72 @@ export async function coletarBalanceteContabil(
   contas.sort((a, b) => a.classif.localeCompare(b.classif) || a.conta - b.conta);
 
   return { empresa: empresaInfo, mesesLabels: meses, contas };
+}
+
+/** Tolerância em reais para o fechamento (abaixo disso é arredondamento). */
+const TOL_FECHA = 1;
+
+/**
+ * Resume o balancete coletado num BALANCETE DE VERIFICAÇÃO — por conta: saldo
+ * anterior, débito e crédito do período e saldo atual, na árvore do plano. É a
+ * matéria-prima da tela Balancete; a Análise usa o mesmo `BalanceteContabil`.
+ *
+ * O coletor já traz só contas com saldo ou movimento (as zeradas somem), então
+ * aqui não há mais o que filtrar — mostra exatamente o que teve vida no período.
+ */
+export function resumirBalanceteVerificacao(
+  bal: BalanceteContabil,
+  inicio: string,
+  fim: string
+): BalanceteContabilResp {
+  const linhas: BalanceteContabilLinha[] = bal.contas.map((c) => {
+    const debito = c.meses.reduce((s, m) => s + m.debito, 0);
+    const credito = c.meses.reduce((s, m) => s + m.credito, 0);
+    const saldoAtual = c.meses.at(-1)?.saldoFinal ?? c.saldoInicial;
+    return {
+      conta: c.conta,
+      classif: c.classif,
+      nivel: c.nivel,
+      descricao: c.descricao,
+      sintetica: c.sintetica,
+      natureza: c.natureza,
+      saldoAnterior: c.saldoInicial,
+      debito,
+      credito,
+      saldoAtual,
+    };
+  });
+
+  // Totais só das analíticas (as sintéticas somam as filhas — duplicariam).
+  const t = {
+    saldoAnteriorDevedor: 0,
+    saldoAnteriorCredor: 0,
+    debito: 0,
+    credito: 0,
+    saldoAtualDevedor: 0,
+    saldoAtualCredor: 0,
+    fecha: false,
+  };
+  for (const l of linhas) {
+    if (l.sintetica) continue;
+    if (l.saldoAnterior >= 0) t.saldoAnteriorDevedor += l.saldoAnterior;
+    else t.saldoAnteriorCredor += -l.saldoAnterior;
+    t.debito += l.debito;
+    t.credito += l.credito;
+    if (l.saldoAtual >= 0) t.saldoAtualDevedor += l.saldoAtual;
+    else t.saldoAtualCredor += -l.saldoAtual;
+  }
+  t.fecha =
+    Math.abs(t.debito - t.credito) <= TOL_FECHA &&
+    Math.abs(t.saldoAtualDevedor - t.saldoAtualCredor) <= TOL_FECHA;
+
+  const nivelMax = linhas.reduce((mx, l) => Math.max(mx, l.nivel), 1);
+
+  return {
+    empresa: bal.empresa,
+    periodo: { inicio, fim, meses: bal.mesesLabels },
+    linhas,
+    nivelMax,
+    totais: t,
+  };
 }

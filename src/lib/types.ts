@@ -450,6 +450,52 @@ export interface PlanoCfop {
   aprendido?: { contabiliza: boolean; notas: number; contabilizadas: number } | null;
 }
 
+// ── Balancete de verificação CONTÁBIL (o real, montado dos saldos) ───────────
+
+/**
+ * Uma linha do balancete de verificação contábil: por conta do plano, o saldo
+ * antes do período, o movimento (débito/crédito) do período e o saldo ao fim —
+ * como o Questor monta o balancete. Sintética soma as filhas.
+ */
+export interface BalanceteContabilLinha {
+  conta: number;
+  /** Classificação hierárquica (ex.: "1.1.01.002"); o nível = nº de segmentos. */
+  classif: string;
+  nivel: number;
+  descricao: string;
+  sintetica: boolean;
+  /** Natureza cadastrada: "D" devedora, "C" credora. */
+  natureza: "D" | "C";
+  /** Saldo antes do período (sinal: devedor +, credor −). */
+  saldoAnterior: number;
+  /** Débito movimentado no período (magnitude, ≥ 0). */
+  debito: number;
+  /** Crédito movimentado no período (magnitude, ≥ 0). */
+  credito: number;
+  /** Saldo ao fim do período (sinal: devedor +, credor −). */
+  saldoAtual: number;
+}
+
+export interface BalanceteContabilResp {
+  empresa: { codigo: number; nome: string; cnpj: string | null };
+  periodo: { inicio: string; fim: string; meses: string[] };
+  /** Contas com saldo ou movimento no período, ordenadas por classificação. */
+  linhas: BalanceteContabilLinha[];
+  /** Maior profundidade da árvore (para o corte por nível). */
+  nivelMax: number;
+  /** Totais das analíticas: Σ débito e Σ crédito do período fecham entre si. */
+  totais: {
+    saldoAnteriorDevedor: number;
+    saldoAnteriorCredor: number;
+    debito: number;
+    credito: number;
+    saldoAtualDevedor: number;
+    saldoAtualCredor: number;
+    /** O balancete fecha? (Σ débito = Σ crédito e Σ saldo atual ≈ 0.) */
+    fecha: boolean;
+  };
+}
+
 /** Uma linha do balancete fiscal: movimento hipotético (regras) × real (fiscal). */
 export interface BalanceteLinha {
   conta: number;
