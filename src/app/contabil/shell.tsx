@@ -51,9 +51,13 @@ export function ContabilShell({ children }: { children: React.ReactNode }) {
   const periodoMensal = abaUsaPeriodoMensal(pathname);
   const execucao = execucaoDaAba(pathname);
 
-  // Os filtros seguem na URL ao trocar de aba.
-  const qs = sp.toString();
-  const suffix = qs ? `?${qs}` : "";
+  // Ao trocar de aba, os filtros (empresa, período, filial…) seguem na URL, mas o
+  // marcador de executado (`ap`) NÃO: cada aba é um trabalho próprio e só roda
+  // quando o usuário clica no seu botão — estar no mesmo menu não a dispara.
+  const tabParams = new URLSearchParams(sp.toString());
+  tabParams.delete("ap");
+  const tabQs = tabParams.toString();
+  const suffix = tabQs ? `?${tabQs}` : "";
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-6">
