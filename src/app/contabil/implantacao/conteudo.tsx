@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Building2, CheckCircle2, Download, HelpCircle, Pencil } from "lucide-react";
+import { AlertTriangle, Building2, CheckCircle2, Download, FileUp, HelpCircle, Pencil } from "lucide-react";
 import clsx from "clsx";
 import { toast } from "sonner";
 import { ContaDropdown } from "@/components/conta-dropdown";
-import { DropzoneArquivo } from "@/components/dropzone-arquivo";
 import { useFiltros } from "@/hooks/use-filters";
 import { useEstadoSecao } from "@/hooks/use-estado-secao";
 import { brl } from "@/lib/format";
@@ -33,8 +32,8 @@ export default function Conteudo() {
   const empresa = filtros.empresas[0];
   const temEmpresa = filtros.empresas.length === 1;
 
-  // Estado da seção (sobrevive à navegação dentro da seção).
-  const [nomeArquivo, setNomeArquivo] = useEstadoSecao<string | null>("arquivo", null);
+  // Estado da seção (sobrevive à navegação dentro da seção). O PDF é lido pelos
+  // controles da barra (ImplantacaoControles), que gravam `casadas` aqui.
   const [casadas, setCasadas] = useEstadoSecao<LinhaCasada[] | null>("casadas", null);
   const [estab, setEstab] = useEstadoSecao<string>("estab", "1");
   const [data, setData] = useEstadoSecao<string>("data", "");
@@ -84,25 +83,6 @@ export default function Conteudo() {
       fecha: semConta === 0 && Math.abs(deb - cred) < 1,
     };
   }, [casadas]);
-
-  async function lerPdf(arquivo: File) {
-    setOcupado(true);
-    try {
-      const form = new FormData();
-      form.set("arquivo", arquivo);
-      form.set("empresa", String(empresa));
-      const res = await fetch("/api/contabil/implantacao/casar", { method: "POST", body: form });
-      const dados = await res.json();
-      if (!res.ok) throw new Error(dados.error ?? "Falha ao ler o balancete");
-      setCasadas(dados.casadas as LinhaCasada[]);
-      setNomeArquivo(arquivo.name);
-      toast.success(`${dados.casadas.length} contas lidas do balancete`);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Falha ao ler o balancete");
-    } finally {
-      setOcupado(false);
-    }
-  }
 
   async function escolherConta(idx: number, conta: number | null) {
     if (!casadas) return;
@@ -206,32 +186,28 @@ export default function Conteudo() {
     );
   }
 
+  if (!casadas) {
+    return (
+      <section className="card grid place-items-center gap-3 px-6 py-16 text-center">
+        <span className="grid size-12 place-items-center rounded-2xl bg-surface-2 text-muted">
+          <FileUp className="size-6" />
+        </span>
+        <p className="text-sm font-medium text-ink">Suba o balancete de abertura</p>
+        <p className="max-w-sm text-xs text-muted">
+          Escolha o PDF do balancete da contabilidade anterior na barra acima e clique em
+          “Ler balancete”. O sistema lê as contas e casa cada uma com o plano desta empresa.
+        </p>
+      </section>
+    );
+  }
+
   const podeGerar =
-    !!casadas?.length && !!data && contaImpl != null && !!historico && resumo.semConta === 0;
+    !!casadas.length && !!data && contaImpl != null && !!historico && resumo.semConta === 0;
 
   return (
     <div className="grid gap-4">
-      {/* 1. Subir o PDF do balancete */}
-      <section className="card grid gap-3 p-4">
-        <div>
-          <h2 className="text-sm font-semibold text-ink">Balancete da contabilidade anterior</h2>
-          <p className="text-xs text-muted">
-            Suba o PDF do balancete de abertura. O sistema lê as contas e casa cada uma com o plano
-            desta empresa no Questor.
-          </p>
-        </div>
-        <DropzoneArquivo
-          onArquivo={lerPdf}
-          aceita={[".pdf"]}
-          carregando={ocupado && !casadas}
-          nomeArquivo={nomeArquivo}
-        />
-      </section>
-
-      {casadas && (
-        <>
-          {/* 2. Resumo do de-para */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {/* Resumo do de-para */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Kpi rotulo="Contas" valor={resumo.total} cor="text-ink" />
             <Kpi rotulo="Casadas" valor={resumo.casadas} cor="text-good" />
             <Kpi rotulo="Confira" valor={resumo.duvidosas} cor="text-warn" />
@@ -386,8 +362,6 @@ export default function Conteudo() {
               </button>
             </div>
           </section>
-        </>
-      )}
     </div>
   );
 }

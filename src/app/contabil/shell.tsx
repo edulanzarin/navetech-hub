@@ -9,6 +9,7 @@ import clsx from "clsx";
 import { ConfFilterBar } from "@/components/filters/conf-filter-bar";
 import { FiltroPendente } from "@/components/filtro-pendente";
 import { ImportarControles } from "@/components/importar-controles";
+import { ImplantacaoControles } from "@/components/implantacao-controles";
 import { RegrasControles } from "@/components/regras-controles";
 import { useFiltros } from "@/hooks/use-filters";
 import {
@@ -28,6 +29,7 @@ import { dataBR } from "@/lib/format";
 const CONTROLES_BARRA: Record<string, React.ComponentType> = {
   importar: ImportarControles,
   regras: RegrasControles,
+  implantar: ImplantacaoControles,
 };
 
 export function ContabilShell({ children }: { children: React.ReactNode }) {
