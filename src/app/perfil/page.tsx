@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { appQuery } from "@/lib/app-db";
 import { getSessao } from "@/lib/sessao";
+import { contarSessoes } from "@/lib/auth";
 import { PerfilForm } from "./perfil-form";
 import { Voltar } from "./voltar";
 
@@ -21,12 +22,13 @@ export default async function PerfilPage() {
     [id]
   );
   const avatarVersao = row?.avatar_versao != null ? Math.round(Number(row.avatar_versao)) : null;
+  const sessoesAtivas = await contarSessoes(id);
 
   return (
     <main className="mx-auto max-w-2xl px-8 py-8">
       <Voltar />
       <h1 className="mt-3 text-xl font-semibold tracking-tight">Meu perfil</h1>
-      <p className="mt-0.5 text-sm text-muted">Sua foto e sua senha.</p>
+      <p className="mt-0.5 text-sm text-muted">Sua foto, sua senha e suas sessões.</p>
 
       <div className="mt-7">
         <PerfilForm
@@ -34,6 +36,7 @@ export default async function PerfilPage() {
           nome={sessao.usuario.nome}
           email={sessao.usuario.email}
           avatarVersao={avatarVersao}
+          sessoesAtivas={sessoesAtivas}
         />
       </div>
     </main>

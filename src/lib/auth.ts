@@ -86,3 +86,29 @@ export async function destruirSessao(): Promise<void> {
     jar.delete(COOKIE);
   }
 }
+
+/** Token da sessão do request (o cookie opaco), ou null. */
+export async function tokenAtual(): Promise<string | null> {
+  return (await cookies()).get(COOKIE)?.value ?? null;
+}
+
+/** Quantas sessões ativas (não expiradas) o usuário tem — para o perfil. */
+export async function contarSessoes(usuarioId: string): Promise<number> {
+  const [r] = await appQuery<{ n: number }>(
+    `select count(*)::int as n from sessao where usuario_id = $1 and expira_em > now()`,
+    [usuarioId]
+  );
+  return r?.n ?? 0;
+}
+
+/**
+ * Encerra TODAS as outras sessões do usuário, mantendo só a atual (`exceto`).
+ * Um cookie roubado morre aqui. Retorna quantas linhas foram apagadas.
+ */
+export async function encerrarOutrasSessoes(usuarioId: string, exceto: string | null): Promise<number> {
+  const linhas = await appQuery<{ token: string }>(
+    `delete from sessao where usuario_id = $1 and token is distinct from $2 returning token`,
+    [usuarioId, exceto]
+  );
+  return linhas.length;
+}

@@ -2,8 +2,9 @@
 
 import { useActionState, useEffect, useRef } from "react";
 import { toast } from "sonner";
+import { MonitorSmartphone } from "lucide-react";
 import { AvatarCampo } from "@/app/admin/usuarios/avatar-campo";
-import { atualizarPerfil, type PerfilState } from "./actions";
+import { atualizarPerfil, encerrarSessoes, type PerfilState } from "./actions";
 
 const input =
   "h-10 rounded-lg border border-hairline bg-surface px-3 text-sm text-ink outline-none placeholder:text-muted focus:border-ent/50";
@@ -19,13 +20,16 @@ export function PerfilForm({
   nome,
   email,
   avatarVersao,
+  sessoesAtivas,
 }: {
   id: string;
   nome: string;
   email: string;
   avatarVersao: number | null;
+  sessoesAtivas: number;
 }) {
   const [state, action, pending] = useActionState(atualizarPerfil, INICIAL);
+  const [sessState, sessAction, sessPending] = useActionState(encerrarSessoes, INICIAL);
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
@@ -40,7 +44,16 @@ export function PerfilForm({
     }
   }, [state]);
 
+  useEffect(() => {
+    if (sessState.ok) toast.success(sessState.ok);
+    else if (sessState.erro) toast.error(sessState.erro);
+  }, [sessState]);
+
+  // Só há "outras" sessões para encerrar quando a contagem passa de 1 (a atual).
+  const outras = Math.max(0, sessoesAtivas - 1);
+
   return (
+    <div className="flex flex-col gap-8">
     <form ref={formRef} action={action} className="flex flex-col gap-8">
       <section className="flex flex-col gap-4">
         <h2 className="text-sm font-semibold">Foto de perfil</h2>
@@ -94,5 +107,35 @@ export function PerfilForm({
         </button>
       </div>
     </form>
+
+      <section className="flex flex-col gap-4 border-t border-hairline pt-8">
+        <div className="flex items-start gap-3">
+          <MonitorSmartphone className="mt-0.5 size-5 shrink-0 text-muted" />
+          <div>
+            <h2 className="text-sm font-semibold">Sessões ativas</h2>
+            <p className="mt-0.5 text-xs text-muted">
+              {sessoesAtivas <= 1
+                ? "Só este dispositivo está conectado."
+                : `${sessoesAtivas} dispositivos conectados nesta conta (contando este).`}{" "}
+              Encerrar as outras desconecta qualquer sessão aberta em outro lugar —
+              use se perdeu um aparelho ou desconfia de acesso indevido.
+            </p>
+          </div>
+        </div>
+        <form action={sessAction} className="flex justify-end">
+          <button
+            type="submit"
+            disabled={sessPending || outras === 0}
+            className="h-10 rounded-lg border border-hairline bg-surface px-4 text-sm font-medium text-ink transition-colors hover:bg-surface-2 disabled:opacity-50"
+          >
+            {sessPending
+              ? "Encerrando…"
+              : outras === 0
+                ? "Nenhuma outra sessão"
+                : `Encerrar outras sessões (${outras})`}
+          </button>
+        </form>
+      </section>
+    </div>
   );
 }

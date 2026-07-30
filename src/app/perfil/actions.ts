@@ -2,7 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { appQuery } from "@/lib/app-db";
-import { hashSenha, verificarSenha } from "@/lib/auth";
+import {
+  hashSenha,
+  verificarSenha,
+  tokenAtual,
+  encerrarOutrasSessoes,
+} from "@/lib/auth";
 import { getSessao } from "@/lib/sessao";
 
 export interface PerfilState {
@@ -55,6 +60,9 @@ export async function atualizarPerfil(_prev: PerfilState, formData: FormData): P
 
   if (senhaHash) {
     await appQuery(`update usuario set senha_hash = $2 where id = $1`, [id, senhaHash]);
+    // Trocar a senha derruba as OUTRAS sessões: quem tinha o cookie antigo (ou
+    // roubado) perde o acesso; só a sessão atual, que provou saber a senha, fica.
+    await encerrarOutrasSessoes(id, await tokenAtual());
   }
   if (removerFoto) {
     await appQuery(`delete from usuario_avatar where usuario_id = $1`, [id]);
@@ -70,4 +78,16 @@ export async function atualizarPerfil(_prev: PerfilState, formData: FormData): P
 
   revalidatePath("/perfil");
   return { ok: "Perfil atualizado" };
+}
+
+/**
+ * Encerra todas as sessões ABERTAS menos a atual — o botão "sair dos outros
+ * dispositivos". Alvo é sempre a própria sessão (nunca um id do form).
+ */
+export async function encerrarSessoes(_prev: PerfilState, _formData: FormData): Promise<PerfilState> {
+  const sessao = await getSessao();
+  const n = await encerrarOutrasSessoes(sessao.usuario.id, await tokenAtual());
+  revalidatePath("/perfil");
+  if (n === 0) return { ok: "Nenhuma outra sessão aberta" };
+  return { ok: n === 1 ? "1 outra sessão encerrada" : `${n} outras sessões encerradas` };
 }
