@@ -66,26 +66,6 @@ export const SECOES_CONTABIL: SecaoContabil[] = [
     ],
   },
   {
-    id: "implantacao",
-    rotulo: "Implantação de Saldos",
-    icone: Import,
-    path: "/contabil/implantacao",
-    metrica: false,
-    descricao: "Balancete de abertura → arquivo de importação do Questor",
-    // Uma tela só: colar o balancete, conferir o de-para e baixar o arquivo. A
-    // empresa é o contexto; quem "executa" é colar o balancete, não a barra.
-    abas: [
-      {
-        id: "implantar",
-        rotulo: "Implantar",
-        path: "/contabil/implantacao",
-        descricao: "Colar o balancete anterior e gerar o arquivo de saldos",
-        semPeriodo: true,
-        execucao: null,
-      },
-    ],
-  },
-  {
     id: "conferencia",
     rotulo: "Conferência Fiscal",
     icone: ClipboardCheck,
@@ -175,6 +155,28 @@ export const SECOES_CONTABIL: SecaoContabil[] = [
         descricao: "Pontos fortes, fracos, alertas e recomendações sobre o balancete",
         periodoMensal: true,
         execucao: "Analisar",
+      },
+    ],
+  },
+  // Implantação por último: é a entrada mais nova e o trabalho pontual de
+  // quando uma empresa entra no escritório, não parte do dia a dia.
+  {
+    id: "implantacao",
+    rotulo: "Implantação de Saldos",
+    icone: Import,
+    path: "/contabil/implantacao",
+    metrica: false,
+    descricao: "Balancete de abertura (PDF) → arquivo de importação do Questor",
+    // Uma tela só: subir o PDF do balancete, conferir o de-para e baixar o
+    // arquivo. A empresa é o contexto; quem "executa" é o envio do PDF.
+    abas: [
+      {
+        id: "implantar",
+        rotulo: "Implantar",
+        path: "/contabil/implantacao",
+        descricao: "Subir o balancete anterior em PDF e gerar o arquivo de saldos",
+        semPeriodo: true,
+        execucao: null,
       },
     ],
   },

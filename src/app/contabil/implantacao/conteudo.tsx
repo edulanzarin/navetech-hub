@@ -1,17 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  AlertTriangle,
-  Building2,
-  CheckCircle2,
-  Download,
-  HelpCircle,
-  Pencil,
-} from "lucide-react";
+import { AlertTriangle, Building2, CheckCircle2, Download, HelpCircle, Pencil } from "lucide-react";
 import clsx from "clsx";
 import { toast } from "sonner";
 import { ContaDropdown } from "@/components/conta-dropdown";
+import { DropzoneArquivo } from "@/components/dropzone-arquivo";
 import { useFiltros } from "@/hooks/use-filters";
 import { useEstadoSecao } from "@/hooks/use-estado-secao";
 import { brl } from "@/lib/format";
@@ -40,7 +34,7 @@ export default function Conteudo() {
   const temEmpresa = filtros.empresas.length === 1;
 
   // Estado da seção (sobrevive à navegação dentro da seção).
-  const [texto, setTexto] = useEstadoSecao<string>("texto", "");
+  const [nomeArquivo, setNomeArquivo] = useEstadoSecao<string | null>("arquivo", null);
   const [casadas, setCasadas] = useEstadoSecao<LinhaCasada[] | null>("casadas", null);
   const [estab, setEstab] = useEstadoSecao<string>("estab", "1");
   const [data, setData] = useEstadoSecao<string>("data", "");
@@ -72,26 +66,39 @@ export default function Conteudo() {
 
   const resumo = useMemo(() => {
     const c = casadas ?? [];
+    let deb = 0;
+    let cred = 0;
+    for (const x of c) {
+      if (x.natureza === "D") deb += x.origem.saldo;
+      else if (x.natureza === "C") cred += x.origem.saldo;
+    }
+    const semConta = c.filter((x) => x.status === "sem_conta").length;
     return {
       total: c.length,
       casadas: c.filter((x) => x.status === "casada").length,
       duvidosas: c.filter((x) => x.status === "duvidosa").length,
-      semConta: c.filter((x) => x.status === "sem_conta").length,
+      semConta,
+      deb,
+      cred,
+      // Fecha só quando tudo tem conta (senão falta natureza de alguém).
+      fecha: semConta === 0 && Math.abs(deb - cred) < 1,
     };
   }, [casadas]);
 
-  async function casar() {
-    if (!texto.trim()) return;
+  async function lerPdf(arquivo: File) {
     setOcupado(true);
     try {
-      const r = await postJson<{ casadas: LinhaCasada[] }>("/api/contabil/implantacao/casar", {
-        empresa,
-        texto,
-      });
-      setCasadas(r.casadas);
-      toast.success(`${r.casadas.length} contas lidas`);
+      const form = new FormData();
+      form.set("arquivo", arquivo);
+      form.set("empresa", String(empresa));
+      const res = await fetch("/api/contabil/implantacao/casar", { method: "POST", body: form });
+      const dados = await res.json();
+      if (!res.ok) throw new Error(dados.error ?? "Falha ao ler o balancete");
+      setCasadas(dados.casadas as LinhaCasada[]);
+      setNomeArquivo(arquivo.name);
+      toast.success(`${dados.casadas.length} contas lidas do balancete`);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Falha ao casar");
+      toast.error(e instanceof Error ? e.message : "Falha ao ler o balancete");
     } finally {
       setOcupado(false);
     }
@@ -144,6 +151,7 @@ export default function Conteudo() {
   }
 
   async function gerar() {
+    if (!casadas) return;
     setOcupado(true);
     try {
       const r = await postJson<{
@@ -160,7 +168,7 @@ export default function Conteudo() {
         contaImplantacao: contaImpl,
         codigoHistorico: historico ? Number(historico) : null,
         complemento,
-        texto,
+        linhas: casadas.map((c) => c.origem),
       });
       const blob = new Blob([r.arquivo], { type: "text/plain;charset=utf-8" });
       const url = URL.createObjectURL(blob);
@@ -203,29 +211,20 @@ export default function Conteudo() {
 
   return (
     <div className="grid gap-4">
-      {/* 1. Colar o balancete */}
+      {/* 1. Subir o PDF do balancete */}
       <section className="card grid gap-3 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-semibold text-ink">Balancete da contabilidade anterior</h2>
-            <p className="text-xs text-muted">
-              Cole a tabela (do Excel, CSV ou PDF) com cabeçalho: Código, Descrição e Saldo.
-            </p>
-          </div>
-          <button
-            onClick={casar}
-            disabled={ocupado || !texto.trim()}
-            className="h-10 shrink-0 rounded-lg bg-ent px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-          >
-            Ler balancete
-          </button>
+        <div>
+          <h2 className="text-sm font-semibold text-ink">Balancete da contabilidade anterior</h2>
+          <p className="text-xs text-muted">
+            Suba o PDF do balancete de abertura. O sistema lê as contas e casa cada uma com o plano
+            desta empresa no Questor.
+          </p>
         </div>
-        <textarea
-          value={texto}
-          onChange={(e) => setTexto(e.target.value)}
-          rows={6}
-          placeholder="Código  Classificação  Descrição  Saldo Anterior  Débito  Crédito  Saldo Atual"
-          className="w-full resize-y rounded-lg border border-hairline bg-surface-2 p-3 font-mono text-xs text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-ent/40"
+        <DropzoneArquivo
+          onArquivo={lerPdf}
+          aceita={[".pdf"]}
+          carregando={ocupado && !casadas}
+          nomeArquivo={nomeArquivo}
         />
       </section>
 
@@ -301,9 +300,7 @@ export default function Conteudo() {
                             <Icone className="size-3" />
                             {b.rotulo}
                             {c.status === "duvidosa" && (
-                              <span className="opacity-70">
-                                {Math.round(c.confianca * 100)}%
-                              </span>
+                              <span className="opacity-70">{Math.round(c.confianca * 100)}%</span>
                             )}
                           </span>
                         </td>
@@ -359,10 +356,16 @@ export default function Conteudo() {
               />
             </Campo>
 
-            {resumo.semConta > 0 && (
+            {resumo.semConta > 0 ? (
               <p className="text-xs text-critical">
                 Resolva as {resumo.semConta} contas sem correspondência antes de gerar — senão o
                 balancete não fecha.
+              </p>
+            ) : (
+              <p className={clsx("text-xs", resumo.fecha ? "text-good" : "text-critical")}>
+                {resumo.fecha
+                  ? `Balancete fecha: débitos ${brl(resumo.deb)} = créditos ${brl(resumo.cred)}.`
+                  : `Balancete NÃO fecha: débitos ${brl(resumo.deb)} × créditos ${brl(resumo.cred)} (diferença ${brl(Math.abs(resumo.deb - resumo.cred))}). A leitura do PDF pode ter vindo incompleta — confira as contas.`}
               </p>
             )}
 

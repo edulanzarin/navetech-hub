@@ -2,33 +2,42 @@ import "server-only";
 import { pool } from "./db";
 import { appQuery } from "./app-db";
 import { FilterError } from "./fiscal-filters";
-import { dividirTabela, detectarColunas, montarLinhasOrigem } from "./implantacao-entrada";
+import { textoDoPdf } from "./pdf-texto";
+import { parsearBalancetePdf } from "./implantacao-pdf";
 import { casarBalancete, carregarAlvos, carregarOverrides } from "./implantacao-depara";
-import type { ConfigImplantacao, LinhaCasada } from "./implantacao-tipos";
+import type { ConfigImplantacao, LinhaCasada, LinhaOrigem } from "./implantacao-tipos";
 
 /**
- * Orquestração server-side da implantação: junta o parser (entrada), o de-para
+ * Orquestração server-side da implantação: junta o parser (PDF), o de-para
  * (Questor read-only + overrides do app) e a config. As rotas ficam finas; a
  * regra mora aqui. Nada escreve no Questor — só o app (config e overrides).
  */
 
-/** Cola do balancete → linhas casadas contra o plano da empresa. */
-export async function casarColado(empresa: number, texto: string): Promise<LinhaCasada[]> {
-  const tab = dividirTabela(texto);
-  if (tab.length < 2) {
-    throw new FilterError("Cole o balancete com uma linha de cabeçalho e ao menos uma conta");
-  }
-  const mapa = detectarColunas(tab[0]);
-  if (!mapa) {
+/** PDF do balancete → linhas canônicas → casadas contra o plano da empresa. */
+export async function casarPdf(
+  empresa: number,
+  bytes: Buffer,
+  senha?: string
+): Promise<LinhaCasada[]> {
+  const texto = await textoDoPdf(bytes, senha);
+  const linhas = parsearBalancetePdf(texto);
+  if (!linhas.length) {
     throw new FilterError(
-      "Não reconheci as colunas — o balancete precisa de cabeçalho com Código, Descrição e Saldo"
+      "Não encontrei contas com saldo no PDF — confira se é um balancete com texto (não digitalizado)"
     );
   }
-  const linhas = montarLinhasOrigem(tab, mapa, true);
-  if (!linhas.length) {
-    throw new FilterError("Nenhuma conta analítica com saldo encontrada no que foi colado");
-  }
+  return casarLinhas(empresa, linhas);
+}
 
+/**
+ * Núcleo do de-para: casa linhas canônicas contra o plano da empresa (Questor
+ * read-only) aplicando os overrides salvos. Reusado pelo casar (do PDF) e pelo
+ * gerar (das linhas que a tela já tem em mãos, sem reprocessar o PDF).
+ */
+export async function casarLinhas(
+  empresa: number,
+  linhas: LinhaOrigem[]
+): Promise<LinhaCasada[]> {
   const client = await pool.connect();
   try {
     const alvos = await carregarAlvos(client, empresa);
