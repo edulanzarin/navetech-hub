@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Briefcase, Building2, Layers, Users, type LucideIcon } from "lucide-react";
+import { Briefcase, Building2, Layers, ScrollText, Users, type LucideIcon } from "lucide-react";
 import clsx from "clsx";
 
 /**
@@ -15,6 +15,7 @@ const ITENS: { href: string; icone: LucideIcon; rotulo: string }[] = [
   { href: "/admin/cargos", icone: Briefcase, rotulo: "Cargos" },
   { href: "/admin/setores", icone: Building2, rotulo: "Setores" },
   { href: "/admin/grupos", icone: Layers, rotulo: "Grupos de empresa" },
+  { href: "/admin/auditoria", icone: ScrollText, rotulo: "Auditoria" },
 ];
 
 export function AdminNav() {

@@ -4,6 +4,7 @@ import { parseFilters, FilterError } from "@/lib/fiscal-filters";
 import { coletarBalanceteContabil } from "@/lib/balancete-contabil";
 import { analisarMotor } from "@/lib/analise-motor";
 import { redigirLaudo, AnaliseError } from "@/lib/analise-balancete";
+import { registrarAuditoria } from "@/lib/auditoria";
 import type { LaudoEscritoResp } from "@/lib/types";
 
 /**
@@ -28,6 +29,11 @@ export const GET = apiRoute(async (req) => {
     const analise = analisarMotor(bal);
     try {
       const { texto, meta } = await redigirLaudo(bal, analise);
+      await registrarAuditoria({
+        acao: "contabil.laudo.gerar",
+        alvo: `${bal.empresa.nome} · ${f.inicio} a ${f.fim}`,
+        codigoempresa: empresa,
+      });
       return { texto, meta } satisfies LaudoEscritoResp;
     } catch (err) {
       if (err instanceof AnaliseError) throw new FilterError(err.message);

@@ -2,6 +2,7 @@ import { apiRoute } from "@/lib/api-route";
 import { FilterError } from "@/lib/fiscal-filters";
 import { getSessao, podeVerEmpresa } from "@/lib/sessao";
 import { fichaFuncionario } from "@/lib/funcionario-ficha";
+import { registrarAuditoria } from "@/lib/auditoria";
 
 /** Ficha completa de um contrato — o detalhe que abre no modal a partir da lista. */
 export const GET = apiRoute(async (req) => {
@@ -19,5 +20,11 @@ export const GET = apiRoute(async (req) => {
 
   const ficha = await fichaFuncionario(empresa, contrato);
   if (!ficha) throw new FilterError("Colaborador não encontrado");
+  await registrarAuditoria({
+    acao: "folha.ficha.ver",
+    alvo: ficha.nome,
+    codigoempresa: empresa,
+    detalhe: { contrato },
+  });
   return ficha;
 });

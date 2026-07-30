@@ -2,6 +2,7 @@ import { apiRoute } from "@/lib/api-route";
 import { FilterError } from "@/lib/fiscal-filters";
 import { ehEmpresaRh } from "@/lib/rh";
 import { fichaFuncionario } from "@/lib/funcionario-ficha";
+import { registrarAuditoria } from "@/lib/auditoria";
 
 /** Ficha completa de um contrato do RH — mesma ficha da Folha, escopo das empresas do RH. */
 export const GET = apiRoute(async (req) => {
@@ -15,5 +16,11 @@ export const GET = apiRoute(async (req) => {
 
   const ficha = await fichaFuncionario(empresa, contrato);
   if (!ficha) throw new FilterError("Colaborador não encontrado");
+  await registrarAuditoria({
+    acao: "rh.ficha.ver",
+    alvo: ficha.nome,
+    codigoempresa: empresa,
+    detalhe: { contrato },
+  });
   return ficha;
 });
