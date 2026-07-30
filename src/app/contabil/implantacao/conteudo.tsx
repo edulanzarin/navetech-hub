@@ -5,6 +5,7 @@ import { AlertTriangle, Building2, CheckCircle2, Download, FileUp, HelpCircle, P
 import clsx from "clsx";
 import { toast } from "sonner";
 import { ContaDropdown } from "@/components/conta-dropdown";
+import { HistoricoDropdown } from "@/components/historico-dropdown";
 import { useFiltros } from "@/hooks/use-filters";
 import { useEstadoSecao } from "@/hooks/use-estado-secao";
 import { brl } from "@/lib/format";
@@ -38,7 +39,10 @@ export default function Conteudo() {
   const [estab, setEstab] = useEstadoSecao<string>("estab", "1");
   const [data, setData] = useEstadoSecao<string>("data", "");
   const [contaImpl, setContaImpl] = useEstadoSecao<number | null>("contaImpl", null);
-  const [historico, setHistorico] = useEstadoSecao<string>("historico", "");
+  const [historico, setHistorico] = useEstadoSecao<number | null>("historico", null);
+  // O histórico escolhido pede complemento? (descrição com marcador [DIC...]).
+  // Default true: até saber, mostra o campo — some quando o histórico não pede.
+  const [pedeCompl, setPedeCompl] = useEstadoSecao<boolean>("pedeCompl", true);
   const [complemento, setComplemento] = useEstadoSecao<string>("complemento", "IMPLANTACAO DE SALDOS");
 
   const [editando, setEditando] = useState<number | null>(null);
@@ -53,7 +57,7 @@ export default function Conteudo() {
       .then((cfg) => {
         if (!vivo || !cfg) return;
         if (cfg.contaImplantacao != null) setContaImpl((v) => v ?? cfg.contaImplantacao);
-        if (cfg.codigoHistorico != null) setHistorico((v) => v || String(cfg.codigoHistorico));
+        if (cfg.codigoHistorico != null) setHistorico((v) => v ?? cfg.codigoHistorico);
         if (cfg.complemento) setComplemento((v) => v || cfg.complemento);
       })
       .catch(() => {});
@@ -119,7 +123,7 @@ export default function Conteudo() {
           empresa,
           config: {
             contaImplantacao: contaImpl,
-            codigoHistorico: historico ? Number(historico) : null,
+            codigoHistorico: historico,
             complemento,
           },
         }),
@@ -194,7 +198,7 @@ export default function Conteudo() {
   }
 
   const podeGerar =
-    !!casadas.length && !!data && contaImpl != null && !!historico && resumo.semConta === 0;
+    !!casadas.length && !!data && contaImpl != null && historico != null && resumo.semConta === 0;
 
   return (
     <div className="grid gap-4">
@@ -282,15 +286,15 @@ export default function Conteudo() {
 
           {/* 4. Parâmetros do lote e geração */}
           <section className="card grid gap-4 p-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Campo rotulo="Filial (estab)">
+            <div className="flex flex-wrap gap-4">
+              <Campo rotulo="Filial" className="w-20">
                 <input
                   value={estab}
-                  onChange={(e) => setEstab(e.target.value.replace(/\D/g, ""))}
-                  className="h-10 w-full rounded-lg border border-hairline bg-surface-2 px-3 text-sm text-ink"
+                  onChange={(e) => setEstab(e.target.value.replace(/\D/g, "").slice(0, 2))}
+                  className="h-10 w-full rounded-lg border border-hairline bg-surface-2 px-3 text-center text-sm text-ink"
                 />
               </Campo>
-              <Campo rotulo="Data dos lançamentos">
+              <Campo rotulo="Data dos lançamentos" className="w-44">
                 <input
                   type="date"
                   value={data}
@@ -298,15 +302,7 @@ export default function Conteudo() {
                   className="h-10 w-full rounded-lg border border-hairline bg-surface-2 px-3 text-sm text-ink"
                 />
               </Campo>
-              <Campo rotulo="Histórico (código)">
-                <input
-                  value={historico}
-                  onChange={(e) => setHistorico(e.target.value.replace(/\D/g, ""))}
-                  placeholder="ex.: 1000"
-                  className="h-10 w-full rounded-lg border border-hairline bg-surface-2 px-3 text-sm text-ink placeholder:text-muted"
-                />
-              </Campo>
-              <Campo rotulo="Conta transitória (contrapartida)">
+              <Campo rotulo="Conta transitória (contrapartida)" className="min-w-64 flex-1">
                 <ContaDropdown
                   empresa={empresa}
                   valor={contaImpl}
@@ -316,13 +312,26 @@ export default function Conteudo() {
                 />
               </Campo>
             </div>
-            <Campo rotulo="Complemento do histórico">
-              <input
-                value={complemento}
-                onChange={(e) => setComplemento(e.target.value)}
-                className="h-10 w-full rounded-lg border border-hairline bg-surface-2 px-3 text-sm text-ink"
-              />
-            </Campo>
+            <div className="flex flex-wrap gap-4">
+              <Campo rotulo="Histórico" className="w-72">
+                <HistoricoDropdown
+                  valor={historico}
+                  onMudar={(h) => {
+                    setHistorico(h?.codigo ?? null);
+                    setPedeCompl(h?.pedeComplemento ?? true);
+                  }}
+                />
+              </Campo>
+              {pedeCompl && (
+                <Campo rotulo="Complemento do histórico" className="min-w-64 flex-1">
+                  <input
+                    value={complemento}
+                    onChange={(e) => setComplemento(e.target.value)}
+                    className="h-10 w-full rounded-lg border border-hairline bg-surface-2 px-3 text-sm text-ink"
+                  />
+                </Campo>
+              )}
+            </div>
 
             {resumo.semConta > 0 ? (
               <p className="text-xs text-critical">
@@ -367,9 +376,17 @@ function Kpi({ rotulo, valor, cor }: { rotulo: string; valor: number; cor: strin
   );
 }
 
-function Campo({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
+function Campo({
+  rotulo,
+  className,
+  children,
+}: {
+  rotulo: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <label className="grid gap-1.5">
+    <label className={clsx("grid gap-1.5", className)}>
       <span className="text-xs font-medium text-ink-2">{rotulo}</span>
       {children}
     </label>
