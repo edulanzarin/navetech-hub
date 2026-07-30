@@ -36,8 +36,11 @@ export default function Conteudo() {
   // Estado da seção (sobrevive à navegação dentro da seção). O PDF é lido pelos
   // controles da barra (ImplantacaoControles), que gravam `casadas` aqui.
   const [casadas, setCasadas] = useEstadoSecao<LinhaCasada[] | null>("casadas", null);
-  const [estab, setEstab] = useEstadoSecao<string>("estab", "1");
-  const [data, setData] = useEstadoSecao<string>("data", "");
+  // Filial, data e conta transitória são editadas na barra (ImplantacaoControles);
+  // aqui só leio o valor compartilhado para gerar. A conta ainda recebe o padrão
+  // no prefill, por isso mantém o setter.
+  const [estab] = useEstadoSecao<string>("estab", "1");
+  const [data] = useEstadoSecao<string>("data", "");
   const [contaImpl, setContaImpl] = useEstadoSecao<number | null>("contaImpl", null);
   const [historico, setHistorico] = useEstadoSecao<number | null>("historico", null);
   // O histórico escolhido pede complemento? (descrição com marcador [DIC...]).
@@ -284,34 +287,8 @@ export default function Conteudo() {
             </div>
           </section>
 
-          {/* 4. Parâmetros do lote e geração */}
+          {/* 4. Histórico do lote e geração (filial/data/conta ficam na barra) */}
           <section className="card grid gap-4 p-4">
-            <div className="flex flex-wrap gap-4">
-              <Campo rotulo="Filial" className="w-20">
-                <input
-                  value={estab}
-                  onChange={(e) => setEstab(e.target.value.replace(/\D/g, "").slice(0, 2))}
-                  className="h-10 w-full rounded-lg border border-hairline bg-surface-2 px-3 text-center text-sm text-ink"
-                />
-              </Campo>
-              <Campo rotulo="Data dos lançamentos" className="w-44">
-                <input
-                  type="date"
-                  value={data}
-                  onChange={(e) => setData(e.target.value)}
-                  className="h-10 w-full rounded-lg border border-hairline bg-surface-2 px-3 text-sm text-ink"
-                />
-              </Campo>
-              <Campo rotulo="Conta transitória (contrapartida)" className="min-w-64 flex-1">
-                <ContaDropdown
-                  empresa={empresa}
-                  valor={contaImpl}
-                  onMudar={setContaImpl}
-                  limpavel
-                  largura="w-full"
-                />
-              </Campo>
-            </div>
             <div className="flex flex-wrap gap-4">
               <Campo rotulo="Histórico" className="w-72">
                 <HistoricoDropdown
