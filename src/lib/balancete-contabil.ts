@@ -1,5 +1,6 @@
 import { PoolClient } from "pg";
 import type { BalanceteContabilLinha, BalanceteContabilResp } from "./types";
+import { validarBalancete } from "./validacao-balancete";
 
 /**
  * Balancete CONTÁBIL de saldos (o de verdade, não o fiscal hipotético do
@@ -360,5 +361,6 @@ export function resumirBalanceteVerificacao(
     linhas,
     nivelMax,
     totais: t,
+    atipicas: validarBalancete(bal).anomalias,
   };
 }

@@ -494,6 +494,12 @@ export interface BalanceteContabilResp {
     /** O balancete fecha? (Σ débito = Σ crédito e Σ saldo atual ≈ 0.) */
     fecha: boolean;
   };
+  /**
+   * Contas com saldo de sinal ATÍPICO (devedora com saldo credor ou vice-versa,
+   * excluídas as redutoras). Empurrão proativo: aparecem em destaque ao gerar o
+   * balancete, sem esperar a Análise. Ver validarBalancete.
+   */
+  atipicas: AnomaliaConta[];
 }
 
 /** Uma linha do balancete fiscal: movimento hipotético (regras) × real (fiscal). */

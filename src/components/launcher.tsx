@@ -2,10 +2,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { LogOut } from "lucide-react";
 import { MODULOS, type ModuloId } from "@/lib/modulos";
+import type { Alerta } from "@/lib/alertas";
 import { sair } from "@/app/login/actions";
 import { ThemeToggle } from "./theme-toggle";
 import { Avatar } from "./avatar";
 import { ModuloCard } from "./modulo-card";
+import { AlertasPainel } from "./alertas-painel";
 
 /**
  * Primeira tela depois do login: escolher o módulo. A grade mostra SEMPRE todos
@@ -22,12 +24,14 @@ export function Launcher({
   usuarioTemFoto,
   acessiveis,
   admin,
+  alertas,
 }: {
   usuario: string;
   usuarioId: string;
   usuarioTemFoto: boolean;
   acessiveis: ModuloId[];
   admin: boolean;
+  alertas: Alerta[];
 }) {
   const acesso = new Set(acessiveis);
 
@@ -89,6 +93,8 @@ export function Launcher({
             liberado={admin}
           />
         </div>
+
+        <AlertasPainel alertas={alertas} />
       </main>
     </div>
   );

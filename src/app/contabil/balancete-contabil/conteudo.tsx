@@ -6,7 +6,7 @@ import clsx from "clsx";
 import { useFiltros } from "@/hooks/use-filters";
 import { useBalanceteContabil } from "@/hooks/use-api";
 import { brl, dataBR, num } from "@/lib/format";
-import type { BalanceteContabilLinha, BalanceteContabilResp } from "@/lib/types";
+import type { AnomaliaConta, BalanceteContabilLinha, BalanceteContabilResp } from "@/lib/types";
 
 /** Valor com natureza: magnitude + letra D/C (como o Questor imprime). */
 function SaldoCel({ v, forte }: { v: number; forte?: boolean }) {
@@ -79,6 +79,8 @@ export default function BalanceteContabilPage() {
       <section id="bal-print" className="card anim-fade-up p-5">
         <Cabecalho dados={dados} nivel={nivel} nivelMax={nivelMax} onNivel={setNivel} />
 
+        {dados && dados.atipicas.length > 0 && <BannerAtipicas atipicas={dados.atipicas} />}
+
         {bal.isLoading || !dados ? (
           <div className="skeleton h-96 w-full" />
         ) : linhas.length === 0 ? (
@@ -112,6 +114,45 @@ export default function BalanceteContabilPage() {
         )}
       </section>
     </>
+  );
+}
+
+/**
+ * Empurrão proativo: contas com saldo de sinal atípico (devedora credora ou
+ * vice-versa) aparecem em destaque assim que o balancete é gerado — sem esperar
+ * a Análise. Mostra as maiores; o resto vira contagem.
+ */
+function BannerAtipicas({ atipicas }: { atipicas: AnomaliaConta[] }) {
+  const MOSTRAR = 5;
+  const visiveis = atipicas.slice(0, MOSTRAR);
+  const resto = atipicas.length - visiveis.length;
+  return (
+    <div className="no-print mb-4 rounded-xl border border-amber-500/30 bg-amber-500/8 p-4">
+      <div className="flex items-center gap-2">
+        <AlertTriangle className="size-4 text-amber-500" />
+        <p className="text-sm font-medium text-ink">
+          {atipicas.length} {atipicas.length === 1 ? "conta com saldo" : "contas com saldo"} de
+          sinal atípico
+        </p>
+      </div>
+      <p className="mt-1 text-xs text-muted">
+        Conta devedora com saldo credor (ou o contrário) costuma indicar lançamento invertido ou
+        pagamento a maior. Vale conferir antes de fechar.
+      </p>
+      <ul className="mt-3 flex flex-col gap-1">
+        {visiveis.map((a) => (
+          <li key={`${a.classif}-${a.conta}`} className="flex items-baseline gap-2 text-xs">
+            <span className="font-mono text-muted">{a.classif}</span>
+            <span className="min-w-0 flex-1 truncate text-ink-2">{a.descricao}</span>
+            <span className="tabular-nums text-ink">
+              {brl(Math.abs(a.saldoFinal))}{" "}
+              <span className="text-[10px] text-muted">{a.saldoFinal >= 0 ? "D" : "C"}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      {resto > 0 && <p className="mt-2 text-xs text-muted">e mais {resto}…</p>}
+    </div>
   );
 }
 
