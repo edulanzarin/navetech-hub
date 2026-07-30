@@ -1,4 +1,4 @@
-import { ClipboardCheck, FileSpreadsheet, Landmark, Scale, Table2 } from "lucide-react";
+import { ClipboardCheck, FileSpreadsheet, Import, Landmark, Scale, Table2 } from "lucide-react";
 import type { SecaoFiscal } from "./fiscal-secoes";
 
 /**
@@ -61,6 +61,26 @@ export const SECOES_CONTABIL: SecaoContabil[] = [
         descricao: "Contrapartida de cada descrição do extrato",
         semPeriodo: true,
         // Cadastro leve: escolher a conta já é o gesto, sem botão.
+        execucao: null,
+      },
+    ],
+  },
+  {
+    id: "implantacao",
+    rotulo: "Implantação de Saldos",
+    icone: Import,
+    path: "/contabil/implantacao",
+    metrica: false,
+    descricao: "Balancete de abertura → arquivo de importação do Questor",
+    // Uma tela só: colar o balancete, conferir o de-para e baixar o arquivo. A
+    // empresa é o contexto; quem "executa" é colar o balancete, não a barra.
+    abas: [
+      {
+        id: "implantar",
+        rotulo: "Implantar",
+        path: "/contabil/implantacao",
+        descricao: "Colar o balancete anterior e gerar o arquivo de saldos",
+        semPeriodo: true,
         execucao: null,
       },
     ],

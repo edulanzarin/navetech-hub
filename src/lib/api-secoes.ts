@@ -77,8 +77,10 @@ const MAPA: Record<ModuloId, Record<string, string[]>> = {
     // Conciliação (+ aba Regras)
     "extrato-importar": ["conciliacao"],
     "extrato-regras": ["conciliacao"],
-    // Lookup de contas: usado na Configuração e na Conciliação
-    contas: ["conferencia", "conciliacao"],
+    // Implantação de saldos (todas as sub-rotas casam pelo 1º segmento)
+    implantacao: ["implantacao"],
+    // Lookup de contas: usado na Configuração, na Conciliação e na Implantação
+    contas: ["conferencia", "conciliacao", "implantacao"],
   },
   folha: {
     filtros: ["rotatividade"],
