@@ -58,6 +58,8 @@ export function ImplantacaoControles() {
         onArquivo={(f) => setArquivo(f)}
         carregando={lendo}
         nomeArquivo={arquivo?.name}
+        rotulo="Escolha o balancete"
+        rotuloCarregando="Lendo o balancete…"
       />
       <div className="ml-auto">
         <BotaoExecutar

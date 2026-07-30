@@ -178,10 +178,6 @@ export default function Conteudo() {
           <Building2 className="size-6" />
         </span>
         <p className="text-sm font-medium text-ink">Selecione uma empresa</p>
-        <p className="max-w-sm text-xs text-muted">
-          A implantação lança o balancete de abertura da contabilidade anterior no plano de contas
-          desta empresa.
-        </p>
       </section>
     );
   }
@@ -192,11 +188,7 @@ export default function Conteudo() {
         <span className="grid size-12 place-items-center rounded-2xl bg-surface-2 text-muted">
           <FileUp className="size-6" />
         </span>
-        <p className="text-sm font-medium text-ink">Suba o balancete de abertura</p>
-        <p className="max-w-sm text-xs text-muted">
-          Escolha o PDF do balancete da contabilidade anterior na barra acima e clique em
-          “Ler balancete”. O sistema lê as contas e casa cada uma com o plano desta empresa.
-        </p>
+        <p className="text-sm font-medium text-ink">Nenhum balancete lido</p>
       </section>
     );
   }

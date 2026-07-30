@@ -18,6 +18,10 @@ interface Props {
    * da barra ([[executar-com-botao]]).
    */
   nomeArquivo?: string | null;
+  /** Placeholder quando nada foi escolhido (default: "Escolha o extrato"). */
+  rotulo?: string;
+  /** Texto durante a leitura (default: "Lendo o extrato…"). */
+  rotuloCarregando?: string;
 }
 
 /**
@@ -35,6 +39,8 @@ export function DropzoneArquivo({
   carregando,
   motivo,
   nomeArquivo,
+  rotulo = "Escolha o extrato",
+  rotuloCarregando = "Lendo o extrato…",
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [sobre, setSobre] = useState(false);
@@ -92,12 +98,12 @@ export function DropzoneArquivo({
 
       <span className="max-w-56 truncate">
         {carregando
-          ? "Lendo o extrato…"
+          ? rotuloCarregando
           : motivo
             ? motivo
             : sobre
               ? "Solte para escolher"
-              : (nomeArquivo ?? "Escolha o extrato")}
+              : (nomeArquivo ?? rotulo)}
       </span>
 
       <input
