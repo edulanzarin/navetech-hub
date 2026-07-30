@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronRight, Filter, Loader2, Search, Table2 } from "lucide-react";
+import { ChevronRight, Download, Filter, Loader2, Search, Table2 } from "lucide-react";
 import clsx from "clsx";
+import { toast } from "sonner";
 import { SeletorTipo } from "@/components/charts/top-bar-chart";
 import { ContraparteModal, type PessoaSel } from "@/components/filters/contraparte-modal";
 import { NotaExploradorModal } from "@/components/nota-explorador-modal";
 import { useNotasLista } from "@/hooks/use-api";
+import { exportarCSV } from "@/lib/exportar";
 import { brl, dataBR, documento, num } from "@/lib/format";
-import type { NotaLista } from "@/lib/types";
+import type { NotaLista, NotasListaResp } from "@/lib/types";
 
 type Tipo = "ent" | "sai";
 type Situacao = "todas" | "normais" | "canceladas";
@@ -73,6 +75,52 @@ export function NotasTabela({ qs, enabled, mostraEmpresa, modulo = "fiscal" }: {
 
   const linhas = useMemo(() => data?.rows ?? [], [data]);
 
+  const [exportando, setExportando] = useState(false);
+  const exportar = async () => {
+    if (exportando || total === 0) return;
+    setExportando(true);
+    try {
+      const url =
+        `/api/${modulo}/notas-lista?${qs}&tipo=${tipo}&busca=${encodeURIComponent(buscaDeb)}` +
+        `&situacao=${situacao}${pessoa ? `&pessoa=${pessoa.codigo}` : ""}&export=1`;
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error("Falha ao gerar a exportação");
+      const dados = (await resp.json()) as NotasListaResp;
+      const cab = [
+        "Data",
+        ...(mostraEmpresa ? ["Empresa"] : []),
+        "Número",
+        "Série",
+        "Espécie",
+        "Contraparte",
+        "Documento",
+        "UF",
+        "Valor",
+        "Cancelada",
+      ];
+      const rows = dados.rows.map((n) => [
+        dataBR(n.data),
+        ...(mostraEmpresa ? [n.empresaNome ?? `Empresa ${n.empresa}`] : []),
+        n.numero,
+        n.serie ?? "",
+        n.especie,
+        n.contraparte ?? "",
+        n.contraparteDoc ?? "",
+        n.uf ?? "",
+        n.valor,
+        n.cancelada ? "sim" : "",
+      ]);
+      exportarCSV(modulo, `notas-${tipo === "sai" ? "saidas" : "entradas"}`, cab, rows);
+      if (dados.total > dados.rows.length) {
+        toast.warning(`Exportadas ${num(dados.rows.length)} de ${num(dados.total)} notas (teto de exportação).`);
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao exportar");
+    } finally {
+      setExportando(false);
+    }
+  };
+
   return (
     <section className="card anim-fade-up overflow-hidden">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline p-5">
@@ -129,6 +177,15 @@ export function NotasTabela({ qs, enabled, mostraEmpresa, modulo = "fiscal" }: {
             ))}
           </div>
           <SeletorTipo tipo={tipo} onTipo={setTipo} />
+          <button
+            onClick={exportar}
+            disabled={exportando || total === 0}
+            title="Exportar as notas filtradas em CSV"
+            className="flex h-[34px] items-center gap-2 rounded-lg border border-hairline bg-surface-2 px-3 text-xs text-ink-2 transition-colors hover:text-ink disabled:opacity-40"
+          >
+            {exportando ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
+            {exportando ? "Gerando…" : "Exportar CSV"}
+          </button>
         </div>
       </header>
 

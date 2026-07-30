@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { Printer } from "lucide-react";
+import { imprimirPDF } from "@/lib/exportar";
 import { KpiCards } from "@/components/kpi-cards";
 import { ResumoMovimento } from "@/components/resumo-movimento";
 import { ImpostosCard } from "@/components/impostos-card";
@@ -31,6 +33,27 @@ export default function PainelPage() {
 
   return (
     <>
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `@media print {
+            body * { visibility: hidden !important; }
+            #painel-print, #painel-print * { visibility: visible !important; }
+            #painel-print { position: absolute; inset: 0; padding: 0; }
+            .no-print { display: none !important; }
+          }`,
+        }}
+      />
+      <div className="no-print mb-3 flex justify-end">
+        <button
+          onClick={() => imprimirPDF("fiscal", "Painel fiscal")}
+          title="Imprimir ou salvar em PDF"
+          className="flex h-9 items-center gap-2 rounded-lg border border-hairline bg-surface-2 px-3 text-xs text-ink-2 transition-colors hover:text-ink"
+        >
+          <Printer className="size-3.5" />
+          Imprimir / PDF
+        </button>
+      </div>
+      <div id="painel-print" className="flex flex-col gap-4">
       <KpiCards
         overview={overview.data}
         carregando={overview.isLoading}
@@ -65,6 +88,7 @@ export default function PainelPage() {
         tipo={tipoImpostos}
         onTipo={setTipoImpostos}
       />
+      </div>
     </>
   );
 }

@@ -1,0 +1,43 @@
+import { baixarCSV } from "./csv";
+import type { ModuloId } from "./modulos";
+
+/**
+ * Exportação padronizada do cliente: CSV e impressão (o "PDF" via diálogo do
+ * navegador, mesmo caminho do laudo contábil). Toda exportação é REGISTRADA na
+ * trilha de auditoria — "quem exportou" num sistema com dado fiscal e PII.
+ *
+ * O beacon é best-effort e não bloqueia o download: se a auditoria falhar, o
+ * arquivo baixa do mesmo jeito.
+ */
+function auditarExport(modulo: ModuloId, alvo: string): void {
+  try {
+    fetch("/api/auditoria", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ modulo, alvo }),
+      keepalive: true,
+    }).catch(() => {});
+  } catch {
+    /* nunca atrapalha a exportação */
+  }
+}
+
+/** Baixa a tabela em CSV e registra a exportação na auditoria. */
+export function exportarCSV(
+  modulo: ModuloId,
+  nome: string,
+  cabecalhos: string[],
+  linhas: (string | number | null | undefined)[][]
+): void {
+  baixarCSV(nome, cabecalhos, linhas);
+  auditarExport(modulo, nome);
+}
+
+/**
+ * Abre o diálogo de impressão (salvar em PDF) e registra a ação. A tela decide o
+ * que sai no papel via CSS `@media print` — mesmo padrão do laudo.
+ */
+export function imprimirPDF(modulo: ModuloId, alvo: string): void {
+  auditarExport(modulo, alvo);
+  window.print();
+}

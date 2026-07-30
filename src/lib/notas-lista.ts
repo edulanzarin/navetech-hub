@@ -3,6 +3,8 @@ import { parseFilters, buildWhere } from "./fiscal-filters";
 import type { NotaLista, NotasListaResp } from "./types";
 
 const PAGE_SIZE = 50;
+/** Teto de linhas na exportação: protege a memória/o tempo sem paginar o CSV. */
+const EXPORT_MAX = 10_000;
 
 /**
  * Listagem bruta de notas fiscais (explorador de dados). Paginada e com busca
@@ -19,6 +21,8 @@ export async function buscarNotasLista(sp: URLSearchParams): Promise<NotasListaR
   const chaveCol = tipo === "ent" ? "chavelctofisent" : "chavelctofissai";
   const chaveNfeCol = tipo === "ent" ? "chavenfeent" : "chavenfesai";
   const page = Math.max(1, Number.parseInt(sp.get("page") ?? "1", 10) || 1);
+  // Modo exportação: devolve o conjunto filtrado inteiro (até o teto), sem paginar.
+  const exportar = sp.get("export") === "1";
   const busca = (sp.get("busca") ?? "").trim();
   const buscaNumero = /^\d+$/.test(busca);
   const situacao = sp.get("situacao"); // "canceladas" | "normais" | null (todas)
@@ -51,6 +55,9 @@ export async function buscarNotasLista(sp: URLSearchParams): Promise<NotasListaR
     ? "left join pessoa p on p.codigopessoa = f.codigopessoa"
     : "";
 
+  const limite = exportar ? EXPORT_MAX : PAGE_SIZE;
+  const offset = exportar ? 0 : (page - 1) * PAGE_SIZE;
+
   const [totalRes, rows] = await Promise.all([
     query<{ total: number }>(
       `select count(*)::int as total from ${tabela} f ${joinPessoaCount} where ${where}`,
@@ -76,7 +83,7 @@ export async function buscarNotasLista(sp: URLSearchParams): Promise<NotasListaR
          left join empresa e on e.codigoempresa = f.codigoempresa
         where ${where}
         order by f.datalctofis desc, f.numeronf desc
-        limit ${PAGE_SIZE} offset ${(page - 1) * PAGE_SIZE}`,
+        limit ${limite} offset ${offset}`,
       params
     ),
   ]);
@@ -84,7 +91,7 @@ export async function buscarNotasLista(sp: URLSearchParams): Promise<NotasListaR
   return {
     rows,
     total: totalRes[0].total,
-    page,
-    pageSize: PAGE_SIZE,
+    page: exportar ? 1 : page,
+    pageSize: exportar ? EXPORT_MAX : PAGE_SIZE,
   } satisfies NotasListaResp;
 }

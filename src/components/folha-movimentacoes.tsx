@@ -6,7 +6,7 @@ import clsx from "clsx";
 import { FichaModal } from "@/components/folha-ficha-modal";
 import { PessoasTabela } from "@/components/folha-pessoas-tabela";
 import { useMovimentacoes } from "@/hooks/use-api";
-import { baixarCSV } from "@/lib/csv";
+import { exportarCSV } from "@/lib/exportar";
 import { dataBR, num } from "@/lib/format";
 import type { FolhaMovimentacao } from "@/lib/types";
 
@@ -69,7 +69,8 @@ export function FolhaMovimentacoes({ qs, modulo = "folha" }: Props) {
       m.motivo ?? "",
       m.tempoCasaDias ?? "",
     ]);
-    baixarCSV(
+    exportarCSV(
+      modulo,
       escopo === "efetivo" ? "efetivo-folha" : "movimentacoes-folha",
       ["Nome", "Situação", "Desligado", "Cargo", "Setor", "Admissão", "Desligamento", "Motivo", "Tempo de casa (dias)"],
       linhas
