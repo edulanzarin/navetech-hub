@@ -121,11 +121,7 @@ export default function Conteudo() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           empresa,
-          config: {
-            contaImplantacao: contaImpl,
-            codigoHistorico: historico,
-            complemento,
-          },
+          config: { contaImplantacao: contaImpl, codigoHistorico: historico, complemento },
         }),
       });
       toast.success("Padrão salvo para esta empresa");
@@ -150,7 +146,7 @@ export default function Conteudo() {
         estab: Number(estab),
         data,
         contaImplantacao: contaImpl,
-        codigoHistorico: historico ? Number(historico) : null,
+        codigoHistorico: historico,
         complemento,
         linhas: casadas.map((c) => c.origem),
       });
@@ -186,31 +182,82 @@ export default function Conteudo() {
     );
   }
 
-  if (!casadas) {
-    return (
-      <section className="card grid place-items-center gap-3 px-6 py-16 text-center">
-        <span className="grid size-12 place-items-center rounded-2xl bg-surface-2 text-muted">
-          <FileUp className="size-6" />
-        </span>
-        <p className="text-sm font-medium text-ink">Nenhum balancete lido</p>
-      </section>
-    );
-  }
-
   const podeGerar =
-    !!casadas.length && !!data && contaImpl != null && historico != null && resumo.semConta === 0;
+    !!casadas?.length && !!data && contaImpl != null && historico != null && resumo.semConta === 0;
 
   return (
     <div className="grid gap-4">
-      {/* Resumo do de-para */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {/* Parâmetros do lote: preenchidos ANTES de ler o balancete, então gerar
+          já sai com tudo pronto. */}
+      <section className="card grid gap-4 p-4">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-[5rem_1fr] gap-3">
+            <Campo rotulo="Filial">
+              <input
+                value={estab}
+                onChange={(e) => setEstab(e.target.value.replace(/\D/g, "").slice(0, 2))}
+                className="h-10 w-full rounded-lg border border-hairline bg-surface-2 px-3 text-center text-sm text-ink"
+              />
+            </Campo>
+            <Campo rotulo="Data dos lançamentos">
+              <input
+                type="date"
+                value={data}
+                onChange={(e) => setData(e.target.value)}
+                className="h-10 w-full rounded-lg border border-hairline bg-surface-2 px-3 text-sm text-ink"
+              />
+            </Campo>
+          </div>
+          <Campo rotulo="Conta transitória (contrapartida)">
+            <ContaDropdown empresa={empresa} valor={contaImpl} onMudar={setContaImpl} limpavel largura="w-full" />
+          </Campo>
+          <Campo rotulo="Histórico">
+            <HistoricoDropdown
+              valor={historico}
+              onMudar={(h) => {
+                setHistorico(h?.codigo ?? null);
+                setPedeCompl(h?.pedeComplemento ?? true);
+              }}
+            />
+          </Campo>
+          {pedeCompl && (
+            <Campo rotulo="Complemento do histórico">
+              <input
+                value={complemento}
+                onChange={(e) => setComplemento(e.target.value)}
+                className="h-10 w-full rounded-lg border border-hairline bg-surface-2 px-3 text-sm text-ink"
+              />
+            </Campo>
+          )}
+        </div>
+        <div className="flex justify-end">
+          <button
+            onClick={salvarPadrao}
+            className="h-9 rounded-lg border border-hairline px-3 text-sm text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
+          >
+            Salvar padrão desta empresa
+          </button>
+        </div>
+      </section>
+
+      {!casadas ? (
+        <section className="card grid place-items-center gap-3 px-6 py-14 text-center">
+          <span className="grid size-12 place-items-center rounded-2xl bg-surface-2 text-muted">
+            <FileUp className="size-6" />
+          </span>
+          <p className="text-sm font-medium text-ink">Nenhum balancete lido</p>
+        </section>
+      ) : (
+        <>
+          {/* Resumo do de-para */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Kpi rotulo="Contas" valor={resumo.total} cor="text-ink" />
             <Kpi rotulo="Casadas" valor={resumo.casadas} cor="text-good" />
             <Kpi rotulo="Confira" valor={resumo.duvidosas} cor="text-warn" />
             <Kpi rotulo="Sem conta" valor={resumo.semConta} cor="text-critical" />
           </div>
 
-          {/* 3. Tabela do de-para */}
+          {/* Tabela do de-para */}
           <section className="card overflow-hidden">
             <div className="max-h-[26rem] overflow-auto">
               <table className="w-full text-left text-xs">
@@ -284,55 +331,8 @@ export default function Conteudo() {
             </div>
           </section>
 
-          {/* 4. Parâmetros do lote e geração */}
-          <section className="card grid gap-4 p-4">
-            <div className="flex flex-wrap gap-4">
-              <Campo rotulo="Filial" className="w-20">
-                <input
-                  value={estab}
-                  onChange={(e) => setEstab(e.target.value.replace(/\D/g, "").slice(0, 2))}
-                  className="h-10 w-full rounded-lg border border-hairline bg-surface-2 px-3 text-center text-sm text-ink"
-                />
-              </Campo>
-              <Campo rotulo="Data dos lançamentos" className="w-44">
-                <input
-                  type="date"
-                  value={data}
-                  onChange={(e) => setData(e.target.value)}
-                  className="h-10 w-full rounded-lg border border-hairline bg-surface-2 px-3 text-sm text-ink"
-                />
-              </Campo>
-              <Campo rotulo="Conta transitória (contrapartida)" className="min-w-64 flex-1">
-                <ContaDropdown
-                  empresa={empresa}
-                  valor={contaImpl}
-                  onMudar={setContaImpl}
-                  limpavel
-                  largura="w-full"
-                />
-              </Campo>
-            </div>
-            <div className="flex flex-wrap gap-4">
-              <Campo rotulo="Histórico" className="w-72">
-                <HistoricoDropdown
-                  valor={historico}
-                  onMudar={(h) => {
-                    setHistorico(h?.codigo ?? null);
-                    setPedeCompl(h?.pedeComplemento ?? true);
-                  }}
-                />
-              </Campo>
-              {pedeCompl && (
-                <Campo rotulo="Complemento do histórico" className="min-w-64 flex-1">
-                  <input
-                    value={complemento}
-                    onChange={(e) => setComplemento(e.target.value)}
-                    className="h-10 w-full rounded-lg border border-hairline bg-surface-2 px-3 text-sm text-ink"
-                  />
-                </Campo>
-              )}
-            </div>
-
+          {/* Fechamento e geração */}
+          <section className="card flex flex-wrap items-center justify-between gap-3 p-4">
             {resumo.semConta > 0 ? (
               <p className="text-xs text-critical">
                 Resolva as {resumo.semConta} contas sem correspondência antes de gerar — senão o
@@ -345,24 +345,17 @@ export default function Conteudo() {
                   : `Balancete NÃO fecha: débitos ${brl(resumo.deb)} × créditos ${brl(resumo.cred)} (diferença ${brl(Math.abs(resumo.deb - resumo.cred))}). A leitura do PDF pode ter vindo incompleta — confira as contas.`}
               </p>
             )}
-
-            <div className="flex items-center gap-3">
-              <button
-                onClick={gerar}
-                disabled={ocupado || !podeGerar}
-                className="flex h-10 items-center gap-2 rounded-lg bg-ent px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-              >
-                <Download className="size-4" />
-                Gerar arquivo do Questor
-              </button>
-              <button
-                onClick={salvarPadrao}
-                className="h-10 rounded-lg border border-hairline px-3 text-sm text-ink-2 hover:text-ink"
-              >
-                Salvar padrão desta empresa
-              </button>
-            </div>
+            <button
+              onClick={gerar}
+              disabled={ocupado || !podeGerar}
+              className="flex h-10 items-center gap-2 rounded-lg bg-ent px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              <Download className="size-4" />
+              Gerar arquivo do Questor
+            </button>
           </section>
+        </>
+      )}
     </div>
   );
 }
@@ -376,17 +369,9 @@ function Kpi({ rotulo, valor, cor }: { rotulo: string; valor: number; cor: strin
   );
 }
 
-function Campo({
-  rotulo,
-  className,
-  children,
-}: {
-  rotulo: string;
-  className?: string;
-  children: React.ReactNode;
-}) {
+function Campo({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
   return (
-    <label className={clsx("grid gap-1.5", className)}>
+    <label className="grid gap-1.5">
       <span className="text-xs font-medium text-ink-2">{rotulo}</span>
       {children}
     </label>
