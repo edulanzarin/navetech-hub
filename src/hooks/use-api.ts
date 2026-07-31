@@ -42,6 +42,7 @@ import type {
   AnaliseBalanceteResp,
   LaudoEscritoResp,
   FechamentoResp,
+  ContasControleResp,
 } from "@/lib/types";
 import type {
   FuncionarioDiretorio,
@@ -391,6 +392,14 @@ export const useConferencia = (qs: string, enabled = true) =>
 /** Fechamento mensal: o semáforo com as checagens do mês. Custo zero. */
 export const useFechamento = (qs: string, enabled = true) =>
   useApiQuery<FechamentoResp>(["fechamento", qs], `/api/contabil/fechamento?${qs}`, enabled);
+
+/** Contas de controle: movimento patrimonial do mês repartido por origem. */
+export const useContasControle = (qs: string, enabled = true) =>
+  useApiQuery<ContasControleResp>(
+    ["contas-controle", qs],
+    `/api/contabil/contas-controle?${qs}`,
+    enabled
+  );
 
 export const useBalanceteFiscal = (qs: string, enabled = true) =>
   useApiQuery<BalanceteFiscalResp>(

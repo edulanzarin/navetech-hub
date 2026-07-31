@@ -1,4 +1,4 @@
-import { ClipboardCheck, FileSpreadsheet, Import, Landmark, ListChecks, Scale, Table2 } from "lucide-react";
+import { ClipboardCheck, FileSpreadsheet, Import, Landmark, Layers, ListChecks, Scale, Table2 } from "lucide-react";
 import type { SecaoFiscal } from "./fiscal-secoes";
 
 /**
@@ -153,6 +153,27 @@ export const SECOES_CONTABIL: SecaoContabil[] = [
         rotulo: "Análise",
         path: "/contabil/balancete-contabil/analise",
         descricao: "Pontos fortes, fracos, alertas e recomendações sobre o balancete",
+        periodoMensal: true,
+        execucao: "Analisar",
+      },
+    ],
+  },
+  // Contas de Controle: concilia a conta patrimonial contra o módulo que devia
+  // alimentá-la, abrindo o movimento do mês por origem. Fica junto das análises
+  // de balancete (mesmo filtro empresa + mês).
+  {
+    id: "controle",
+    rotulo: "Contas de Controle",
+    icone: Layers,
+    path: "/contabil/contas-controle",
+    metrica: false,
+    descricao: "Composição do saldo por origem",
+    abas: [
+      {
+        id: "controle",
+        rotulo: "Contas de Controle",
+        path: "/contabil/contas-controle",
+        descricao: "Movimento do mês de cada conta patrimonial, repartido por origem",
         periodoMensal: true,
         execucao: "Analisar",
       },

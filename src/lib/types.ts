@@ -1020,3 +1020,39 @@ export interface FechamentoResp {
   status: StatusFechamento;
   checagens: ChecagemFechamento[];
 }
+
+// ── Contas de controle (composição do saldo por origem) ───────────────────────
+
+/**
+ * Origem do lançamento agrupada em baldes de leitura. `manual` (ajustes CB/AA/XX/
+ * IP…) é o que quebra a conciliação automática — uma conta patrimonial devia ser
+ * alimentada e baixada por módulo, não a dedo.
+ */
+export type OrigemBucket = "fiscal" | "folha" | "financeiro" | "patrimonio" | "manual" | "outros";
+
+/** Uma conta patrimonial com o movimento do período repartido por origem. */
+export interface ContaControle {
+  conta: number;
+  descricao: string;
+  classif: string;
+  natureza: "D" | "C";
+  /** Saldo ao fim do período (devedor +, credor −), como o Questor imprime. */
+  saldoFinal: number;
+  /** Movimento líquido por origem, na direção natural da conta (+ aumenta o saldo). */
+  origens: Record<OrigemBucket, number>;
+  /** Teve movimento de origem manual/ajuste no período. */
+  temManual: boolean;
+}
+
+/** Resposta das Contas de Controle: as contas e um resumo dos ajustes manuais. */
+export interface ContasControleResp {
+  empresa: { codigo: number; nome: string };
+  periodo: { inicio: string; fim: string };
+  contas: ContaControle[];
+  resumo: {
+    totalContas: number;
+    contasComManual: number;
+    /** Soma do valor absoluto do movimento manual no período. */
+    valorManual: number;
+  };
+}

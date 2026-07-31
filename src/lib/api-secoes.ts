@@ -79,6 +79,8 @@ const MAPA: Record<ModuloId, Record<string, string[]>> = {
     "extrato-regras": ["conciliacao"],
     // Fechamento mensal (orquestra as checagens; seção própria)
     fechamento: ["fechamento"],
+    // Contas de controle (composição do saldo por origem; seção própria)
+    "contas-controle": ["controle"],
     // Implantação de saldos (todas as sub-rotas casam pelo 1º segmento)
     implantacao: ["implantacao"],
     // Lookup de contas: usado na Configuração, na Conciliação e na Implantação
