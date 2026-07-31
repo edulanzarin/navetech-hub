@@ -1,4 +1,4 @@
-import { ClipboardCheck, FileSpreadsheet, Import, Landmark, Layers, ListChecks, Scale, Table2 } from "lucide-react";
+import { ClipboardCheck, FileSpreadsheet, Import, Landmark, Layers, ListChecks, Scale, Table2, Umbrella } from "lucide-react";
 import type { SecaoFiscal } from "./fiscal-secoes";
 
 /**
@@ -176,6 +176,26 @@ export const SECOES_CONTABIL: SecaoContabil[] = [
         descricao: "Movimento do mês de cada conta patrimonial, repartido por origem",
         periodoMensal: true,
         execucao: "Analisar",
+      },
+    ],
+  },
+  // Provisões: conferência que cruza a folha (provisão calculada) com o contábil
+  // (provisão lançada). Fica junto das conferências, mesmo filtro empresa + mês.
+  {
+    id: "provisoes",
+    rotulo: "Provisões",
+    icone: Umbrella,
+    path: "/contabil/provisoes",
+    metrica: false,
+    descricao: "Provisão da folha × lançada no contábil",
+    abas: [
+      {
+        id: "provisoes",
+        rotulo: "Provisões",
+        path: "/contabil/provisoes",
+        descricao: "Confere a provisão de férias/13º calculada pela folha contra o contábil",
+        periodoMensal: true,
+        execucao: "Conferir",
       },
     ],
   },

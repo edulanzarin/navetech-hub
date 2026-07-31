@@ -1056,3 +1056,36 @@ export interface ContasControleResp {
     valorManual: number;
   };
 }
+
+// ── Provisões (folha calculada × contábil lançado) ────────────────────────────
+
+/** Uma folha de provisão encontrada no período (transparência do "calculado"). */
+export interface FolhaProvisao {
+  tipo: number;
+  descricao: string;
+  competencia: string;
+  total: number;
+}
+
+/** Uma conta de provisão tocada pela folha no contábil (transparência do "lançado"). */
+export interface ContaProvisao {
+  conta: number;
+  descricao: string;
+  /** Movimento líquido credor no período (aumento da provisão), origem FP. */
+  movimento: number;
+}
+
+/** Resposta das Provisões: o confronto calculado × lançado + a memória do método. */
+export interface ProvisoesResp {
+  empresa: { codigo: number; nome: string };
+  periodo: { inicio: string; fim: string };
+  /** Provisão que a folha calculou (folhas tipo 70/71) no período. */
+  calculado: number;
+  /** Provisão lançada no contábil (origem FP em contas de provisão) no período. */
+  lancado: number;
+  /** calculado − lançado. */
+  divergencia: number;
+  status: StatusFechamento;
+  folhas: FolhaProvisao[];
+  contas: ContaProvisao[];
+}

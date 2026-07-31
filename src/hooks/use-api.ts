@@ -43,6 +43,7 @@ import type {
   LaudoEscritoResp,
   FechamentoResp,
   ContasControleResp,
+  ProvisoesResp,
 } from "@/lib/types";
 import type {
   FuncionarioDiretorio,
@@ -400,6 +401,10 @@ export const useContasControle = (qs: string, enabled = true) =>
     `/api/contabil/contas-controle?${qs}`,
     enabled
   );
+
+/** Provisões: folha calculada × contábil lançado, com a divergência. */
+export const useProvisoes = (qs: string, enabled = true) =>
+  useApiQuery<ProvisoesResp>(["provisoes", qs], `/api/contabil/provisoes?${qs}`, enabled);
 
 export const useBalanceteFiscal = (qs: string, enabled = true) =>
   useApiQuery<BalanceteFiscalResp>(

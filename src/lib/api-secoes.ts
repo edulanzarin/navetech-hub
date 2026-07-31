@@ -81,6 +81,8 @@ const MAPA: Record<ModuloId, Record<string, string[]>> = {
     fechamento: ["fechamento"],
     // Contas de controle (composição do saldo por origem; seção própria)
     "contas-controle": ["controle"],
+    // Provisões (folha calculada × contábil lançado; lê folha, mas é seção do contábil)
+    provisoes: ["provisoes"],
     // Implantação de saldos (todas as sub-rotas casam pelo 1º segmento)
     implantacao: ["implantacao"],
     // Lookup de contas: usado na Configuração, na Conciliação e na Implantação
