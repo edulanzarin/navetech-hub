@@ -8,7 +8,7 @@ import { ContaDropdown } from "@/components/conta-dropdown";
 import { HistoricoDropdown } from "@/components/historico-dropdown";
 import { useFiltros } from "@/hooks/use-filters";
 import { useEstadoSecao } from "@/hooks/use-estado-secao";
-import { brl, dataBR } from "@/lib/format";
+import { brl } from "@/lib/format";
 import type { LinhaCasada, StatusCasamento } from "@/lib/implantacao-tipos";
 
 const BADGE: Record<StatusCasamento, { rotulo: string; cor: string; icone: typeof CheckCircle2 }> = {
@@ -53,6 +53,8 @@ export default function Conteudo() {
 
   const [editando, setEditando] = useState<number | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  // Filtro por situação: clicar num KPI mostra só aquelas linhas (null = todas).
+  const [filtroStatus, setFiltroStatus] = useState<StatusCasamento | null>(null);
 
   const resumo = useMemo(() => {
     const c = casadas ?? [];
@@ -225,33 +227,57 @@ export default function Conteudo() {
         </section>
       ) : (
         <>
-          {/* Resumo do de-para */}
+          {/* Resumo do de-para — cada card filtra a tabela pela situação. */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Kpi rotulo="Contas" valor={resumo.total} cor="text-ink" />
-            <Kpi rotulo="Casadas" valor={resumo.casadas} cor="text-good" />
-            <Kpi rotulo="Confira" valor={resumo.duvidosas} cor="text-warn" />
-            <Kpi rotulo="Sem conta" valor={resumo.semConta} cor="text-critical" />
+            <Kpi
+              rotulo="Contas"
+              valor={resumo.total}
+              cor="text-ink"
+              ativo={filtroStatus === null}
+              onClick={() => setFiltroStatus(null)}
+            />
+            <Kpi
+              rotulo="Casadas"
+              valor={resumo.casadas}
+              cor="text-good"
+              ativo={filtroStatus === "casada"}
+              onClick={() => setFiltroStatus((s) => (s === "casada" ? null : "casada"))}
+            />
+            <Kpi
+              rotulo="Confira"
+              valor={resumo.duvidosas}
+              cor="text-warn"
+              ativo={filtroStatus === "duvidosa"}
+              onClick={() => setFiltroStatus((s) => (s === "duvidosa" ? null : "duvidosa"))}
+            />
+            <Kpi
+              rotulo="Sem conta"
+              valor={resumo.semConta}
+              cor="text-critical"
+              ativo={filtroStatus === "sem_conta"}
+              onClick={() => setFiltroStatus((s) => (s === "sem_conta" ? null : "sem_conta"))}
+            />
           </div>
 
           {/* Prévia do arquivo de importação: uma linha por lançamento, com as
               colunas do arquivo (débito, crédito, histórico, complemento, valor). */}
           <section className="card overflow-hidden">
             <div className="max-h-[calc(100vh-19rem)] overflow-auto">
-              <table className="w-full min-w-[68rem] border-collapse text-left text-xs">
+              <table className="w-full min-w-[48rem] border-collapse text-left text-xs">
                 <thead>
                   <tr className="[&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:border-b [&>th]:border-hairline [&>th]:bg-surface-2 [&>th]:px-3 [&>th]:py-2.5 [&>th]:font-medium [&>th]:text-muted">
                     <th>Origem</th>
-                    <th>Data</th>
                     <th>Débito</th>
                     <th>Crédito</th>
-                    <th>Histórico</th>
-                    <th>Complemento</th>
                     <th className="text-right">Valor</th>
                     <th>Situação</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {casadas.map((c, i) => {
+                  {casadas
+                    .map((c, i) => ({ c, i }))
+                    .filter(({ c }) => filtroStatus === null || c.status === filtroStatus)
+                    .map(({ c, i }) => {
                     const b = BADGE[c.status];
                     const Icone = b.icone;
                     const editar = editando === i || c.status !== "casada";
@@ -296,15 +322,8 @@ export default function Conteudo() {
                             {c.origem.classif ? ` · ${c.origem.classif}` : ""}
                           </div>
                         </td>
-                        <td className={clsx("whitespace-nowrap", data ? "text-muted" : "text-critical")}>
-                          {data ? dataBR(data) : "faltando"}
-                        </td>
                         <td>{debito}</td>
                         <td>{credito}</td>
-                        <td className="whitespace-nowrap text-muted">{historico ?? "—"}</td>
-                        <td className="max-w-52 truncate text-muted" title={pedeCompl ? complemento : ""}>
-                          {pedeCompl ? complemento || "—" : "—"}
-                        </td>
                         <td className="whitespace-nowrap text-right text-ink-2">
                           {brl(c.origem.saldo)}{" "}
                           <span className="text-[10px] text-muted">{c.natureza ?? "?"}</span>
@@ -360,12 +379,30 @@ export default function Conteudo() {
   );
 }
 
-function Kpi({ rotulo, valor, cor }: { rotulo: string; valor: number; cor: string }) {
+function Kpi({
+  rotulo,
+  valor,
+  cor,
+  ativo,
+  onClick,
+}: {
+  rotulo: string;
+  valor: number;
+  cor: string;
+  ativo: boolean;
+  onClick: () => void;
+}) {
   return (
-    <div className="card p-3">
+    <button
+      onClick={onClick}
+      className={clsx(
+        "card p-3 text-left transition-colors hover:border-ent/40",
+        ativo && "border-ent/60 ring-1 ring-ent/40"
+      )}
+    >
       <p className="text-[10px] uppercase tracking-wide text-muted">{rotulo}</p>
       <p className={clsx("text-xl font-semibold", cor)}>{valor}</p>
-    </div>
+    </button>
   );
 }
 
