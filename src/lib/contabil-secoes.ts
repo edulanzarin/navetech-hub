@@ -1,4 +1,4 @@
-import { ClipboardCheck, FileSpreadsheet, Import, Landmark, Layers, ListChecks, Scale, Table2, Umbrella } from "lucide-react";
+import { ClipboardCheck, FileSpreadsheet, Import, Landmark, Scale, Table2 } from "lucide-react";
 import type { SecaoFiscal } from "./fiscal-secoes";
 
 /**
@@ -183,67 +183,17 @@ export const SECOES_CONTABIL: SecaoContabil[] = [
     ],
   },
   // ── Seções acrescentadas depois entram daqui pra baixo, na ordem em que nascem ──
-  // Contas de Controle: concilia a conta patrimonial contra o módulo que devia
-  // alimentá-la, abrindo o movimento do mês por origem. Fica junto das análises
-  // de balancete (mesmo filtro empresa + mês).
-  {
-    id: "controle",
-    rotulo: "Contas de Controle",
-    icone: Layers,
-    path: "/contabil/contas-controle",
-    metrica: false,
-    descricao: "Composição do saldo por origem",
-    abas: [
-      {
-        id: "controle",
-        rotulo: "Contas de Controle",
-        path: "/contabil/contas-controle",
-        descricao: "Movimento do mês de cada conta patrimonial, repartido por origem",
-        periodoMensal: true,
-        execucao: "Analisar",
-      },
-    ],
-  },
-  // Provisões: conferência que cruza a folha (provisão calculada) com o contábil
-  // (provisão lançada). Fica junto das conferências, mesmo filtro empresa + mês.
-  {
-    id: "provisoes",
-    rotulo: "Provisões",
-    icone: Umbrella,
-    path: "/contabil/provisoes",
-    metrica: false,
-    descricao: "Provisão da folha × lançada no contábil",
-    abas: [
-      {
-        id: "provisoes",
-        rotulo: "Provisões",
-        path: "/contabil/provisoes",
-        descricao: "Confere a provisão de férias/13º calculada pela folha contra o contábil",
-        periodoMensal: true,
-        execucao: "Conferir",
-      },
-    ],
-  },
-  // Fechamento: o semáforo que amarra as outras seções num veredito só ("posso
-  // fechar o mês?"). Vem depois dos balancetes porque consome o que eles apuram.
-  {
-    id: "fechamento",
-    rotulo: "Fechamento",
-    icone: ListChecks,
-    path: "/contabil/fechamento",
-    metrica: false,
-    descricao: "Checklist do mês: posso fechar?",
-    abas: [
-      {
-        id: "fechamento",
-        rotulo: "Fechamento",
-        path: "/contabil/fechamento",
-        descricao: "Roda as conferências do mês e diz se dá para fechar",
-        periodoMensal: true,
-        execucao: "Verificar",
-      },
-    ],
-  },
+  //
+  // PARKED (fora do ar de propósito): Contas de Controle, Provisões e Fechamento
+  // saíram da sidebar do Contábil. O código continua todo no repo, dormente —
+  // páginas (src/app/contabil/{contas-controle,provisoes,fechamento}), rotas
+  // (src/app/api/contabil/{contas-controle,provisoes,fechamento}), libs
+  // (contas-controle.ts, provisoes.ts, fechamento.ts) e hooks. Para religar,
+  // reponha aqui a seção correspondente (ver git em contabil-secoes.ts) e o ícone
+  // (Layers / Umbrella / ListChecks) no import. Provisões, em especial, precisa
+  // antes rever a conferência: a provisão NÃO é folha 70/71, mora em
+  // provisaoferias(emdias)/provisao13 e o contábil mistura accrual com baixa
+  // (ver nota do Módulo de folha do Questor no Brain).
 ];
 
 const TODAS_ABAS: { aba: AbaContabil; secao: SecaoContabil }[] = SECOES_CONTABIL.flatMap((secao) =>
