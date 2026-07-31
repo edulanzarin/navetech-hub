@@ -20,7 +20,7 @@ import {
   execucaoDaAba,
   secaoContabilAtual,
 } from "@/lib/contabil-secoes";
-import { limparEstadoSecao } from "@/lib/estado-secao";
+import { abaFoiExecutada, limparEstadoSecao, marcarAbaExecutada } from "@/lib/estado-secao";
 import { dataBR } from "@/lib/format";
 
 // Controles que cada aba põe na linha da barra. O mapa vive aqui (e não no
@@ -52,6 +52,14 @@ export function ContabilShell({ children }: { children: React.ReactNode }) {
   const usaPeriodo = abaUsaPeriodo(pathname);
   const periodoMensal = abaUsaPeriodoMensal(pathname);
   const execucao = execucaoDaAba(pathname);
+
+  // Quando uma aba executa (aplicado), lembra disso pela vida da seção — assim
+  // ir noutra aba do mesmo assunto e voltar mantém o resultado, sem reexecutar.
+  const abaId = aba?.id;
+  useEffect(() => {
+    if (aplicado && secaoPath && abaId) marcarAbaExecutada(secaoPath, abaId);
+  }, [aplicado, secaoPath, abaId]);
+  const jaExecutou = !!(secaoPath && abaId && abaFoiExecutada(secaoPath, abaId));
 
   // Ao trocar de aba, os filtros (empresa, período, filial…) seguem na URL, mas o
   // marcador de executado (`ap`) NÃO: cada aba é um trabalho próprio e só roda
@@ -114,7 +122,11 @@ export function ContabilShell({ children }: { children: React.ReactNode }) {
       {/* O gate só existe onde há botão; tela de execução imediata cuida dos
           próprios estados vazios (escolher conta, enviar arquivo). */}
       <div className="mt-5 space-y-4">
-        {execucao.imediata || aplicado ? children : <FiltroPendente rotulo={execucao.rotulo} />}
+        {execucao.imediata || aplicado || jaExecutou ? (
+          children
+        ) : (
+          <FiltroPendente rotulo={execucao.rotulo} />
+        )}
       </div>
     </div>
   );

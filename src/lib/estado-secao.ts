@@ -77,3 +77,18 @@ export function limparEstadoSecao(secao: string): void {
   for (const k of estados.keys()) if (k.startsWith(prefixo)) estados.delete(k);
   notificar();
 }
+
+/**
+ * "Esta ABA já foi executada?" — para o resultado de uma aba (Balancete) seguir
+ * na tela ao ir noutra aba do mesmo assunto (Análise) e voltar, sem reexecutar.
+ * Vive no mesmo Map (mesmo tempo de vida: morre ao sair da seção) sob uma página
+ * reservada `exec`. Não notifica: é lido no render do shell, que já re-renderiza
+ * ao navegar entre abas.
+ */
+export function marcarAbaExecutada(secao: string, aba: string): void {
+  estados.set(chave(secao, "exec", aba), true);
+}
+
+export function abaFoiExecutada(secao: string, aba: string): boolean {
+  return estados.get(chave(secao, "exec", aba)) === true;
+}

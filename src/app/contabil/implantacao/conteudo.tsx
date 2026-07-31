@@ -8,7 +8,7 @@ import { ContaDropdown } from "@/components/conta-dropdown";
 import { HistoricoDropdown } from "@/components/historico-dropdown";
 import { useFiltros } from "@/hooks/use-filters";
 import { useEstadoSecao } from "@/hooks/use-estado-secao";
-import { brl } from "@/lib/format";
+import { brl, dataBR } from "@/lib/format";
 import type { LinhaCasada, StatusCasamento } from "@/lib/implantacao-tipos";
 
 const BADGE: Record<StatusCasamento, { rotulo: string; cor: string; icone: typeof CheckCircle2 }> = {
@@ -189,7 +189,7 @@ export default function Conteudo() {
               type="date"
               value={data}
               onChange={(e) => setData(e.target.value)}
-              className={clsx(campoInput, "w-40")}
+              className={clsx(campoInput, "w-40", !data && "border-critical/60")}
             />
           </Campo>
           <Campo rotulo="Conta transitória (contrapartida)">
@@ -237,10 +237,11 @@ export default function Conteudo() {
               colunas do arquivo (débito, crédito, histórico, complemento, valor). */}
           <section className="card overflow-hidden">
             <div className="max-h-[calc(100vh-19rem)] overflow-auto">
-              <table className="w-full min-w-[64rem] border-collapse text-left text-xs">
+              <table className="w-full min-w-[68rem] border-collapse text-left text-xs">
                 <thead>
                   <tr className="[&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:border-b [&>th]:border-hairline [&>th]:bg-surface-2 [&>th]:px-3 [&>th]:py-2.5 [&>th]:font-medium [&>th]:text-muted">
                     <th>Origem</th>
+                    <th>Data</th>
                     <th>Débito</th>
                     <th>Crédito</th>
                     <th>Histórico</th>
@@ -294,6 +295,9 @@ export default function Conteudo() {
                             {c.origem.chave}
                             {c.origem.classif ? ` · ${c.origem.classif}` : ""}
                           </div>
+                        </td>
+                        <td className={clsx("whitespace-nowrap", data ? "text-muted" : "text-critical")}>
+                          {data ? dataBR(data) : "faltando"}
                         </td>
                         <td>{debito}</td>
                         <td>{credito}</td>
