@@ -100,6 +100,8 @@ const MAPA: Record<ModuloId, Record<string, string[]>> = {
     "dp-produtividade": ["produtividade"],
     "dp-lista": ["produtividade"],
     "dp-quebra": ["produtividade"],
+    // Custo de Folha (remuneração calculada por rubrica/tipo/setor)
+    custo: ["custo"],
   },
   rh: {
     // Diretório

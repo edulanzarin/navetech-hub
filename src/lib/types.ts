@@ -1160,3 +1160,71 @@ export interface AuditoriaResp {
     tiposComAchado: number;
   };
 }
+
+// ── Custo de Folha (calculoevento por competência) ────────────────────────────
+
+/** Uma rubrica (evento) com o quanto rendeu no período. */
+export interface CustoRubrica {
+  codigo: number;
+  descricao: string;
+  /** "provento" (tipoevento 1, custo) ou "desconto" (tipoevento 3). */
+  lado: "provento" | "desconto";
+  total: number;
+}
+
+/** Composição do custo por tipo de folha (mensal, 13º, férias, rescisão…). */
+export interface CustoTipoFolha {
+  tipo: number;
+  descricao: string;
+  proventos: number;
+  descontos: number;
+}
+
+/** Uma quebra do custo por dimensão (setor, cargo, estabelecimento). */
+export interface CustoGrupo {
+  grupo: string;
+  proventos: number;
+  funcionarios: number;
+  /** proventos ÷ funcionários — custo médio da remuneração no grupo. */
+  custoMedio: number;
+}
+
+/** Um ponto da série mensal (por competência). */
+export interface CustoPonto {
+  /** Competência "YYYY-MM". */
+  compet: string;
+  proventos: number;
+  descontos: number;
+}
+
+/**
+ * Resposta do Custo de Folha. "Custo" = proventos (o que a folha calculou de
+ * remuneração); NÃO inclui encargos patronais (FGTS/INSS patronal), que no
+ * Questor não são evento por funcionário — ficam para a fase 2. Exclui as folhas
+ * de adiantamento (antecipa a mensal), provisão (accrual) e transferência.
+ */
+export interface CustoFolhaResp {
+  empresa: { codigo: number; nome: string };
+  periodo: { inicio: string; fim: string };
+  resumo: {
+    /** Σ proventos (tipoevento 1) — o custo de remuneração do período. */
+    proventos: number;
+    /** Σ descontos (tipoevento 3) — INSS/IRRF retido, vales, faltas. */
+    descontos: number;
+    /** proventos − descontos (o líquido reflete o desconto de adiantamentos). */
+    liquido: number;
+    /** Funcionários distintos com folha no período. */
+    funcionarios: number;
+    /** proventos ÷ funcionários. */
+    custoMedio: number;
+  };
+  /** Composição por tipo de folha, do maior custo ao menor. */
+  porTipo: CustoTipoFolha[];
+  /** Top rubricas de provento e de desconto (a memória do custo). */
+  rubricas: CustoRubrica[];
+  /** Evolução por competência. */
+  serie: CustoPonto[];
+  porSetor: CustoGrupo[];
+  porCargo: CustoGrupo[];
+  porEstabelecimento: CustoGrupo[];
+}

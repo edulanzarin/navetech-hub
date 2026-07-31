@@ -1,0 +1,231 @@
+"use client";
+
+import { useMemo } from "react";
+import { AlertTriangle, Banknote, Building2, Receipt, Users, Wallet } from "lucide-react";
+import { Kpi } from "@/components/kpi-conf";
+import { CustoQuebra } from "@/components/custo-quebra";
+import { useFiltros } from "@/hooks/use-filters";
+import { useCustoFolha } from "@/hooks/use-api";
+import { brl, brlCompact, num } from "@/lib/format";
+import type { CustoRubrica } from "@/lib/types";
+
+const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+const mesLabel = (compet: string) => {
+  const [a, m] = compet.split("-");
+  return `${MESES[Number(m) - 1] ?? m}/${(a ?? "").slice(2)}`;
+};
+
+/** Tabela enxuta de rubricas de um lado (proventos ou descontos). */
+function RubricaLista({ titulo, itens }: { titulo: string; itens: CustoRubrica[] }) {
+  const max = Math.max(1, ...itens.map((i) => i.total));
+  return (
+    <div>
+      <p className="mb-2 text-xs font-medium text-muted">{titulo}</p>
+      {itens.length === 0 ? (
+        <p className="py-6 text-center text-xs text-muted">Nada no período</p>
+      ) : (
+        <ul className="space-y-2">
+          {itens.map((i) => (
+            <li key={i.codigo}>
+              <div className="flex items-baseline justify-between gap-2 text-sm">
+                <span className="truncate text-ink" title={i.descricao}>
+                  {i.descricao}
+                </span>
+                <span className="shrink-0 tabular-nums text-ink-2">{brl(i.total)}</span>
+              </div>
+              <div className="mt-1 h-1 rounded bg-ent/15">
+                <div className="h-1 rounded bg-ent" style={{ width: `${(i.total / max) * 100}%` }} />
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+export default function CustoFolhaPage() {
+  const { filtros, qs } = useFiltros();
+  const temEmpresa = filtros.empresas.length === 1;
+  const res = useCustoFolha(qs, temEmpresa);
+  const dados = res.data;
+
+  const maxTipo = useMemo(
+    () => (dados ? Math.max(1, ...dados.porTipo.map((t) => t.proventos)) : 1),
+    [dados]
+  );
+  const maxSerie = useMemo(
+    () => (dados ? Math.max(1, ...dados.serie.map((p) => p.proventos)) : 1),
+    [dados]
+  );
+  const proventos = dados?.rubricas.filter((r) => r.lado === "provento") ?? [];
+  const descontos = dados?.rubricas.filter((r) => r.lado === "desconto") ?? [];
+
+  if (!temEmpresa) {
+    return (
+      <section className="card grid place-items-center gap-3 px-6 py-16 text-center">
+        <span className="grid size-12 place-items-center rounded-2xl bg-ent/12 text-ent">
+          <Building2 className="size-6" />
+        </span>
+        <p className="text-sm font-medium text-ink">Selecione uma empresa</p>
+        <p className="max-w-md text-xs text-muted">
+          O custo de folha é apurado de uma empresa por vez, no período escolhido.
+        </p>
+      </section>
+    );
+  }
+
+  if (res.isError) {
+    return (
+      <section className="card grid place-items-center gap-3 px-6 py-16 text-center">
+        <span className="grid size-12 place-items-center rounded-2xl bg-critical/12 text-critical">
+          <AlertTriangle className="size-6" />
+        </span>
+        <p className="text-sm font-medium text-ink">Não foi possível apurar o custo</p>
+        <p className="max-w-md text-xs text-muted">
+          {res.error instanceof Error ? res.error.message : "Tente novamente em instantes."}
+        </p>
+      </section>
+    );
+  }
+
+  if (!dados) {
+    return (
+      <section className="card grid place-items-center px-6 py-16 text-center">
+        <p className="text-sm text-muted">Somando a folha do período…</p>
+      </section>
+    );
+  }
+
+  if (dados.resumo.funcionarios === 0) {
+    return (
+      <section className="card grid place-items-center px-6 py-14 text-center">
+        <p className="text-sm text-muted">Sem folha calculada no período para esta empresa.</p>
+      </section>
+    );
+  }
+
+  const { resumo } = dados;
+
+  return (
+    <div className="space-y-4">
+      {/* KPIs */}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Kpi
+          rotulo="Custo de remuneração"
+          icone={<Wallet className="size-4" />}
+          corIcone="bg-ent/12 text-ent"
+          valor={brlCompact(resumo.proventos)}
+          secundario={`${brl(resumo.proventos)} em proventos (sem encargos patronais)`}
+        />
+        <Kpi
+          rotulo="Descontos"
+          icone={<Receipt className="size-4" />}
+          corIcone="bg-surface-2 text-ink-2"
+          valor={brlCompact(resumo.descontos)}
+          secundario="INSS, IRRF, vales e faltas retidos"
+        />
+        <Kpi
+          rotulo="Líquido"
+          icone={<Banknote className="size-4" />}
+          corIcone="bg-good/12 text-good"
+          valor={brlCompact(resumo.liquido)}
+          secundario="Proventos − descontos"
+        />
+        <Kpi
+          rotulo="Funcionários"
+          icone={<Users className="size-4" />}
+          corIcone="bg-ent/12 text-ent"
+          valor={num(resumo.funcionarios)}
+          secundario={`Custo médio ${brl(resumo.custoMedio)} por pessoa`}
+        />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Composição por tipo de folha */}
+        <section className="card anim-fade-up p-5">
+          <h2 className="text-sm font-semibold">Composição por tipo de folha</h2>
+          <p className="mt-0.5 mb-4 text-xs text-muted">
+            De onde vem o custo — mensal, 13º, férias, rescisão… (sem adiantamento/provisão)
+          </p>
+          <ul className="space-y-3">
+            {dados.porTipo.map((t) => (
+              <li key={t.tipo}>
+                <div className="flex items-baseline justify-between gap-2 text-sm">
+                  <span className="truncate text-ink" title={t.descricao}>
+                    {t.descricao}
+                  </span>
+                  <span className="shrink-0 tabular-nums text-ink-2">{brl(t.proventos)}</span>
+                </div>
+                <div className="mt-1 h-2 rounded bg-ent/15">
+                  <div
+                    className="h-2 rounded bg-ent"
+                    style={{ width: `${(t.proventos / maxTipo) * 100}%` }}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        {/* Evolução mensal */}
+        <section className="card anim-fade-up p-5">
+          <h2 className="text-sm font-semibold">Evolução mensal</h2>
+          <p className="mt-0.5 mb-4 text-xs text-muted">Custo de remuneração por competência</p>
+          {dados.serie.length === 0 ? (
+            <p className="py-10 text-center text-xs text-muted">Sem competências no período</p>
+          ) : (
+            <div className="flex h-44 items-end gap-2">
+              {dados.serie.map((p) => (
+                <div key={p.compet} className="flex flex-1 flex-col items-center gap-1">
+                  <div className="flex w-full flex-1 items-end">
+                    <div
+                      className="w-full rounded-t bg-ent transition-all hover:bg-ent/80"
+                      style={{ height: `${Math.max(2, (p.proventos / maxSerie) * 100)}%` }}
+                      title={`${mesLabel(p.compet)}: ${brl(p.proventos)}`}
+                    />
+                  </div>
+                  <span className="text-[10px] text-muted">{mesLabel(p.compet)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+
+      {/* Rubricas (memória do custo) */}
+      <section className="card anim-fade-up p-5">
+        <h2 className="text-sm font-semibold">Principais rubricas</h2>
+        <p className="mt-0.5 mb-4 text-xs text-muted">
+          As verbas que mais pesam — o detalhe por trás dos totais
+        </p>
+        <div className="grid gap-6 sm:grid-cols-2">
+          <RubricaLista titulo="Proventos" itens={proventos} />
+          <RubricaLista titulo="Descontos" itens={descontos} />
+        </div>
+      </section>
+
+      {/* Quebras */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <CustoQuebra
+          titulo="Custo por setor"
+          subtitulo="Proventos por área (organograma)"
+          rotuloColuna="Setor"
+          dados={dados.porSetor}
+        />
+        <CustoQuebra
+          titulo="Custo por cargo"
+          subtitulo="Proventos por cargo"
+          rotuloColuna="Cargo"
+          dados={dados.porCargo}
+        />
+      </div>
+      <CustoQuebra
+        titulo="Custo por estabelecimento"
+        subtitulo="Proventos por filial"
+        rotuloColuna="Estabelecimento"
+        dados={dados.porEstabelecimento}
+      />
+    </div>
+  );
+}

@@ -1,4 +1,4 @@
-import { Gauge, Repeat } from "lucide-react";
+import { Gauge, Repeat, Wallet } from "lucide-react";
 import type { SecaoFiscal } from "./fiscal-secoes";
 
 /**
@@ -24,6 +24,15 @@ export const SECOES_FOLHA: SecaoFiscal[] = [
     path: "/folha/produtividade",
     metrica: false,
     descricao: "O que o DP fez no período, por colaborador",
+  },
+  // Seção nova entra por último (ver memória de ordem da sidebar).
+  {
+    id: "custo",
+    icone: Wallet,
+    rotulo: "Custo de Folha",
+    path: "/folha/custo",
+    metrica: false,
+    descricao: "Quanto a folha custa: proventos por rubrica, tipo e setor",
   },
 ];
 
