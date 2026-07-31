@@ -44,11 +44,12 @@ export default function Conteudo() {
   const [estab, setEstab] = useEstadoSecao<string>("estab", "1");
   const [data, setData] = useEstadoSecao<string>("data", "");
   const [contaImpl, setContaImpl] = useEstadoSecao<number | null>("contaImpl", null);
-  // Histórico 1 = "VL REF.SALDO ABERTURA CFE LEVANTAMENTO" — o de implantação, é
-  // o padrão global do Questor. Já vem preenchido (mudável); não pede complemento.
-  const [historico, setHistorico] = useEstadoSecao<number | null>("historico", 1);
-  // O histórico escolhido pede complemento? (descrição com marcador [DIC...]).
-  const [pedeCompl, setPedeCompl] = useEstadoSecao<boolean>("pedeCompl", false);
+  // Histórico 350 = "Valor Referente [DICTEXTO]" — o padrão de implantação usado
+  // aqui. Já vem preenchido (mudável). Tem [DIC...], então pede complemento.
+  const [historico, setHistorico] = useEstadoSecao<number | null>("historico", 350);
+  // O histórico escolhido pede complemento? (descrição com marcador [DIC...]). O
+  // 350 pede, então já começa true — o campo de complemento vem aberto.
+  const [pedeCompl, setPedeCompl] = useEstadoSecao<boolean>("pedeCompl", true);
   const [complemento, setComplemento] = useEstadoSecao<string>("complemento", "IMPLANTACAO DE SALDOS");
 
   const [editando, setEditando] = useState<number | null>(null);
