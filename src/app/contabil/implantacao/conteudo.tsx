@@ -44,10 +44,11 @@ export default function Conteudo() {
   const [estab, setEstab] = useEstadoSecao<string>("estab", "1");
   const [data, setData] = useEstadoSecao<string>("data", "");
   const [contaImpl, setContaImpl] = useEstadoSecao<number | null>("contaImpl", null);
-  const [historico, setHistorico] = useEstadoSecao<number | null>("historico", null);
+  // Histórico 1 = "VL REF.SALDO ABERTURA CFE LEVANTAMENTO" — o de implantação, é
+  // o padrão global do Questor. Já vem preenchido (mudável); não pede complemento.
+  const [historico, setHistorico] = useEstadoSecao<number | null>("historico", 1);
   // O histórico escolhido pede complemento? (descrição com marcador [DIC...]).
-  // Default true: até saber, mostra o campo — some quando o histórico não pede.
-  const [pedeCompl, setPedeCompl] = useEstadoSecao<boolean>("pedeCompl", true);
+  const [pedeCompl, setPedeCompl] = useEstadoSecao<boolean>("pedeCompl", false);
   const [complemento, setComplemento] = useEstadoSecao<string>("complemento", "IMPLANTACAO DE SALDOS");
 
   const [editando, setEditando] = useState<number | null>(null);
@@ -131,7 +132,8 @@ export default function Conteudo() {
         data,
         contaImplantacao: contaImpl,
         codigoHistorico: historico,
-        complemento,
+        // Histórico que não pede complemento não leva texto livre.
+        complemento: pedeCompl ? complemento : "",
         linhas: casadas.map((c) => c.origem),
       });
       const blob = new Blob([r.arquivo], { type: "text/plain;charset=utf-8" });
