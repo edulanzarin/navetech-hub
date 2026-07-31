@@ -158,6 +158,31 @@ export const SECOES_CONTABIL: SecaoContabil[] = [
       },
     ],
   },
+  // Implantação de Saldos: trabalho pontual de quando uma empresa entra no
+  // escritório. Foi o último item enquanto só existiam as seções acima — mas a
+  // ordem da sidebar é a desta lista, e a regra é "seção NOVA entra no fim"
+  // (abaixo desta), não empurrar a Implantação pra baixo a cada adição.
+  {
+    id: "implantacao",
+    rotulo: "Implantação de Saldos",
+    icone: Import,
+    path: "/contabil/implantacao",
+    metrica: false,
+    descricao: "Balancete de abertura (PDF) → arquivo de importação do Questor",
+    // Uma tela só: subir o PDF do balancete, conferir o de-para e baixar o
+    // arquivo. A empresa é o contexto; quem "executa" é o envio do PDF.
+    abas: [
+      {
+        id: "implantar",
+        rotulo: "Implantar",
+        path: "/contabil/implantacao",
+        descricao: "Subir o balancete anterior em PDF e gerar o arquivo de saldos",
+        semPeriodo: true,
+        execucao: null,
+      },
+    ],
+  },
+  // ── Seções acrescentadas depois entram daqui pra baixo, na ordem em que nascem ──
   // Contas de Controle: concilia a conta patrimonial contra o módulo que devia
   // alimentá-la, abrindo o movimento do mês por origem. Fica junto das análises
   // de balancete (mesmo filtro empresa + mês).
@@ -216,28 +241,6 @@ export const SECOES_CONTABIL: SecaoContabil[] = [
         descricao: "Roda as conferências do mês e diz se dá para fechar",
         periodoMensal: true,
         execucao: "Verificar",
-      },
-    ],
-  },
-  // Implantação por último: é a entrada mais nova e o trabalho pontual de
-  // quando uma empresa entra no escritório, não parte do dia a dia.
-  {
-    id: "implantacao",
-    rotulo: "Implantação de Saldos",
-    icone: Import,
-    path: "/contabil/implantacao",
-    metrica: false,
-    descricao: "Balancete de abertura (PDF) → arquivo de importação do Questor",
-    // Uma tela só: subir o PDF do balancete, conferir o de-para e baixar o
-    // arquivo. A empresa é o contexto; quem "executa" é o envio do PDF.
-    abas: [
-      {
-        id: "implantar",
-        rotulo: "Implantar",
-        path: "/contabil/implantacao",
-        descricao: "Subir o balancete anterior em PDF e gerar o arquivo de saldos",
-        semPeriodo: true,
-        execucao: null,
       },
     ],
   },
