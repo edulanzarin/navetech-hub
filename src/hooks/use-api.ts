@@ -41,6 +41,7 @@ import type {
   ReplicarPreviewResp,
   AnaliseBalanceteResp,
   LaudoEscritoResp,
+  FechamentoResp,
 } from "@/lib/types";
 import type {
   FuncionarioDiretorio,
@@ -386,6 +387,10 @@ export const useConferencia = (qs: string, enabled = true) =>
     `/api/contabil/conferencia?${qs}`,
     enabled
   );
+
+/** Fechamento mensal: o semáforo com as checagens do mês. Custo zero. */
+export const useFechamento = (qs: string, enabled = true) =>
+  useApiQuery<FechamentoResp>(["fechamento", qs], `/api/contabil/fechamento?${qs}`, enabled);
 
 export const useBalanceteFiscal = (qs: string, enabled = true) =>
   useApiQuery<BalanceteFiscalResp>(

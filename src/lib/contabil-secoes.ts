@@ -1,4 +1,4 @@
-import { ClipboardCheck, FileSpreadsheet, Import, Landmark, Scale, Table2 } from "lucide-react";
+import { ClipboardCheck, FileSpreadsheet, Import, Landmark, ListChecks, Scale, Table2 } from "lucide-react";
 import type { SecaoFiscal } from "./fiscal-secoes";
 
 /**
@@ -155,6 +155,26 @@ export const SECOES_CONTABIL: SecaoContabil[] = [
         descricao: "Pontos fortes, fracos, alertas e recomendações sobre o balancete",
         periodoMensal: true,
         execucao: "Analisar",
+      },
+    ],
+  },
+  // Fechamento: o semáforo que amarra as outras seções num veredito só ("posso
+  // fechar o mês?"). Vem depois dos balancetes porque consome o que eles apuram.
+  {
+    id: "fechamento",
+    rotulo: "Fechamento",
+    icone: ListChecks,
+    path: "/contabil/fechamento",
+    metrica: false,
+    descricao: "Checklist do mês: posso fechar?",
+    abas: [
+      {
+        id: "fechamento",
+        rotulo: "Fechamento",
+        path: "/contabil/fechamento",
+        descricao: "Roda as conferências do mês e diz se dá para fechar",
+        periodoMensal: true,
+        execucao: "Verificar",
       },
     ],
   },

@@ -983,3 +983,40 @@ export interface LaudoEscritoResp {
   texto: string;
   meta: { modelo: string; tokensEntrada: number; tokensSaida: number };
 }
+
+// ── Fechamento mensal ─────────────────────────────────────────────────────────
+
+/**
+ * Semáforo de uma checagem: `ok` verde, `atencao` amarelo (fecha, mas confira),
+ * `erro` vermelho (trava o fechamento), `na` cinza (nada a checar no período).
+ */
+export type StatusFechamento = "ok" | "atencao" | "erro" | "na";
+
+/** Uma pendência concreta dentro de uma checagem (uma linha do detalhe). */
+export interface ItemFechamento {
+  rotulo: string;
+  /** Valor em R$ associado à pendência, quando faz sentido quantificar. */
+  valor?: number;
+  severidade: StatusFechamento;
+}
+
+/** Uma frente de conferência do fechamento (balancete, notas de entrada, etc.). */
+export interface ChecagemFechamento {
+  id: string;
+  titulo: string;
+  status: StatusFechamento;
+  /** Frase que resume o veredito da checagem. */
+  resumo: string;
+  itens: ItemFechamento[];
+  /** Tela onde a pendência se resolve — a UI acrescenta empresa + período. */
+  link?: string;
+}
+
+/** Resposta do Fechamento: o veredito geral e cada frente que o compõe. */
+export interface FechamentoResp {
+  empresa: { codigo: number; nome: string };
+  periodo: { inicio: string; fim: string };
+  /** Pior status entre as checagens (ignorando `na`) — o veredito do mês. */
+  status: StatusFechamento;
+  checagens: ChecagemFechamento[];
+}
