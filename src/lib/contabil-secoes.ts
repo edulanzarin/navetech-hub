@@ -37,7 +37,7 @@ export const SECOES_CONTABIL: SecaoContabil[] = [
   // Conciliação primeiro: é o trabalho do dia a dia e a home do módulo.
   {
     id: "conciliacao",
-    rotulo: "Conciliação",
+    rotulo: "Conciliação Bancária",
     icone: Landmark,
     path: "/contabil/conciliacao",
     metrica: false,
@@ -92,7 +92,7 @@ export const SECOES_CONTABIL: SecaoContabil[] = [
   },
   {
     id: "notas",
-    rotulo: "Notas",
+    rotulo: "Notas Fiscais",
     icone: Table2,
     path: "/contabil/notas",
     metrica: false,
@@ -185,7 +185,7 @@ export const SECOES_CONTABIL: SecaoContabil[] = [
   // ── Seções acrescentadas depois entram daqui pra baixo, na ordem em que nascem ──
   {
     id: "auditoria",
-    rotulo: "Auditoria",
+    rotulo: "Auditoria de Lançamentos",
     icone: ScanSearch,
     path: "/contabil/auditoria",
     metrica: false,
