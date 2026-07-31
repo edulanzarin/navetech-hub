@@ -85,6 +85,8 @@ const MAPA: Record<ModuloId, Record<string, string[]>> = {
     provisoes: ["provisoes"],
     // Implantação de saldos (todas as sub-rotas casam pelo 1º segmento)
     implantacao: ["implantacao"],
+    // Auditoria de lançamentos (varredura do lctoctb; seção própria)
+    auditoria: ["auditoria"],
     // Lookup de contas: usado na Configuração, na Conciliação e na Implantação
     contas: ["conferencia", "conciliacao", "implantacao"],
   },

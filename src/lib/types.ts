@@ -1089,3 +1089,74 @@ export interface ProvisoesResp {
   folhas: FolhaProvisao[];
   contas: ContaProvisao[];
 }
+
+// ── Auditoria de lançamentos (varredura linha-a-linha do lctoctb) ──────────────
+
+/**
+ * Cada tipo de anomalia que a auditoria caça no lançamento individual — o que o
+ * balancete agregado esconde (um lançamento em conta sintética some do rollup).
+ * Ver [[Módulo contábil do Questor]] e a nota da lib.
+ */
+export type TipoAchado =
+  | "sintetica" // débito/crédito caiu em conta sintética (só analítica recebe lançamento)
+  | "orfa" // conta do lançamento não existe no plano da empresa
+  | "sem_historico" // sem histórico padrão nem complemento — a ECD (I200) exige
+  | "extemporaneo" // origem de ajuste de período anterior (XX extemporâneo, AA ajuste anterior)
+  | "manual_controle" // ajuste a dedo (CB/IP/LA/ZZ…) numa conta patrimonial de controle
+  | "duplicado"; // partida idêntica repetida no período (possível dupla contabilização)
+
+/** Um lançamento sinalizado — a memória de cálculo que torna o veredito auditável. */
+export interface LancamentoAchado {
+  /** chavelctoctb, como string (é bigint no Questor). */
+  chave: string;
+  /** datalctoctb "YYYY-MM-DD" — a competência do lançamento. */
+  data: string;
+  contaDeb: number | null;
+  contaCred: number | null;
+  descrDeb: string | null;
+  descrCred: string | null;
+  valor: number;
+  /** codigooriglctoctb (2 letras) — o módulo que gerou. */
+  origem: string;
+  /** complhist, ou o texto do histórico padrão; null quando não há nenhum. */
+  historico: string | null;
+  /** Nome do usuário (codigousuario 0 = ADMINISTRADOR/sistema). */
+  usuario: string | null;
+  /** datahoralctoctb — quando foi digitado (para ver retroatividade). */
+  lancadoEm: string | null;
+  /** Nota do achado: qual perna disparou, quantas repetições, etc. */
+  detalhe?: string;
+}
+
+/** Um grupo de achados do mesmo tipo, com o total e uma amostra navegável. */
+export interface GrupoAchado {
+  tipo: TipoAchado;
+  titulo: string;
+  /** O critério do check em uma frase — o método visível na própria tela. */
+  criterio: string;
+  severidade: "alta" | "media";
+  /** Total de lançamentos com este achado no período (antes de cortar a amostra). */
+  contagem: number;
+  /** Soma dos valores dos lançamentos do grupo. */
+  valor: number;
+  /** Top-N por valor — a memória de cálculo (pode ser menor que `contagem`). */
+  amostra: LancamentoAchado[];
+  /** `amostra` não cobre tudo: há mais lançamentos que os mostrados. */
+  truncado: boolean;
+}
+
+/** Resposta da Auditoria: os grupos com achado e um resumo do período. */
+export interface AuditoriaResp {
+  empresa: { codigo: number; nome: string };
+  periodo: { inicio: string; fim: string };
+  /** Lançamentos normais (LN) do período — o denominador da varredura. */
+  totalLancamentos: number;
+  /** Só os tipos que acharam algo, ordenados por severidade e depois contagem. */
+  grupos: GrupoAchado[];
+  resumo: {
+    /** Soma das contagens de todos os grupos. */
+    totalAchados: number;
+    /** Quantos dos 6 checks acenderam. */
+    tiposComAchado: number;
+  };
+}

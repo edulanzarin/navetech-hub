@@ -1,4 +1,4 @@
-import { ClipboardCheck, FileSpreadsheet, Import, Landmark, Scale, Table2 } from "lucide-react";
+import { ClipboardCheck, FileSpreadsheet, Import, Landmark, Scale, ScanSearch, Table2 } from "lucide-react";
 import type { SecaoFiscal } from "./fiscal-secoes";
 
 /**
@@ -183,6 +183,27 @@ export const SECOES_CONTABIL: SecaoContabil[] = [
     ],
   },
   // ── Seções acrescentadas depois entram daqui pra baixo, na ordem em que nascem ──
+  {
+    id: "auditoria",
+    rotulo: "Auditoria",
+    icone: ScanSearch,
+    path: "/contabil/auditoria",
+    metrica: false,
+    descricao: "Lançamentos com anomalia no período",
+    // Uma tela só: varre o lctoctb e agrupa os achados por tipo. Período por DIA
+    // (não mensal como o balancete) — dá para auditar um mês inteiro ou um
+    // intervalo. Computa sobre a base, então roda no botão "Executar".
+    abas: [
+      {
+        id: "auditoria",
+        rotulo: "Auditoria",
+        path: "/contabil/auditoria",
+        descricao:
+          "Conta sintética, conta fora do plano, sem histórico, ajuste de período anterior, manual em conta de controle e partida repetida",
+        execucao: "Executar",
+      },
+    ],
+  },
   //
   // PARKED (fora do ar de propósito): Contas de Controle, Provisões e Fechamento
   // saíram da sidebar do Contábil. O código continua todo no repo, dormente —
