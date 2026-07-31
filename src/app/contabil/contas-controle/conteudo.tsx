@@ -142,9 +142,9 @@ export default function ContasControlePage() {
             </label>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="max-h-[34rem] overflow-y-auto overflow-x-auto">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="sticky top-0 z-10 bg-surface">
                 <tr className="border-b border-hairline text-left text-xs text-muted">
                   <th className="px-4 py-2 font-medium">Conta</th>
                   <th className="px-2 py-2 text-right font-medium">Saldo final</th>

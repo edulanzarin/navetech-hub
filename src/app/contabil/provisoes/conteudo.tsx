@@ -95,6 +95,7 @@ export default function ProvisoesPage() {
           {dados.folhas.length === 0 ? (
             <p className="px-4 py-8 text-center text-xs text-muted">Nenhuma folha de provisão no período.</p>
           ) : (
+            <div className="max-h-[24rem] overflow-y-auto">
             <table className="w-full text-sm">
               <tbody>
                 {dados.folhas.map((f) => (
@@ -111,6 +112,7 @@ export default function ProvisoesPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </section>
 
@@ -123,6 +125,7 @@ export default function ProvisoesPage() {
           {dados.contas.length === 0 ? (
             <p className="px-4 py-8 text-center text-xs text-muted">Nenhum lançamento de provisão no período.</p>
           ) : (
+            <div className="max-h-[24rem] overflow-y-auto">
             <table className="w-full text-sm">
               <tbody>
                 {dados.contas.map((c) => (
@@ -136,6 +139,7 @@ export default function ProvisoesPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </section>
       </div>
