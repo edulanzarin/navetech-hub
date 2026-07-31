@@ -36,13 +36,16 @@ export const GET = apiRoute(async (req) => {
                      or classifconta like $${i})`;
   }
 
-  const { rows } = await pool.query<ContaPlano>(
-    `select contactb conta, btrim(descrconta) descricao, classifconta classificacao
+  const { rows } = await pool.query<ContaPlano & { natursaldo: number | null }>(
+    `select contactb conta, btrim(descrconta) descricao, classifconta classificacao, natursaldo
        from planoespec
       where codigoempresa = $1 and tipoconta = 2${filtro}
       order by classifconta, contactb
       limit ${LIMITE}`,
     params
   );
-  return rows;
+  return rows.map(({ natursaldo, ...r }) => ({
+    ...r,
+    natureza: natursaldo === -1 ? ("C" as const) : ("D" as const),
+  }));
 });

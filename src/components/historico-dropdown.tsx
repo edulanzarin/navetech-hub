@@ -36,7 +36,7 @@ export function HistoricoDropdown({
   valor,
   onMudar,
   placeholder = "Selecionar histórico",
-  largura = "w-full",
+  largura = "w-96",
 }: Props) {
   const [busca, setBusca] = useState("");
   const [buscaDeb, setBuscaDeb] = useState("");

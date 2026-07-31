@@ -378,6 +378,8 @@ export interface ContaPlano {
   conta: number;
   descricao: string;
   classificacao: string | null;
+  /** Natureza do saldo: "D" devedora, "C" credora (de `natursaldo`). */
+  natureza?: "D" | "C";
 }
 
 /** Conta de banco da empresa, com as regras de contrapartida do extrato. */

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { AlertTriangle, Building2, CheckCircle2, Download, FileUp, HelpCircle, Pencil } from "lucide-react";
 import clsx from "clsx";
 import { toast } from "sonner";
@@ -16,6 +16,11 @@ const BADGE: Record<StatusCasamento, { rotulo: string; cor: string; icone: typeo
   duvidosa: { rotulo: "Confira", cor: "bg-warn/12 text-warn", icone: HelpCircle },
   sem_conta: { rotulo: "Sem conta", cor: "bg-critical/12 text-critical", icone: AlertTriangle },
 };
+
+// Mesma pegada de input das outras telas (usuario-form etc.), na altura h-9 dos
+// controles de barra para alinhar com os dropdowns.
+const campoInput =
+  "h-9 rounded-lg border border-hairline bg-surface px-3 text-sm text-ink outline-none placeholder:text-muted focus:border-ent/50";
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, {
@@ -48,25 +53,6 @@ export default function Conteudo() {
   const [editando, setEditando] = useState<number | null>(null);
   const [ocupado, setOcupado] = useState(false);
 
-  // Prefill dos padrões (conta transitória, histórico) ao trocar de empresa.
-  useEffect(() => {
-    if (!temEmpresa) return;
-    let vivo = true;
-    fetch(`/api/contabil/implantacao/config?empresa=${empresa}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((cfg) => {
-        if (!vivo || !cfg) return;
-        if (cfg.contaImplantacao != null) setContaImpl((v) => v ?? cfg.contaImplantacao);
-        if (cfg.codigoHistorico != null) setHistorico((v) => v ?? cfg.codigoHistorico);
-        if (cfg.complemento) setComplemento((v) => v || cfg.complemento);
-      })
-      .catch(() => {});
-    return () => {
-      vivo = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [empresa, temEmpresa]);
-
   const resumo = useMemo(() => {
     const c = casadas ?? [];
     let deb = 0;
@@ -91,6 +77,20 @@ export default function Conteudo() {
   async function escolherConta(idx: number, conta: number | null) {
     if (!casadas) return;
     const linha = casadas[idx];
+    // Natureza da linha decide o lado (débito/crédito). Da origem quando marcada
+    // (Patrimonium), senão da conta escolhida no Questor (Systemar não marca D/C).
+    let natureza = linha.origem.natureza ?? null;
+    if (conta != null && !natureza) {
+      try {
+        const res = await fetch(`/api/contabil/contas?empresa=${empresa}&busca=${conta}`);
+        if (res.ok) {
+          const contas = (await res.json()) as { conta: number; natureza?: "D" | "C" }[];
+          natureza = contas.find((x) => x.conta === conta)?.natureza ?? null;
+        }
+      } catch {
+        /* natureza fica nula; o servidor resolve ao gerar */
+      }
+    }
     const nova = [...casadas];
     nova[idx] = {
       ...linha,
@@ -98,7 +98,7 @@ export default function Conteudo() {
       status: conta == null ? "sem_conta" : "casada",
       via: conta == null ? null : "manual",
       confianca: conta == null ? 0 : 1,
-      natureza: linha.origem.natureza ?? linha.natureza,
+      natureza,
     };
     setCasadas(nova);
     setEditando(null);
@@ -111,22 +111,6 @@ export default function Conteudo() {
       });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao salvar de-para");
-    }
-  }
-
-  async function salvarPadrao() {
-    try {
-      await fetch("/api/contabil/implantacao/config", {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          empresa,
-          config: { contaImplantacao: contaImpl, codigoHistorico: historico, complemento },
-        }),
-      });
-      toast.success("Padrão salvo para esta empresa");
-    } catch {
-      toast.error("Falha ao salvar padrão");
     }
   }
 
@@ -189,27 +173,25 @@ export default function Conteudo() {
     <div className="grid gap-4">
       {/* Parâmetros do lote: preenchidos ANTES de ler o balancete, então gerar
           já sai com tudo pronto. */}
-      <section className="card grid gap-4 p-4">
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div className="grid grid-cols-[5rem_1fr] gap-3">
-            <Campo rotulo="Filial">
-              <input
-                value={estab}
-                onChange={(e) => setEstab(e.target.value.replace(/\D/g, "").slice(0, 2))}
-                className="h-10 w-full rounded-lg border border-hairline bg-surface-2 px-3 text-center text-sm text-ink"
-              />
-            </Campo>
-            <Campo rotulo="Data dos lançamentos">
-              <input
-                type="date"
-                value={data}
-                onChange={(e) => setData(e.target.value)}
-                className="h-10 w-full rounded-lg border border-hairline bg-surface-2 px-3 text-sm text-ink"
-              />
-            </Campo>
-          </div>
+      <section className="card grid gap-3 p-4">
+        <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+          <Campo rotulo="Filial">
+            <input
+              value={estab}
+              onChange={(e) => setEstab(e.target.value.replace(/\D/g, "").slice(0, 2))}
+              className={clsx(campoInput, "w-14 px-2 text-center")}
+            />
+          </Campo>
+          <Campo rotulo="Data dos lançamentos">
+            <input
+              type="date"
+              value={data}
+              onChange={(e) => setData(e.target.value)}
+              className={clsx(campoInput, "w-40")}
+            />
+          </Campo>
           <Campo rotulo="Conta transitória (contrapartida)">
-            <ContaDropdown empresa={empresa} valor={contaImpl} onMudar={setContaImpl} limpavel largura="w-full" />
+            <ContaDropdown empresa={empresa} valor={contaImpl} onMudar={setContaImpl} limpavel />
           </Campo>
           <Campo rotulo="Histórico">
             <HistoricoDropdown
@@ -221,22 +203,14 @@ export default function Conteudo() {
             />
           </Campo>
           {pedeCompl && (
-            <Campo rotulo="Complemento do histórico">
+            <Campo rotulo="Complemento do histórico" className="min-w-[14rem] flex-1">
               <input
                 value={complemento}
                 onChange={(e) => setComplemento(e.target.value)}
-                className="h-10 w-full rounded-lg border border-hairline bg-surface-2 px-3 text-sm text-ink"
+                className={clsx(campoInput, "w-full")}
               />
             </Campo>
           )}
-        </div>
-        <div className="flex justify-end">
-          <button
-            onClick={salvarPadrao}
-            className="h-9 rounded-lg border border-hairline px-3 text-sm text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
-          >
-            Salvar padrão desta empresa
-          </button>
         </div>
       </section>
 
@@ -257,16 +231,20 @@ export default function Conteudo() {
             <Kpi rotulo="Sem conta" valor={resumo.semConta} cor="text-critical" />
           </div>
 
-          {/* Tabela do de-para */}
+          {/* Prévia do arquivo de importação: uma linha por lançamento, com as
+              colunas do arquivo (débito, crédito, histórico, complemento, valor). */}
           <section className="card overflow-hidden">
-            <div className="max-h-[26rem] overflow-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="sticky top-0 bg-surface-2 text-muted">
-                  <tr>
-                    <th className="px-3 py-2 font-medium">Origem</th>
-                    <th className="px-3 py-2 font-medium">Saldo</th>
-                    <th className="px-3 py-2 font-medium">Conta no Questor</th>
-                    <th className="px-3 py-2 font-medium">Situação</th>
+            <div className="max-h-[calc(100vh-19rem)] overflow-auto">
+              <table className="w-full min-w-[64rem] border-collapse text-left text-xs">
+                <thead>
+                  <tr className="[&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:border-b [&>th]:border-hairline [&>th]:bg-surface-2 [&>th]:px-3 [&>th]:py-2.5 [&>th]:font-medium [&>th]:text-muted">
+                    <th>Origem</th>
+                    <th>Débito</th>
+                    <th>Crédito</th>
+                    <th>Histórico</th>
+                    <th>Complemento</th>
+                    <th className="text-right">Valor</th>
+                    <th>Situação</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -274,42 +252,58 @@ export default function Conteudo() {
                     const b = BADGE[c.status];
                     const Icone = b.icone;
                     const editar = editando === i || c.status !== "casada";
+                    const contaCell = editar ? (
+                      <ContaDropdown
+                        empresa={empresa}
+                        valor={c.conta}
+                        onMudar={(conta) => escolherConta(i, conta)}
+                        limpavel
+                        largura="w-80"
+                      />
+                    ) : (
+                      <button
+                        onClick={() => setEditando(i)}
+                        className="flex items-center gap-1.5 text-left text-ink hover:text-ent"
+                      >
+                        <span>
+                          <span className="font-mono">{c.conta}</span>{" "}
+                          <span className="text-muted">{c.contaDescr}</span>
+                        </span>
+                        <Pencil className="size-3 shrink-0 opacity-50" />
+                      </button>
+                    );
+                    // No arquivo: devedor → débito na conta, crédito na transitória;
+                    // credor → o contrário. A conta editável fica no lado certo.
+                    const trans = (
+                      <span className="font-mono text-muted">{contaImpl ?? "—"}</span>
+                    );
+                    const dash = <span className="text-muted">—</span>;
+                    const debito = c.natureza === "C" ? trans : contaCell;
+                    const credito =
+                      c.natureza === "C" ? contaCell : c.natureza === "D" ? trans : dash;
                     return (
-                      <tr key={c.origem.chave + i} className="border-t border-hairline align-top">
-                        <td className="px-3 py-2">
+                      <tr
+                        key={c.origem.chave + i}
+                        className="border-b border-hairline align-top [&>td]:px-3 [&>td]:py-2"
+                      >
+                        <td>
                           <div className="font-medium text-ink">{c.origem.descricao}</div>
                           <div className="text-[10px] text-muted">
                             {c.origem.chave}
                             {c.origem.classif ? ` · ${c.origem.classif}` : ""}
                           </div>
                         </td>
-                        <td className="whitespace-nowrap px-3 py-2 text-ink-2">
+                        <td>{debito}</td>
+                        <td>{credito}</td>
+                        <td className="whitespace-nowrap text-muted">{historico ?? "—"}</td>
+                        <td className="max-w-52 truncate text-muted" title={pedeCompl ? complemento : ""}>
+                          {pedeCompl ? complemento || "—" : "—"}
+                        </td>
+                        <td className="whitespace-nowrap text-right text-ink-2">
                           {brl(c.origem.saldo)}{" "}
                           <span className="text-[10px] text-muted">{c.natureza ?? "?"}</span>
                         </td>
-                        <td className="px-3 py-2">
-                          {editar ? (
-                            <ContaDropdown
-                              empresa={empresa}
-                              valor={c.conta}
-                              onMudar={(conta) => escolherConta(i, conta)}
-                              limpavel
-                              largura="w-80"
-                            />
-                          ) : (
-                            <button
-                              onClick={() => setEditando(i)}
-                              className="flex items-center gap-1.5 text-left text-ink hover:text-ent"
-                            >
-                              <span>
-                                <span className="font-mono">{c.conta}</span>{" "}
-                                <span className="text-muted">{c.contaDescr}</span>
-                              </span>
-                              <Pencil className="size-3 shrink-0 opacity-50" />
-                            </button>
-                          )}
-                        </td>
-                        <td className="px-3 py-2">
+                        <td>
                           <span
                             className={clsx(
                               "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium",
@@ -369,9 +363,17 @@ function Kpi({ rotulo, valor, cor }: { rotulo: string; valor: number; cor: strin
   );
 }
 
-function Campo({ rotulo, children }: { rotulo: string; children: React.ReactNode }) {
+function Campo({
+  rotulo,
+  className,
+  children,
+}: {
+  rotulo: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <label className="grid gap-1.5">
+    <label className={clsx("grid gap-1.5", className)}>
       <span className="text-xs font-medium text-ink-2">{rotulo}</span>
       {children}
     </label>
