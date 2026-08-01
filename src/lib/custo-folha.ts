@@ -64,6 +64,7 @@ export async function montarCustoFolha(
   const nome = nomeQ.rows[0]?.nome ?? String(empresa);
 
   const base3 = [empresa, inicio, fim];
+  const base4 = [empresa, inicio, fim, proventos]; // quebras só usam $4 (proventos)
   const base5 = [empresa, inicio, fim, proventos, descontos];
   // Somatório de provento/desconto por linha, reusado em várias queries.
   const somaProv = `sum(case when ce.codigoevento = any($4::int[]) then ce.valorevento else 0 end)::float`;
@@ -156,7 +157,7 @@ export async function montarCustoFolha(
         group by grupo
         having ${somaProv} <> 0
         order by proventos desc`,
-      base5
+      base4
     );
     return q.rows.map((r) => ({
       grupo: r.grupo,
