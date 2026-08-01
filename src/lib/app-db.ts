@@ -1,4 +1,5 @@
 import { Pool, types } from "pg";
+import { envInt } from "./env";
 
 // Mesmos parsers do pool do Questor: DATE como string, numéricos como number
 types.setTypeParser(types.builtins.DATE, (v) => v);
@@ -19,10 +20,10 @@ export const appPool =
   new Pool({
     connectionString:
       process.env.APP_DB_URL ?? "postgres://nexo:nexo@localhost:5022/nexo",
-    max: 10,
-    idleTimeoutMillis: 30_000,
-    connectionTimeoutMillis: 10_000,
-    options: "-c statement_timeout=30000",
+    max: envInt("DB_POOL_MAX", 10),
+    idleTimeoutMillis: envInt("DB_POOL_IDLE_MS", 30_000),
+    connectionTimeoutMillis: envInt("DB_POOL_CONN_MS", 10_000),
+    options: `-c statement_timeout=${envInt("APP_DB_STATEMENT_TIMEOUT_MS", 30_000)}`,
   });
 
 if (process.env.NODE_ENV !== "production") global._appPool = appPool;

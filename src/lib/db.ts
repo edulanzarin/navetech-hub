@@ -1,4 +1,5 @@
 import { Pool, types } from "pg";
+import { envInt } from "./env";
 
 // datalctofis é DATE — manter como string "YYYY-MM-DD" evita deslocamento de fuso
 types.setTypeParser(types.builtins.DATE, (v) => v);
@@ -17,11 +18,11 @@ export const pool =
     database: process.env.QUESTOR_DB_NAME,
     user: process.env.QUESTOR_DB_USER,
     password: process.env.QUESTOR_DB_PASSWORD,
-    max: 10,
-    idleTimeoutMillis: 30_000,
-    connectionTimeoutMillis: 10_000,
+    max: envInt("DB_POOL_MAX", 10),
+    idleTimeoutMillis: envInt("DB_POOL_IDLE_MS", 30_000),
+    connectionTimeoutMillis: envInt("DB_POOL_CONN_MS", 10_000),
     // app é somente leitura: nenhuma query consegue alterar o Questor
-    options: "-c default_transaction_read_only=on -c statement_timeout=60000",
+    options: `-c default_transaction_read_only=on -c statement_timeout=${envInt("QUESTOR_DB_STATEMENT_TIMEOUT_MS", 60_000)}`,
   });
 
 if (process.env.NODE_ENV !== "production") global._questorPool = pool;

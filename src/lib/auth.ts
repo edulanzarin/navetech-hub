@@ -4,6 +4,7 @@ import { promisify } from "node:util";
 import { cookies } from "next/headers";
 import { appQuery } from "./app-db";
 import { COOKIE_SESSAO } from "./cookie-nome";
+import { envInt } from "./env";
 
 /**
  * Autenticação do Hub: hash de senha e ciclo de vida da sessão. Sem dependência
@@ -22,8 +23,8 @@ const scrypt = promisify(scryptCb) as (
 ) => Promise<Buffer>;
 
 export const COOKIE = COOKIE_SESSAO;
-/** Vida da sessão. Cookie roubado morre junto com a linha ao expirar. */
-const DIAS_SESSAO = 30;
+/** Vida da sessão (dias). Cookie roubado morre junto com a linha ao expirar. */
+const DIAS_SESSAO = envInt("SESSAO_DIAS", 30);
 const KEYLEN = 64;
 const SCRYPT_N = 16384; // custo (2^14) — padrão seguro e rápido o bastante no login
 
