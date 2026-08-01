@@ -1,4 +1,4 @@
-import { Gauge, Repeat, Wallet } from "lucide-react";
+import { Gauge, Repeat, ShieldCheck, Wallet } from "lucide-react";
 import type { SecaoFiscal } from "./fiscal-secoes";
 
 /**
@@ -33,6 +33,14 @@ export const SECOES_FOLHA: SecaoFiscal[] = [
     path: "/folha/custo",
     metrica: false,
     descricao: "Quanto a folha custa: proventos por rubrica, tipo e setor",
+  },
+  {
+    id: "esocial",
+    icone: ShieldCheck,
+    rotulo: "eSocial",
+    path: "/folha/esocial",
+    metrica: false,
+    descricao: "Conformidade: eventos aceitos, pendentes e rejeitados",
   },
 ];
 

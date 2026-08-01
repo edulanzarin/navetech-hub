@@ -1228,3 +1228,47 @@ export interface CustoFolhaResp {
   porCargo: CustoGrupo[];
   porEstabelecimento: CustoGrupo[];
 }
+
+// ── Conformidade eSocial (transmissão de eventos ao governo) ──────────────────
+
+/**
+ * Situação de um evento no eSocial (regra prática em [[Módulo de folha e eSocial
+ * do Questor]]): `recibo` preenchido = aceito; sem recibo e status 13 = rejeitado;
+ * sem recibo e sem rejeição = pendente; sem transação nenhuma = não enviado.
+ */
+export type EsocialSituacao = "aceito" | "pendente" | "rejeitado" | "nao_enviado";
+
+/** Panorama de um tipo de evento (S-2200, S-2299…) no período. */
+export interface EventoEsocial {
+  /** Código do evento, ex.: "S-2200". */
+  evento: string;
+  /** Nome legível, ex.: "Admissão". */
+  descricao: string;
+  aceitos: number;
+  pendentes: number;
+  rejeitados: number;
+  total: number;
+}
+
+/** Um contrato cujo evento obrigatório (admissão/rescisão) não foi aceito. */
+export interface PendenciaEsocial {
+  contrato: number;
+  funcionario: string;
+  /** Data do fato (admissão ou desligamento), "YYYY-MM-DD". */
+  data: string;
+  /** `pendente` (transação sem recibo) ou `nao_enviado` (sem transação). */
+  situacao: EsocialSituacao;
+}
+
+/** Resposta da Conformidade eSocial: o panorama e as pendências obrigatórias. */
+export interface ConformidadeEsocialResp {
+  empresa: { codigo: number; nome: string };
+  periodo: { inicio: string; fim: string };
+  resumo: { total: number; aceitos: number; pendentes: number; rejeitados: number };
+  /** Volume por tipo de evento transmitido no período, por situação. */
+  eventos: EventoEsocial[];
+  /** Admitidos no período sem S-2200 aceito. */
+  admissoesPendentes: PendenciaEsocial[];
+  /** Desligados no período sem S-2299 aceito. */
+  rescisoesPendentes: PendenciaEsocial[];
+}

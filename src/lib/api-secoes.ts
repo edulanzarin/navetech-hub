@@ -102,6 +102,8 @@ const MAPA: Record<ModuloId, Record<string, string[]>> = {
     "dp-quebra": ["produtividade"],
     // Custo de Folha (remuneração calculada por rubrica/tipo/setor)
     custo: ["custo"],
+    // Conformidade eSocial (transmissão de eventos)
+    esocial: ["esocial"],
   },
   rh: {
     // Diretório

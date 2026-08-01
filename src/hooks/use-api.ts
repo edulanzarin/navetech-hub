@@ -46,6 +46,7 @@ import type {
   ProvisoesResp,
   AuditoriaResp,
   CustoFolhaResp,
+  ConformidadeEsocialResp,
 } from "@/lib/types";
 import type {
   FuncionarioDiretorio,
@@ -333,6 +334,10 @@ export const useTurnover = (qs: string, enabled = true, modulo: "folha" | "rh" =
 /** Custo de folha: remuneração calculada do período, por rubrica/tipo/setor/mês. */
 export const useCustoFolha = (qs: string, enabled = true) =>
   useApiQuery<CustoFolhaResp>(["custo-folha", qs], `/api/folha/custo?${qs}`, enabled);
+
+/** Conformidade eSocial: panorama por evento + admissões/rescisões pendentes. */
+export const useConformidadeEsocial = (qs: string, enabled = true) =>
+  useApiQuery<ConformidadeEsocialResp>(["esocial", qs], `/api/folha/esocial?${qs}`, enabled);
 
 /** Opções dos filtros da Folha para a empresa (não muda com a seleção). */
 export const useFolhaFiltros = (qs: string, enabled = true) =>
