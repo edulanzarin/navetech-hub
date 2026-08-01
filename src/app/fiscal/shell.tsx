@@ -7,7 +7,8 @@ import { ModuloHeader } from "@/components/modulo-header";
 import { FilterBar } from "@/components/filters/filter-bar";
 import { FiltroPendente } from "@/components/filtro-pendente";
 import { useFiltros } from "@/hooks/use-filters";
-import { limparEstadoSecao } from "@/lib/estado-secao";
+import { limparEstadoDoModulo } from "@/lib/estado-secao";
+import { limparFiltrosDoModulo } from "@/lib/estado-filtros-secao";
 import { secaoAtual } from "@/lib/fiscal-secoes";
 import { dataBR } from "@/lib/format";
 
@@ -17,13 +18,15 @@ export function FiscalShell({ children }: { children: React.ReactNode }) {
   const secao = secaoAtual(pathname);
   const carregando = useIsFetching() > 0;
 
-  // Busca e filtros de tela sobrevivem enquanto se está na seção; sair libera.
-  const secaoPath = secao?.path;
-  useEffect(() => {
-    return () => {
-      if (secaoPath) limparEstadoSecao(secaoPath);
-    };
-  }, [secaoPath]);
+  // Estado de tela e memória de filtro vivem pelo MÓDULO: navegar entre seções
+  // mantém, e só sair do módulo — este shell some no unmount — descarta.
+  useEffect(
+    () => () => {
+      limparEstadoDoModulo("/fiscal");
+      limparFiltrosDoModulo("/fiscal");
+    },
+    []
+  );
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-6">

@@ -2,14 +2,15 @@ import { secaoContabilAtual } from "./contabil-secoes";
 import { secaoAtual } from "./fiscal-secoes";
 
 /**
- * Estado de tela que sobrevive à navegação dentro de uma seção do menu lateral.
+ * Estado de tela que sobrevive à navegação DENTRO de um módulo: trocar de seção
+ * (Conferência -> Balancete -> voltar) mantém o que já estava carregado — busca,
+ * espécies escolhidas, extrato/prévia importados — e só "Trocar módulo" descarta.
+ * É o que evita reescolher tudo e recarregar a cada ida e volta.
  *
- * O fluxo real de uso vai e volta entre as abas de um mesmo assunto — ver uma
- * pendência na Conferência, ajustar o plano na Configuração, voltar. Refazer a
- * busca e os filtros a cada ida e volta é trabalho jogado fora.
- *
- * Sair da seção limpa: o filtro que fazia sentido num assunto não faz no
- * próximo, e voltar dias depois numa tela pré-filtrada esconde dados sem avisar.
+ * A chave carrega a seção (ver `chave`), então cada seção guarda o SEU recorte
+ * sem enxergar o da outra — não há vazamento de um assunto pro próximo. O que
+ * muda com isto é só o tempo de vida: quem descarta é o shell do módulo, no seu
+ * unmount (ver `limparEstadoDoModulo`).
  *
  * Vive num Map de módulo, e não no cache do React Query, porque isto é estado
  * de interface e não resposta de servidor — no React Query, uma chave sem
@@ -46,8 +47,9 @@ export function idDaSecao(pathname: string): string {
 /**
  * A chave é da **página**, não da seção: `busca` na Conferência e `busca` na
  * Configuração são coisas diferentes, ainda que as duas abas pertençam à mesma
- * seção. O que a seção decide é o tempo de vida, não a identidade — por isso ela
- * vem na frente da chave, e limpar a seção alcança as suas páginas todas.
+ * seção. A seção vem na frente só para separar os recortes (uma não vê o da
+ * outra); o tempo de vida é do módulo, e limpar por prefixo do módulo alcança as
+ * páginas de todas as suas seções.
  *
  * Separador é NUL: não aparece em caminho nem em nome de campo, então dois
  * pares diferentes nunca formam a mesma chave.
@@ -72,8 +74,14 @@ export function guardarEstado<T>(
   notificar();
 }
 
-export function limparEstadoSecao(secao: string): void {
-  const prefixo = `${secao}${SEP}`;
+/**
+ * Descarta TODO o estado das seções de um módulo (base = "/contabil", "/fiscal",
+ * "/folha"). Chamado pelo shell no seu unmount, que só acontece ao SAIR do módulo
+ * — é o que faz o estado carregado sobreviver à troca de seção e cair só em
+ * "Trocar módulo". A base casa com o começo do caminho da seção (`/contabil/…`).
+ */
+export function limparEstadoDoModulo(base: string): void {
+  const prefixo = `${base}/`;
   for (const k of estados.keys()) if (k.startsWith(prefixo)) estados.delete(k);
   notificar();
 }
@@ -81,7 +89,7 @@ export function limparEstadoSecao(secao: string): void {
 /**
  * "Esta ABA já foi executada?" — para o resultado de uma aba (Balancete) seguir
  * na tela ao ir noutra aba do mesmo assunto (Análise) e voltar, sem reexecutar.
- * Vive no mesmo Map (mesmo tempo de vida: morre ao sair da seção) sob uma página
+ * Vive no mesmo Map (mesmo tempo de vida: morre ao sair do módulo) sob uma página
  * reservada `exec`. Não notifica: é lido no render do shell, que já re-renderiza
  * ao navegar entre abas.
  */

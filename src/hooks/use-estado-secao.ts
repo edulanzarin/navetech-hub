@@ -11,8 +11,8 @@ import { usePathname } from "next/navigation";
 import { assinarEstado, guardarEstado, idDaSecao, lerEstado } from "@/lib/estado-secao";
 
 /**
- * `useState` que sobrevive à troca de abas dentro da seção e é descartado ao
- * sair dela — quem descarta é o shell, que sabe qual seção está ativa.
+ * `useState` que sobrevive à navegação dentro do MÓDULO (troca de aba e de seção)
+ * e é descartado só ao sair do módulo — quem descarta é o shell, no seu unmount.
  *
  * Seção e página saem do caminho, então a tela só declara o nome do campo, e
  * `campo` só precisa ser único dentro da própria página: duas abas da mesma

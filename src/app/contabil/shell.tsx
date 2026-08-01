@@ -20,7 +20,8 @@ import {
   execucaoDaAba,
   secaoContabilAtual,
 } from "@/lib/contabil-secoes";
-import { abaFoiExecutada, limparEstadoSecao, marcarAbaExecutada } from "@/lib/estado-secao";
+import { abaFoiExecutada, limparEstadoDoModulo, marcarAbaExecutada } from "@/lib/estado-secao";
+import { limparFiltrosDoModulo } from "@/lib/estado-filtros-secao";
 import { dataBR } from "@/lib/format";
 
 // Controles que cada aba põe na linha da barra. O mapa vive aqui (e não no
@@ -41,20 +42,24 @@ export function ContabilShell({ children }: { children: React.ReactNode }) {
   const abas = abasDaSecao(pathname);
   const carregando = useIsFetching() > 0;
 
-  // Busca, filtros e extrato carregado valem enquanto se está na seção (trocar
-  // de aba mantém). Sair da seção — ou do módulo — libera tudo.
+  // Busca, extrato carregado e memória de filtro valem pelo MÓDULO inteiro:
+  // trocar de seção (ou de aba) mantém, e só "Trocar módulo" — quando este shell
+  // sai do ar — descarta. Antes limpava a cada troca de seção, o que obrigava a
+  // reescolher tudo e recarregar ao voltar.
   const secaoPath = secao?.path;
-  useEffect(() => {
-    return () => {
-      if (secaoPath) limparEstadoSecao(secaoPath);
-    };
-  }, [secaoPath]);
+  useEffect(
+    () => () => {
+      limparEstadoDoModulo("/contabil");
+      limparFiltrosDoModulo("/contabil");
+    },
+    []
+  );
   const usaPeriodo = abaUsaPeriodo(pathname);
   const periodoMensal = abaUsaPeriodoMensal(pathname);
   const execucao = execucaoDaAba(pathname);
 
-  // Quando uma aba executa (aplicado), lembra disso pela vida da seção — assim
-  // ir noutra aba do mesmo assunto e voltar mantém o resultado, sem reexecutar.
+  // Quando uma aba executa (aplicado), lembra disso pela vida do módulo — assim
+  // ir noutra aba (ou seção) e voltar mantém o resultado, sem reexecutar.
   const abaId = aba?.id;
   useEffect(() => {
     if (aplicado && secaoPath && abaId) marcarAbaExecutada(secaoPath, abaId);

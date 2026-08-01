@@ -8,7 +8,8 @@ import { ConfFilterBar } from "@/components/filters/conf-filter-bar";
 import { FiltroPendente } from "@/components/filtro-pendente";
 import { ProdutividadeMenus, ProdutividadeTabsProvider } from "@/app/folha/produtividade/tabs";
 import { useFiltros } from "@/hooks/use-filters";
-import { limparEstadoSecao } from "@/lib/estado-secao";
+import { limparEstadoDoModulo } from "@/lib/estado-secao";
+import { limparFiltrosDoModulo } from "@/lib/estado-filtros-secao";
 import { secaoFolhaAtual } from "@/lib/folha-secoes";
 import { dataBR } from "@/lib/format";
 
@@ -18,13 +19,15 @@ export function FolhaShell({ children }: { children: React.ReactNode }) {
   const secao = secaoFolhaAtual(pathname);
   const carregando = useIsFetching() > 0;
 
-  // Filtros de tela sobrevivem enquanto se está na seção; sair libera.
-  const secaoPath = secao?.path;
-  useEffect(() => {
-    return () => {
-      if (secaoPath) limparEstadoSecao(secaoPath);
-    };
-  }, [secaoPath]);
+  // Estado de tela e memória de filtro vivem pelo MÓDULO: navegar entre seções
+  // mantém, e só sair do módulo — este shell some no unmount — descarta.
+  useEffect(
+    () => () => {
+      limparEstadoDoModulo("/folha");
+      limparFiltrosDoModulo("/folha");
+    },
+    []
+  );
 
   const ehProdutividade = secao?.id === "produtividade";
 
