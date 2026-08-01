@@ -1272,3 +1272,53 @@ export interface ConformidadeEsocialResp {
   /** Desligados no período sem S-2299 aceito. */
   rescisoesPendentes: PendenciaEsocial[];
 }
+
+// ── Controle de Férias (períodos aquisitivos × gozados) ───────────────────────
+
+/**
+ * Situação de férias de um funcionário, pelo período aquisitivo em aberto mais
+ * crítico. `vencida` = concessivo esgotado (risco de pagamento em dobro);
+ * `a_vencer` = limite de concessão próximo; `adquirida` = tem direito, prazo
+ * folgado; `em_dia` = nada em aberto (tudo gozado ou < 12 meses de casa).
+ */
+export type FeriasSituacao = "vencida" | "a_vencer" | "adquirida" | "em_dia";
+
+/** Controle de férias de um funcionário ativo (derivado de dataadm × reciboferias). */
+export interface FeriasFuncionario {
+  contrato: number;
+  funcionario: string;
+  admissao: string;
+  situacao: FeriasSituacao;
+  /** Períodos aquisitivos completos e não gozados (direito acumulado). */
+  periodosAbertos: number;
+  /** Destes, quantos com o concessivo já esgotado (dobro). */
+  periodosVencidos: number;
+  /** Início do período aquisitivo em aberto mais crítico, "YYYY-MM-DD". */
+  aquisitivoInicio: string | null;
+  /** Fim desse período aquisitivo (quando o direito se completou). */
+  aquisitivoFim: string | null;
+  /** Data limite para conceder sem dobro (fim do aquisitivo + 12 meses). */
+  limiteConcessao: string | null;
+  /** Dias até o limite (negativo = já vencido). */
+  diasParaLimite: number | null;
+  /** Fim das últimas férias gozadas, "YYYY-MM-DD" (null se nunca gozou). */
+  ultimasFerias: string | null;
+}
+
+/** Resposta do Controle de Férias: foto na data de referência. */
+export interface ControleFeriasResp {
+  empresa: { codigo: number; nome: string };
+  /** Data de referência do cálculo (o fim do período do filtro). */
+  referencia: string;
+  resumo: {
+    ativos: number;
+    /** Funcionários com ao menos um período vencido. */
+    comVencidas: number;
+    /** Funcionários com ao menos um período a vencer (e nenhum vencido). */
+    aVencer: number;
+    /** Total de períodos vencidos na empresa (o passivo a zerar). */
+    periodosVencidos: number;
+  };
+  /** Ordenados por criticidade (mais vencido primeiro). */
+  funcionarios: FeriasFuncionario[];
+}

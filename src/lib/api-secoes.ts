@@ -104,6 +104,8 @@ const MAPA: Record<ModuloId, Record<string, string[]>> = {
     custo: ["custo"],
     // Conformidade eSocial (transmissão de eventos)
     esocial: ["esocial"],
+    // Controle de férias (vencidas / a vencer)
+    ferias: ["ferias"],
   },
   rh: {
     // Diretório

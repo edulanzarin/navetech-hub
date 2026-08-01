@@ -47,6 +47,7 @@ import type {
   AuditoriaResp,
   CustoFolhaResp,
   ConformidadeEsocialResp,
+  ControleFeriasResp,
 } from "@/lib/types";
 import type {
   FuncionarioDiretorio,
@@ -338,6 +339,10 @@ export const useCustoFolha = (qs: string, enabled = true) =>
 /** Conformidade eSocial: panorama por evento + admissões/rescisões pendentes. */
 export const useConformidadeEsocial = (qs: string, enabled = true) =>
   useApiQuery<ConformidadeEsocialResp>(["esocial", qs], `/api/folha/esocial?${qs}`, enabled);
+
+/** Controle de férias: quem tem férias vencidas (dobro) ou a vencer. */
+export const useControleFerias = (qs: string, enabled = true) =>
+  useApiQuery<ControleFeriasResp>(["ferias", qs], `/api/folha/ferias?${qs}`, enabled);
 
 /** Opções dos filtros da Folha para a empresa (não muda com a seleção). */
 export const useFolhaFiltros = (qs: string, enabled = true) =>
