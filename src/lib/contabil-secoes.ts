@@ -1,4 +1,4 @@
-import { ClipboardCheck, FileSpreadsheet, Import, Landmark, Scale, ScanSearch, Table2 } from "lucide-react";
+import { ClipboardCheck, FileSpreadsheet, Import, Landmark, ListChecks, Scale, ScanSearch, Table2 } from "lucide-react";
 import type { SecaoFiscal } from "./fiscal-secoes";
 
 /**
@@ -200,6 +200,27 @@ export const SECOES_CONTABIL: SecaoContabil[] = [
         path: "/contabil/auditoria",
         descricao:
           "Conta sintética, conta fora do plano, sem histórico, ajuste de período anterior, manual em conta de controle e partida repetida",
+        execucao: "Executar",
+      },
+    ],
+  },
+  {
+    id: "pendencias",
+    rotulo: "Central de Pendências",
+    icone: ListChecks,
+    path: "/contabil/pendencias",
+    metrica: false,
+    descricao: "Fila única de exceções — Conferência + Auditoria — com triagem",
+    // Uma tela só: junta as pendências da Conferência (notas) e os achados da
+    // Auditoria (lançamentos) numa fila com estado de triagem. Roda uma empresa
+    // por vez sobre o período, como as duas telas de origem — botão "Executar".
+    abas: [
+      {
+        id: "pendencias",
+        rotulo: "Pendências",
+        path: "/contabil/pendencias",
+        descricao:
+          "Notas não contabilizadas ou na conta errada + lançamentos anômalos, para resolver ou ignorar",
         execucao: "Executar",
       },
     ],

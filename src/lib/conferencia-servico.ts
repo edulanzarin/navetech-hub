@@ -174,15 +174,27 @@ export interface Opcoes {
   pagina: number;
 }
 
-export async function conferir(
+/**
+ * Núcleo da conferência: confere TODAS as notas do período de um lado
+ * (ent/sai), SEM filtro de tela nem paginação, e devolve o resumo + a lista
+ * inteira. É o que a Central de Pendências consome direto; a `conferir` (tela)
+ * pagina e filtra por cima.
+ */
+export async function conferirTudo(
   client: PoolClient,
   empresa: number,
   inicio: string,
   fim: string,
   estabs: number[],
-  o: Opcoes
-): Promise<ConferenciaResp> {
-  const c = o.tipo === "ent" ? ENT : SAI;
+  tipo: "ent" | "sai"
+): Promise<{
+  resumo: ConfResumo;
+  conferidas: NotaConferida[];
+  truncado: boolean;
+  /** cfop → descrição, para as facetas da tela (a Central de Pendências ignora). */
+  descrCfop: Map<number, string>;
+}> {
+  const c = tipo === "ent" ? ENT : SAI;
   const params = [empresa, inicio, fim];
   // Filial: recorta os scans de FATO (notas e a consolidação MOV). Os scans "por
   // chave" (lctoctb/itens) seguem as notas já filtradas, então não precisam. O
@@ -220,7 +232,8 @@ export async function conferir(
     truncado: false,
     facetas: { especies: [], cfops: [] },
   };
-  if (!notas.length) return vazio;
+  if (!notas.length)
+    return { resumo: vazio.resumo, conferidas: [], truncado: false, descrCfop: new Map() };
 
   const chaves = notas.map((n) => n.chave);
 
@@ -471,6 +484,31 @@ export async function conferir(
       consolidacao,
     });
   }
+
+  return { resumo, conferidas, truncado, descrCfop };
+}
+
+/**
+ * Conferência da TELA: roda `conferirTudo` e aplica situação/busca/espécie/
+ * CFOP, facetas e paginação por cima. Assinatura preservada — é o que a rota
+ * de Conferência e o Fechamento mensal consomem.
+ */
+export async function conferir(
+  client: PoolClient,
+  empresa: number,
+  inicio: string,
+  fim: string,
+  estabs: number[],
+  o: Opcoes
+): Promise<ConferenciaResp> {
+  const { resumo, conferidas, truncado, descrCfop } = await conferirTudo(
+    client,
+    empresa,
+    inicio,
+    fim,
+    estabs,
+    o.tipo
+  );
 
   // ---- filtros ----
   // A busca livre não procura CFOP: CFOP tem filtro próprio, e ter os dois

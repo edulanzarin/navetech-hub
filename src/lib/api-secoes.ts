@@ -87,6 +87,8 @@ const MAPA: Record<ModuloId, Record<string, string[]>> = {
     implantacao: ["implantacao"],
     // Auditoria de lançamentos (varredura do lctoctb; seção própria)
     auditoria: ["auditoria"],
+    // Central de Pendências (Conferência + Auditoria numa fila; triagem grava no app-db)
+    pendencias: ["pendencias"],
     // Lookup de contas: usado na Configuração, na Conciliação e na Implantação
     contas: ["conferencia", "conciliacao", "implantacao"],
   },

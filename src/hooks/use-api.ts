@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { mutar } from "./mutar";
 import type {
   Empresa,
   Filial,
@@ -29,6 +30,7 @@ import type {
   ConformidadeEmpresa,
   TributosCargaEmpresa,
   ConferenciaResp,
+  PendenciasResp,
   TurnoverResp,
   FolhaFiltros,
   FolhaMovimentacao,
@@ -425,6 +427,29 @@ export const useProvisoes = (qs: string, enabled = true) =>
 /** Auditoria: lançamentos com anomalia no período, agrupados por tipo de achado. */
 export const useAuditoria = (qs: string, enabled = true) =>
   useApiQuery<AuditoriaResp>(["auditoria", qs], `/api/contabil/auditoria?${qs}`, enabled);
+
+/** Central de Pendências: Conferência + Auditoria numa fila só, com a triagem. */
+export const usePendencias = (qs: string, enabled = true) =>
+  useApiQuery<PendenciasResp>(["pendencias", qs], `/api/contabil/pendencias?${qs}`, enabled);
+
+/**
+ * Triar uma pendência (resolver/ignorar/reabrir): grava e invalida a fila para
+ * refletir o novo estado. O componente cuida do "gravando" por linha e do toast.
+ */
+export function useTriarPendencia() {
+  const qc = useQueryClient();
+  return (input: {
+    empresa: number;
+    fonte: string;
+    chave: string;
+    tipo: string;
+    status: "resolvido" | "ignorado" | "reabrir";
+    observacao?: string;
+  }) =>
+    mutar("/api/contabil/pendencias/triagem", "POST", input).then(() =>
+      qc.invalidateQueries({ queryKey: ["pendencias"] })
+    );
+}
 
 export const useBalanceteFiscal = (qs: string, enabled = true) =>
   useApiQuery<BalanceteFiscalResp>(

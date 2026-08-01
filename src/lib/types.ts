@@ -1161,6 +1161,69 @@ export interface AuditoriaResp {
   };
 }
 
+// ── Central de Pendências (Conferência + Auditoria numa fila só, com triagem) ──
+
+/** Fonte de um achado na Central: a Conferência Fiscal ou a Auditoria de Lançamentos. */
+export type FontePendencia = "conferencia" | "auditoria";
+
+/** Estado de triagem gravado no banco do app para um achado. */
+export interface TriagemInfo {
+  status: "resolvido" | "ignorado";
+  observacao: string | null;
+  /** Nome de quem triou (snapshot). */
+  usuario: string;
+  /** atualizado_em, "YYYY-MM-DDTHH:MI". */
+  em: string;
+}
+
+/**
+ * Uma linha da Central de Pendências: um achado da Conferência (nota com
+ * problema) ou da Auditoria (lançamento com anomalia), já com o estado de
+ * triagem quando houver. Os achados são recalculados ao vivo (read-only); só a
+ * triagem persiste. Identidade estável = (fonte, chave, tipo).
+ */
+export interface Pendencia {
+  fonte: FontePendencia;
+  /** Id estável p/ triagem: ME<chave>/MS<chave> (conferência) ou chavelctoctb (auditoria). */
+  chave: string;
+  /** A situação (conferência) ou o TipoAchado (auditoria). */
+  tipo: string;
+  /** Rótulo humano do problema (ex.: "Não contabilizada", "Conta sintética"). */
+  titulo: string;
+  severidade: "alta" | "media";
+  valor: number;
+  data: string | null;
+  /** Linha-resumo: contraparte + nº da nota, ou as contas do lançamento. */
+  descricao: string;
+  /** Só conferência: o lado, para reabrir a nota no detalhe. */
+  lado?: "ent" | "sai";
+  /** Só conferência: a nota inteira, que alimenta o NotaDetalheModal. */
+  nota?: NotaConferida;
+  /** Só auditoria: o lançamento anômalo (a memória de cálculo do detalhe). */
+  lancamento?: LancamentoAchado;
+  /** Estado de triagem, ou null quando ainda aberta. */
+  triagem: TriagemInfo | null;
+}
+
+/** Resposta da Central de Pendências: a fila do período + um resumo. */
+export interface PendenciasResp {
+  empresa: { codigo: number; nome: string };
+  periodo: { inicio: string; fim: string };
+  /** Todos os achados do período (abertos e triados), já ordenados. */
+  itens: Pendencia[];
+  resumo: {
+    total: number;
+    /** Sem triagem — ainda exigem ação. */
+    abertas: number;
+    /** Já resolvidas ou ignoradas. */
+    tratadas: number;
+    /** Soma do valor das abertas. */
+    valorAberto: number;
+    /** Abertas de severidade alta. */
+    alta: number;
+  };
+}
+
 // ── Custo de Folha (calculoevento por competência) ────────────────────────────
 
 /** Uma rubrica (evento) com o quanto rendeu no período. */
