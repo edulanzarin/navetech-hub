@@ -53,7 +53,7 @@ export const SECOES_RH: SecaoFiscal[] = [
   {
     id: "clima",
     icone: Gauge,
-    rotulo: "Clima",
+    rotulo: "Avaliações",
     path: "/rh/clima",
     metrica: false,
     descricao: "Avaliação anônima da empresa: eNPS, temas e comentários",
