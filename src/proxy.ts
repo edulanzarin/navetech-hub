@@ -19,8 +19,13 @@ export function proxy(req: NextRequest) {
 
 export const config = {
   // Tudo, exceto: rotas de API, assets do Next, o próprio /login, os formulários
-  // PÚBLICOS por token (`/f/...` unificado e o legado `/experiencia/...`,
-  // respondidos sem login) e arquivos estáticos com extensão (logo, favicon...).
-  // `f/` leva a barra de propósito: sem ela, pegaria /fiscal e /folha.
-  matcher: ["/((?!api|_next/static|_next/image|login|experiencia|f/|.*\\.[\\w]+$).*)"],
+  // PÚBLICOS por token (`/f/...` unificado e o legado `/experiencia/...`), o canal
+  // ANÔNIMO do RH (`/denuncia...` e `/clima/...`, acessados por link sem login) e
+  // arquivos estáticos com extensão (logo, favicon...). `f/` leva a barra de
+  // propósito: sem ela, pegaria /fiscal e /folha. `denuncia`/`clima` ficam sem
+  // barra e só batem no início do path — `/rh/denuncias` e `/rh/clima` seguem
+  // protegidos (começam com `rh`).
+  matcher: [
+    "/((?!api|_next/static|_next/image|login|experiencia|f/|denuncia|clima|.*\\.[\\w]+$).*)",
+  ],
 };
