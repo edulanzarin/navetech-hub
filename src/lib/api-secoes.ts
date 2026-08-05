@@ -122,6 +122,10 @@ const MAPA: Record<ModuloId, Record<string, string[]>> = {
     // Formulários (builder) e campanhas de envio
     formularios: ["formularios"],
     envios: ["formularios"],
+    // Canal de denúncia (fila + tratativa + dashboard). Sub-rotas casam pelo 1º segmento.
+    denuncias: ["denuncias"],
+    // Clima (avaliação anônima): rodadas + dashboard.
+    clima: ["clima"],
     // Gestores
     gestores: ["gestores"],
     // Rotatividade (reusa libs da Folha, rotas próprias do módulo)

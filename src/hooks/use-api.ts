@@ -61,6 +61,8 @@ import type { Formulario, FormularioResumo } from "@/lib/formularios-tipos";
 import type { DpResumo, DpLinha, DpQuebra, DpTipo } from "@/lib/dp-tipos";
 import type { EnvioDetalhe, EnvioResumo } from "@/lib/envios";
 import type { RespostaExperienciaDetalhe } from "@/lib/rh-experiencia-dados";
+import type { DenunciaDashboard, DenunciaDetalhe, DenunciaResumo } from "@/lib/denuncia-tipos";
+import type { ClimaDashboard, RodadaResumo } from "@/lib/clima-tipos";
 
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -641,3 +643,23 @@ export const useExperienciaResposta = (id: number | null) =>
 export const useEnvios = () => useApiQuery<EnvioResumo[]>(["rh-envios"], `/api/rh/envios`);
 export const useEnvio = (id: number | null) =>
   useApiQuery<EnvioDetalhe>(["rh-envio", id], `/api/rh/envios?id=${id}`, id != null);
+
+// ── Canal de denúncia + Clima (avaliação anônima) ────────────────────────────
+
+export interface DenunciasResp {
+  denuncias: DenunciaResumo[];
+  dashboard: DenunciaDashboard;
+}
+/** Fila de denúncias + mini-dashboard (aceita ?status=&categoria= no qs). */
+export const useDenuncias = (qs = "") =>
+  useApiQuery<DenunciasResp>(["rh-denuncias", qs], `/api/rh/denuncias${qs ? `?${qs}` : ""}`);
+/** Detalhe de uma denúncia (relato + thread), para o painel de tratativa. */
+export const useDenuncia = (id: number | null) =>
+  useApiQuery<DenunciaDetalhe>(["rh-denuncia", id], `/api/rh/denuncias?id=${id}`, id != null);
+
+/** Rodadas de clima (lista com contagem de respostas). */
+export const useRodadasClima = () =>
+  useApiQuery<{ rodadas: RodadaResumo[] }>(["rh-clima-rodadas"], `/api/rh/clima`);
+/** Dashboard de uma rodada de clima (eNPS, temas, distribuição, comentários). */
+export const useClimaDashboard = (id: number | null) =>
+  useApiQuery<ClimaDashboard>(["rh-clima", id], `/api/rh/clima?id=${id}`, id != null);

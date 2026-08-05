@@ -1,4 +1,4 @@
-import { CalendarClock, FileText, Repeat, UserCog, Users } from "lucide-react";
+import { CalendarClock, FileText, Gauge, Repeat, ShieldAlert, UserCog, Users } from "lucide-react";
 import type { SecaoFiscal } from "./fiscal-secoes";
 
 /**
@@ -41,6 +41,22 @@ export const SECOES_RH: SecaoFiscal[] = [
     path: "/rh/rotatividade",
     metrica: false,
     descricao: "Turnover das empresas do RH",
+  },
+  {
+    id: "denuncias",
+    icone: ShieldAlert,
+    rotulo: "Denúncias",
+    path: "/rh/denuncias",
+    metrica: false,
+    descricao: "Canal anônimo de denúncia: fila, tratativa e status",
+  },
+  {
+    id: "clima",
+    icone: Gauge,
+    rotulo: "Clima",
+    path: "/rh/clima",
+    metrica: false,
+    descricao: "Avaliação anônima da empresa: eNPS, temas e comentários",
   },
   {
     id: "gestores",
