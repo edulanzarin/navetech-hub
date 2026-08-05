@@ -45,7 +45,7 @@ export default function Conteudo() {
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-sm font-semibold text-ink">Canal público de denúncia</h2>
-            <p className="text-xs text-muted">Divulgue este link (mural, comunicado). O acesso é anônimo.</p>
+            <p className="text-xs text-muted">Divulgue este link no comunicado interno / intranet. O acesso é anônimo.</p>
           </div>
           <button
             onClick={() => setMostrarLink((v) => !v)}

@@ -104,7 +104,7 @@ export default function Conteudo() {
           <div className="mt-3">
             <p className="mb-1.5 text-xs text-muted">
               {rodadaSel.status === "aberta"
-                ? "Link público desta rodada (divulgue no mural / comunicado):"
+                ? "Link público desta rodada (divulgue no comunicado interno / intranet):"
                 : "Rodada fechada — o link não aceita novas respostas."}
             </p>
             <LinkPublico caminho={`/clima/${rodadaSel.slug}`} />
