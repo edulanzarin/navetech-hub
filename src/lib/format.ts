@@ -28,6 +28,20 @@ export function dataBR(iso: string | null | undefined): string {
   return `${d}/${m}/${y}`;
 }
 
+const dataHoraFmt = new Intl.DateTimeFormat("pt-BR", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+/** Data + hora a partir de um ISO/timestamp. Só em client (usa fuso local). */
+export function dataHoraBR(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  return dataHoraFmt.format(new Date(iso));
+}
+
 export function mesBR(iso: string): string {
   const [y, m] = iso.split("-");
   const nomes = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
