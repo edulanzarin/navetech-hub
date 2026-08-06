@@ -5,7 +5,7 @@ import { enviarEmail } from "./mailer";
 import { carregarFormulario } from "./formularios";
 import type { Formulario, RespostaValores } from "./formularios-tipos";
 import { gerarToken, gestoresDoSetor } from "./rh-experiencia-dados";
-import { appUrl } from "./rh";
+import { appUrl } from "./app-url";
 
 /**
  * Campanhas de envio de formulário (o caminho "outros formulários"): a RH escolhe
@@ -168,7 +168,7 @@ export async function dispararEnvio(envioId: number): Promise<number> {
       console.error("[envio] destinatário sem e-mail para envio", d.id);
       continue;
     }
-    const link = `${appUrl()}/f/${d.token}`;
+    const link = `${await appUrl()}/f/${d.token}`;
     const { assunto, html } = emailFormulario({
       titulo: env.titulo,
       mensagem: env.mensagem,

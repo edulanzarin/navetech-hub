@@ -5,7 +5,8 @@ import { appQuery } from "./app-db";
 import { enviarEmail } from "./mailer";
 import { carregarFormulario } from "./formularios";
 import type { Formulario, RespostaValores } from "./formularios-tipos";
-import { EMPRESAS_RH, nomeEmpresaRh, appUrl } from "./rh";
+import { appUrl } from "./app-url";
+import { EMPRESAS_RH, nomeEmpresaRh } from "./rh";
 import { MARCOS, rotuloMarco, type Marco, type StatusExperiencia } from "./rh-experiencia";
 import type { ExperienciaItem } from "./rh-tipos";
 
@@ -177,7 +178,7 @@ export function vencimentoMarco(dataadm: string, marco: Marco): string {
 }
 
 /** Corpo do e-mail do formulário de experiência (HTML simples, inline). */
-export function emailExperiencia(params: {
+export async function emailExperiencia(params: {
   funcionario: string;
   empresa: number;
   cargo: string | null;
@@ -186,8 +187,8 @@ export function emailExperiencia(params: {
   vencimento: string; // YYYY-MM-DD
   token: string;
   atrasado?: boolean;
-}): { assunto: string; html: string } {
-  const link = `${appUrl()}/f/${params.token}`;
+}): Promise<{ assunto: string; html: string }> {
+  const link = `${await appUrl()}/f/${params.token}`;
   const venc = formatarData(params.vencimento);
   const marcoTxt = rotuloMarco(params.marco);
   const urgencia = params.atrasado
@@ -539,7 +540,7 @@ export async function enviarFormularioExperiencia(opts: {
   }
 
   const atrasado = diasEntre(hojeISO(), vencimento) < 0;
-  const { assunto, html } = emailExperiencia({
+  const { assunto, html } = await emailExperiencia({
     funcionario: c.nome,
     empresa: c.codigoempresa,
     cargo: c.cargo,

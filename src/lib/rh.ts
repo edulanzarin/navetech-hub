@@ -30,8 +30,3 @@ export function empresasDoFiltro(empresa: string | null): number[] {
   const cod = Number(empresa);
   return empresa && ehEmpresaRh(cod) ? [cod] : [...EMPRESAS_RH];
 }
-
-/** URL base do app, para montar links públicos (formulário de experiência). */
-export function appUrl(): string {
-  return (process.env.APP_URL ?? "http://localhost:4022").replace(/\/+$/, "");
-}
